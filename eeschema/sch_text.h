@@ -59,6 +59,17 @@ public:
         return _( "Text" );
     }
 
+    /**
+     * Serialize this text item to a kiapi.schematic.types.Text protobuf message.
+     */
+    void Serialize( google::protobuf::Any& aContainer ) const override;
+
+    /**
+     * Deserialize a kiapi.schematic.types.Text protobuf message into this item.
+     * @return true if unpacking and deserialization succeeded
+     */
+    bool Deserialize( const google::protobuf::Any& aContainer ) override;
+
     KIFONT::FONT* GetDrawFont( const RENDER_SETTINGS* aSettings ) const override;
 
     virtual wxString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,

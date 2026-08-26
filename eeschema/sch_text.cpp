@@ -50,6 +50,41 @@
 #include <markup_parser.h>
 #include <properties/property.h>
 #include <properties/property_mgr.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
+
+
+void SCH_TEXT::Serialize( google::protobuf::Any& aContainer ) const
+{
+    kiapi::schematic::types::Text text;
+
+    text.mutable_text()->set_text( GetText().ToStdString() );
+    kiapi::common::PackVector2( *text.mutable_text()->mutable_position(), GetPosition() );
+    text.mutable_text()->mutable_attributes()->mutable_size()->set_x_nm( GetTextWidth() );
+    text.mutable_text()->mutable_attributes()->mutable_size()->set_y_nm( GetTextHeight() );
+
+    aContainer.PackFrom( text );
+}
+
+
+bool SCH_TEXT::Deserialize( const google::protobuf::Any& aContainer )
+{
+    kiapi::schematic::types::Text text;
+
+    if( !aContainer.UnpackTo( &text ) )
+        return false;
+
+    SetText( wxString::FromUTF8( text.text().text() ) );
+    SetPosition( kiapi::common::UnpackVector2( text.text().position() ) );
+
+    if( text.text().has_attributes() && text.text().attributes().has_size() )
+    {
+        SetTextSize( VECTOR2I( text.text().attributes().size().x_nm(),
+                               text.text().attributes().size().y_nm() ) );
+    }
+
+    return true;
+}
 
 
 SCH_TEXT::SCH_TEXT( const VECTOR2I& aPos, const wxString& aText, SCH_LAYER_ID aLayer, KICAD_T aType ) :

@@ -67,6 +67,15 @@ private:
     HANDLER_RESULT<commands::GetOpenDocumentsResponse> handleGetOpenDocuments(
             const HANDLER_CONTEXT<commands::GetOpenDocuments>& aCtx );
 
+    /**
+     * Create a schematic symbol, resolving its LIB_SYMBOL from the project's
+     * symbol library table.  The library symbol cannot be resolved by the item
+     * itself, so this must happen here where the frame (and thus the project)
+     * is available.
+     */
+    HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> createSymbolFromAny(
+            const google::protobuf::Any& aAny, EDA_ITEM* aContainer );
+
     SCH_EDIT_FRAME* m_frame;
 };
 

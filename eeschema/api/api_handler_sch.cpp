@@ -27,6 +27,12 @@
 #include <wx/filename.h>
 
 #include <api/common/types/base_types.pb.h>
+#include <api/schematic/schematic_types.pb.h>
+#include <io/io_error.h>
+#include <lib_id.h>
+#include <libraries/symbol_library_adapter.h>
+#include <project_sch.h>
+#include <sch_symbol.h>
 
 using namespace kiapi::common::commands;
 using kiapi::common::types::CommandStatus;
@@ -131,6 +137,59 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
 }
 
 
+HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createSymbolFromAny(
+        const google::protobuf::Any& aAny, EDA_ITEM* aContainer )
+{
+    ApiResponseStatus e;
+
+    kiapi::schematic::types::Symbol symbol;
+
+    if( !aAny.UnpackTo( &symbol ) )
+    {
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "could not unpack kiapi.schematic.types.Symbol from request" );
+        return tl::unexpected( e );
+    }
+
+    LIB_ID libId( wxString::FromUTF8( symbol.lib_id().library_nickname().c_str() ),
+                  wxString::FromUTF8( symbol.lib_id().entry_name().c_str() ) );
+
+    if( !libId.IsValid() )
+    {
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "invalid LIB_ID in symbol request" );
+        return tl::unexpected( e );
+    }
+
+    SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &m_frame->Prj() );
+
+    LIB_SYMBOL* libSymbol = nullptr;
+
+    try
+    {
+        if( adapter )
+            libSymbol = adapter->LoadSymbol( libId );
+    }
+    catch( const IO_ERROR& )
+    {
+        libSymbol = nullptr;
+    }
+
+    if( !libSymbol )
+    {
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( wxString::Format( "could not load symbol %s from library %s",
+                                               libId.GetLibItemName(),
+                                               libId.GetLibNickname() ) );
+        return tl::unexpected( e );
+    }
+
+    VECTOR2I pos = kiapi::common::UnpackVector2( symbol.position() );
+
+    return std::make_unique<SCH_SYMBOL>( *libSymbol, libId, nullptr, 1, 0, pos );
+}
+
+
 HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsInternal( bool aCreate,
         const std::string& aClientName,
         const types::ItemHeader &aHeader,
@@ -209,8 +268,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
             continue;
         }
 
-        HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> creationResult =
-                createItemForType( *type, container );
+        HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> creationResult;
+
+        // Schematic symbols need to be resolved from the symbol library table
+        // before they can be constructed (the item itself cannot access the library).
+        if( *type == SCH_SYMBOL_T )
+            creationResult = createSymbolFromAny( anyItem, container );
+        else
+            creationResult = createItemForType( *type, container );
 
         if( !creationResult )
         {

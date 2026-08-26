@@ -26,6 +26,15 @@ import "common/types/base_types.proto";
 enum SchematicLayer
 {
   SL_UNKNOWN = 0;
+
+  // Corresponds to SCH_LAYER_ID::LAYER_WIRE
+  SL_WIRE = 1;
+
+  // Corresponds to SCH_LAYER_ID::LAYER_BUS
+  SL_BUS = 2;
+
+  // Corresponds to SCH_LAYER_ID::LAYER_NOTES
+  SL_NOTES = 3;
 }
 
 /// Represents a schematic line segment, which may be a wire, bus, or graphical line
@@ -72,4 +81,27 @@ message DirectiveLabel
   kiapi.common.types.KIID    id       = 1;
   kiapi.common.types.Vector2 position = 2;
   Text                       text     = 3;
+}
+
+/// A name/value pair for a schematic symbol field (e.g. "Reference", "Value")
+message Field
+{
+  string name = 1;
+  string value = 2;
+}
+
+/// Represents a schematic symbol (component instance) placed on a schematic.
+/// The library symbol is resolved by lib_id when the item is created.
+message Symbol
+{
+  kiapi.common.types.KIID id = 1;
+
+  // Position of the symbol on the schematic, in nanometers
+  kiapi.common.types.Vector2 position = 2;
+
+  // The LIB_ID of the symbol to instantiate (e.g. nickname "Device", name "R")
+  kiapi.common.types.LibraryIdentifier lib_id = 3;
+
+  // Fields to set on the created symbol (Reference, Value, custom fields)
+  repeated Field fields = 4;
 }

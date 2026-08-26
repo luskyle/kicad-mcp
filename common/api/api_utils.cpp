@@ -20,6 +20,7 @@
 
 #include <magic_enum.hpp>
 #include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
 #include <geometry/shape_poly_set.h>
 #include <kiid.h>
 #include <wx/log.h>
@@ -47,6 +48,14 @@ KICOMMON_API std::optional<KICAD_T> TypeNameFromAny( const google::protobuf::Any
         { "type.googleapis.com/kiapi.board.types.Group", PCB_GROUP_T },
         { "type.googleapis.com/kiapi.board.types.Field", PCB_FIELD_T },
         { "type.googleapis.com/kiapi.board.types.FootprintInstance", PCB_FOOTPRINT_T },
+
+        { "type.googleapis.com/kiapi.schematic.types.Text", SCH_TEXT_T },
+        { "type.googleapis.com/kiapi.schematic.types.Line", SCH_LINE_T },
+        { "type.googleapis.com/kiapi.schematic.types.LocalLabel", SCH_LABEL_T },
+        { "type.googleapis.com/kiapi.schematic.types.GlobalLabel", SCH_GLOBAL_LABEL_T },
+        { "type.googleapis.com/kiapi.schematic.types.HierarchicalLabel", SCH_HIER_LABEL_T },
+        { "type.googleapis.com/kiapi.schematic.types.DirectiveLabel", SCH_DIRECTIVE_LABEL_T },
+        { "type.googleapis.com/kiapi.schematic.types.Symbol", SCH_SYMBOL_T },
     };
 
     auto it = s_types.find( aMessage.type_url() );

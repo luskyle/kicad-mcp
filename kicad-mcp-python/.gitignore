@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 生成的 protobuf 绑定（可随时用 gen_proto.sh 重新生成）
+src/kicad_mcp/proto/
+
+# 测试/运行产物
+*.log

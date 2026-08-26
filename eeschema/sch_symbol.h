@@ -118,6 +118,19 @@ public:
     }
 
     /**
+     * Serialize this symbol to a kiapi.schematic.types.Symbol protobuf message.
+     */
+    void Serialize( google::protobuf::Any& aContainer ) const override;
+
+    /**
+     * Deserialize a kiapi.schematic.types.Symbol protobuf message into this item.
+     * The library symbol itself is resolved when the item is created (see the
+     * API_HANDLER_SCH::createSymbolFromAny); here we only apply position and fields.
+     * @return true if unpacking and deserialization succeeded
+     */
+    bool Deserialize( const google::protobuf::Any& aContainer ) override;
+
+    /**
      * Check to see if the library symbol is set to the dummy library symbol.
      *
      * When the library symbol is missing (which technically should not happen now that the

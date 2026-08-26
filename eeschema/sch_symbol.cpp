@@ -48,6 +48,8 @@
 #include <validators.h>
 #include <properties/property.h>
 #include <properties/property_mgr.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
 
 
 std::unordered_map<TRANSFORM, int> SCH_SYMBOL::s_transformToOrientationCache;
@@ -68,6 +70,48 @@ std::string toUTFTildaText( const wxString& txt )
     }
 
     return ret;
+}
+
+
+void SCH_SYMBOL::Serialize( google::protobuf::Any& aContainer ) const
+{
+    kiapi::schematic::types::Symbol symbol;
+
+    symbol.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *symbol.mutable_position(), GetPosition() );
+    symbol.mutable_lib_id()->set_library_nickname( m_lib_id.GetLibNickname() );
+    symbol.mutable_lib_id()->set_entry_name( m_lib_id.GetLibItemName() );
+
+    for( const SCH_FIELD& field : m_fields )
+    {
+        kiapi::schematic::types::Field* f = symbol.add_fields();
+        f->set_name( field.GetName().ToStdString() );
+        f->set_value( field.GetText().ToStdString() );
+    }
+
+    aContainer.PackFrom( symbol );
+}
+
+
+bool SCH_SYMBOL::Deserialize( const google::protobuf::Any& aContainer )
+{
+    kiapi::schematic::types::Symbol symbol;
+
+    if( !aContainer.UnpackTo( &symbol ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( symbol.id().value() );
+    SetPosition( kiapi::common::UnpackVector2( symbol.position() ) );
+
+    for( const kiapi::schematic::types::Field& f : symbol.fields() )
+    {
+        wxString fieldName = wxString::FromUTF8( f.name() );
+
+        if( SCH_FIELD* field = GetField( fieldName ) )
+            field->SetText( wxString::FromUTF8( f.value() ) );
+    }
+
+    return true;
 }
 
 
