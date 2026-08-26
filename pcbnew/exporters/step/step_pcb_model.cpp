@@ -84,6 +84,7 @@
 #include <Standard_Version.hxx>
 #include <TCollection_ExtendedString.hxx>
 #include <TDocStd_Document.hxx>
+#include <TDocStd_XLinkTool.hxx>
 #include <TDataStd_Name.hxx>
 #include <TDataStd_TreeNode.hxx>
 #include <TDF_ChildIterator.hxx>
@@ -3848,11 +3849,32 @@ TDF_Label STEP_PCB_MODEL::transferModel( Handle( TDocStd_Document ) & source,
     // with linked components work as well.
     TDF_Label d_targetLabel = d_assy->NewShape();
 
+#if OCC_VERSION_HEX >= 0x070700
     if( !XCAFDoc_Editor::Extract( frshapes, d_targetLabel, false ) )
     {
         m_reporter->Report( wxT( "Failed to transfer model." ), RPT_SEVERITY_ERROR );
         return TDF_Label();
     }
+#else
+    // OCC < 7.7 does not provide XCAFDoc_Editor::Extract; fall back to copying
+    // each free shape into the target label with TDocStd_XLinkTool.
+    {
+        TDocStd_XLinkTool xlinkTool;
+
+        for( Standard_Integer i = 1; i <= frshapes.Length(); ++i )
+        {
+            try
+            {
+                xlinkTool.Copy( d_targetLabel, frshapes.Value( i ) );
+            }
+            catch( const Standard_Failure& )
+            {
+                m_reporter->Report( wxT( "Failed to transfer model." ), RPT_SEVERITY_ERROR );
+                return TDF_Label();
+            }
+        }
+    }
+#endif
 
     if( aScale.x != 1.0 || aScale.y != 1.0 || aScale.z != 1.0 )
         rescaleShapes( d_targetLabel, gp_XYZ( aScale.x, aScale.y, aScale.z ) );

@@ -28,7 +28,7 @@
 
 #include <api/common/types/base_types.pb.h>
 #include <api/schematic/schematic_types.pb.h>
-#include <io/io_error.h>
+#include <ki_exception.h>
 #include <lib_id.h>
 #include <libraries/symbol_library_adapter.h>
 #include <project_sch.h>
@@ -41,11 +41,15 @@ using kiapi::common::types::ItemRequestStatus;
 
 
 API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
-        API_HANDLER_EDITOR(),
+        API_HANDLER_EDITOR( aFrame ),
         m_frame( aFrame )
 {
     registerHandler<GetOpenDocuments, GetOpenDocumentsResponse>(
             &API_HANDLER_SCH::handleGetOpenDocuments );
+
+    // (kicad-mcp patch) SaveDocument support (mirrors pcbnew)
+    registerHandler<SaveDocument, google::protobuf::Empty>(
+            &API_HANDLER_SCH::handleSaveDocument );
 }
 
 
@@ -90,6 +94,23 @@ HANDLER_RESULT<GetOpenDocumentsResponse> API_HANDLER_SCH::handleGetOpenDocuments
 
     response.mutable_documents()->Add( std::move( doc ) );
     return response;
+}
+
+
+// (kicad-mcp patch) SaveDocument handler, mirroring the pcbnew implementation
+HANDLER_RESULT<google::protobuf::Empty> API_HANDLER_SCH::handleSaveDocument(
+        const HANDLER_CONTEXT<SaveDocument>& aCtx )
+{
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() );
+
+    if( !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    m_frame->SaveProject();
+    return google::protobuf::Empty();
 }
 
 
@@ -178,9 +199,9 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createSymbolFromAny(
     if( !libSymbol )
     {
         e.set_status( ApiStatusCode::AS_BAD_REQUEST );
-        e.set_error_message( wxString::Format( "could not load symbol %s from library %s",
-                                               libId.GetLibItemName(),
-                                               libId.GetLibNickname() ) );
+        e.set_error_message( fmt::format( "could not load symbol {} from library {}",
+                                          libId.GetLibItemName().c_str(),
+                                          libId.GetLibNickname().c_str() ) );
         return tl::unexpected( e );
     }
 
@@ -250,6 +271,12 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                     containerId.AsStdString() ) );
             return tl::unexpected( e );
         }
+    }
+    else
+    {
+        // No explicit container was specified: use the schematic document itself
+        // as the top-level container for the items being created.
+        container = m_frame->GetScreen()->Schematic();
     }
 
     COMMIT* commit = getCurrentCommit( aClientName );

@@ -23,6 +23,7 @@
 
 #include <api/api_handler_editor.h>
 #include <api/common/commands/editor_commands.pb.h>
+#include <google/protobuf/empty.pb.h>
 #include <kiid.h>
 
 using namespace kiapi;
@@ -66,6 +67,13 @@ protected:
 private:
     HANDLER_RESULT<commands::GetOpenDocumentsResponse> handleGetOpenDocuments(
             const HANDLER_CONTEXT<commands::GetOpenDocuments>& aCtx );
+
+    // (kicad-mcp patch) SaveDocument support: KiCad 10.0's eeschema API only
+    // registers GetOpenDocuments, so saving a schematic via the API fails with
+    // "no handler available".  This registers a SaveDocument handler mirroring
+    // the pcbnew implementation.
+    HANDLER_RESULT<google::protobuf::Empty> handleSaveDocument(
+            const HANDLER_CONTEXT<commands::SaveDocument>& aCtx );
 
     /**
      * Create a schematic symbol, resolving its LIB_SYMBOL from the project's

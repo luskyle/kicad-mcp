@@ -1,0 +1,480 @@
+diff --git a/api/proto/schematic/schematic_types.proto b/api/proto/schematic/schematic_types.proto
+index 3f872dcb..d351af36 100644
+--- a/api/proto/schematic/schematic_types.proto
++++ b/api/proto/schematic/schematic_types.proto
+@@ -26,6 +26,15 @@ import "common/types/base_types.proto";
+ enum SchematicLayer
+ {
+   SL_UNKNOWN = 0;
++
++  // Corresponds to SCH_LAYER_ID::LAYER_WIRE
++  SL_WIRE = 1;
++
++  // Corresponds to SCH_LAYER_ID::LAYER_BUS
++  SL_BUS = 2;
++
++  // Corresponds to SCH_LAYER_ID::LAYER_NOTES
++  SL_NOTES = 3;
+ }
+ 
+ /// Represents a schematic line segment, which may be a wire, bus, or graphical line
+@@ -73,3 +82,26 @@ message DirectiveLabel
+   kiapi.common.types.Vector2 position = 2;
+   Text                       text     = 3;
+ }
++
++/// A name/value pair for a schematic symbol field (e.g. "Reference", "Value")
++message Field
++{
++  string name = 1;
++  string value = 2;
++}
++
++/// Represents a schematic symbol (component instance) placed on a schematic.
++/// The library symbol is resolved by lib_id when the item is created.
++message Symbol
++{
++  kiapi.common.types.KIID id = 1;
++
++  // Position of the symbol on the schematic, in nanometers
++  kiapi.common.types.Vector2 position = 2;
++
++  // The LIB_ID of the symbol to instantiate (e.g. nickname "Device", name "R")
++  kiapi.common.types.LibraryIdentifier lib_id = 3;
++
++  // Fields to set on the created symbol (Reference, Value, custom fields)
++  repeated Field fields = 4;
++}
+diff --git a/common/api/api_enums.cpp b/common/api/api_enums.cpp
+index 57f734d2..007ffe13 100644
+--- a/common/api/api_enums.cpp
++++ b/common/api/api_enums.cpp
+@@ -381,6 +381,9 @@ SCH_LAYER_ID FromProtoEnum( schematic::types::SchematicLayer aValue )
+ {
+     switch( aValue )
+     {
++    case schematic::types::SchematicLayer::SL_WIRE:  return LAYER_WIRE;
++    case schematic::types::SchematicLayer::SL_BUS:   return LAYER_BUS;
++    case schematic::types::SchematicLayer::SL_NOTES: return LAYER_NOTES;
+ 
+     default:
+         wxCHECK_MSG( false, SCH_LAYER_ID_START,
+@@ -394,6 +397,9 @@ schematic::types::SchematicLayer ToProtoEnum( SCH_LAYER_ID aValue )
+ {
+     switch( aValue )
+     {
++    case LAYER_WIRE:  return schematic::types::SchematicLayer::SL_WIRE;
++    case LAYER_BUS:   return schematic::types::SchematicLayer::SL_BUS;
++    case LAYER_NOTES: return schematic::types::SchematicLayer::SL_NOTES;
+ 
+     default:
+         wxCHECK_MSG( false, schematic::types::SchematicLayer::SL_UNKNOWN,
+diff --git a/common/api/api_utils.cpp b/common/api/api_utils.cpp
+index 5df10b76..1f0912fc 100644
+--- a/common/api/api_utils.cpp
++++ b/common/api/api_utils.cpp
+@@ -20,6 +20,7 @@
+ 
+ #include <magic_enum.hpp>
+ #include <api/api_utils.h>
++#include <api/schematic/schematic_types.pb.h>
+ #include <geometry/shape_poly_set.h>
+ #include <kiid.h>
+ #include <wx/log.h>
+@@ -47,6 +48,14 @@ KICOMMON_API std::optional<KICAD_T> TypeNameFromAny( const google::protobuf::Any
+         { "type.googleapis.com/kiapi.board.types.Group", PCB_GROUP_T },
+         { "type.googleapis.com/kiapi.board.types.Field", PCB_FIELD_T },
+         { "type.googleapis.com/kiapi.board.types.FootprintInstance", PCB_FOOTPRINT_T },
++
++        { "type.googleapis.com/kiapi.schematic.types.Text", SCH_TEXT_T },
++        { "type.googleapis.com/kiapi.schematic.types.Line", SCH_LINE_T },
++        { "type.googleapis.com/kiapi.schematic.types.LocalLabel", SCH_LABEL_T },
++        { "type.googleapis.com/kiapi.schematic.types.GlobalLabel", SCH_GLOBAL_LABEL_T },
++        { "type.googleapis.com/kiapi.schematic.types.HierarchicalLabel", SCH_HIER_LABEL_T },
++        { "type.googleapis.com/kiapi.schematic.types.DirectiveLabel", SCH_DIRECTIVE_LABEL_T },
++        { "type.googleapis.com/kiapi.schematic.types.Symbol", SCH_SYMBOL_T },
+     };
+ 
+     auto it = s_types.find( aMessage.type_url() );
+diff --git a/eeschema/api/api_handler_sch.cpp b/eeschema/api/api_handler_sch.cpp
+index 90b6e998..b46afce6 100644
+--- a/eeschema/api/api_handler_sch.cpp
++++ b/eeschema/api/api_handler_sch.cpp
+@@ -27,6 +27,12 @@
+ #include <wx/filename.h>
+ 
+ #include <api/common/types/base_types.pb.h>
++#include <api/schematic/schematic_types.pb.h>
++#include <ki_exception.h>
++#include <lib_id.h>
++#include <libraries/symbol_library_adapter.h>
++#include <project_sch.h>
++#include <sch_symbol.h>
+ 
+ using namespace kiapi::common::commands;
+ using kiapi::common::types::CommandStatus;
+@@ -35,11 +41,15 @@ using kiapi::common::types::ItemRequestStatus;
+ 
+ 
+ API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
+-        API_HANDLER_EDITOR(),
++        API_HANDLER_EDITOR( aFrame ),
+         m_frame( aFrame )
+ {
+     registerHandler<GetOpenDocuments, GetOpenDocumentsResponse>(
+             &API_HANDLER_SCH::handleGetOpenDocuments );
++
++    // (kicad-mcp patch) SaveDocument support (mirrors pcbnew)
++    registerHandler<SaveDocument, google::protobuf::Empty>(
++            &API_HANDLER_SCH::handleSaveDocument );
+ }
+ 
+ 
+@@ -87,6 +97,23 @@ HANDLER_RESULT<GetOpenDocumentsResponse> API_HANDLER_SCH::handleGetOpenDocuments
+ }
+ 
+ 
++// (kicad-mcp patch) SaveDocument handler, mirroring the pcbnew implementation
++HANDLER_RESULT<google::protobuf::Empty> API_HANDLER_SCH::handleSaveDocument(
++        const HANDLER_CONTEXT<SaveDocument>& aCtx )
++{
++    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
++        return tl::unexpected( *busy );
++
++    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() );
++
++    if( !documentValidation )
++        return tl::unexpected( documentValidation.error() );
++
++    m_frame->SaveProject();
++    return google::protobuf::Empty();
++}
++
++
+ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KICAD_T aType,
+         EDA_ITEM* aContainer )
+ {
+@@ -131,6 +158,59 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
+ }
+ 
+ 
++HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createSymbolFromAny(
++        const google::protobuf::Any& aAny, EDA_ITEM* aContainer )
++{
++    ApiResponseStatus e;
++
++    kiapi::schematic::types::Symbol symbol;
++
++    if( !aAny.UnpackTo( &symbol ) )
++    {
++        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
++        e.set_error_message( "could not unpack kiapi.schematic.types.Symbol from request" );
++        return tl::unexpected( e );
++    }
++
++    LIB_ID libId( wxString::FromUTF8( symbol.lib_id().library_nickname().c_str() ),
++                  wxString::FromUTF8( symbol.lib_id().entry_name().c_str() ) );
++
++    if( !libId.IsValid() )
++    {
++        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
++        e.set_error_message( "invalid LIB_ID in symbol request" );
++        return tl::unexpected( e );
++    }
++
++    SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &m_frame->Prj() );
++
++    LIB_SYMBOL* libSymbol = nullptr;
++
++    try
++    {
++        if( adapter )
++            libSymbol = adapter->LoadSymbol( libId );
++    }
++    catch( const IO_ERROR& )
++    {
++        libSymbol = nullptr;
++    }
++
++    if( !libSymbol )
++    {
++        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
++        e.set_error_message( fmt::format( "could not load symbol {} from library {}",
++                                          libId.GetLibItemName().c_str(),
++                                          libId.GetLibNickname().c_str() ) );
++        return tl::unexpected( e );
++    }
++
++    VECTOR2I pos = kiapi::common::UnpackVector2( symbol.position() );
++
++    return std::make_unique<SCH_SYMBOL>( *libSymbol, libId, nullptr, 1, 0, pos );
++}
++
++
+ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsInternal( bool aCreate,
+         const std::string& aClientName,
+         const types::ItemHeader &aHeader,
+@@ -192,6 +272,12 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+             return tl::unexpected( e );
+         }
+     }
++    else
++    {
++        // No explicit container was specified: use the schematic document itself
++        // as the top-level container for the items being created.
++        container = m_frame->GetScreen()->Schematic();
++    }
+ 
+     COMMIT* commit = getCurrentCommit( aClientName );
+ 
+@@ -209,8 +295,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+             continue;
+         }
+ 
+-        HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> creationResult =
+-                createItemForType( *type, container );
++        HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> creationResult;
++
++        // Schematic symbols need to be resolved from the symbol library table
++        // before they can be constructed (the item itself cannot access the library).
++        if( *type == SCH_SYMBOL_T )
++            creationResult = createSymbolFromAny( anyItem, container );
++        else
++            creationResult = createItemForType( *type, container );
+ 
+         if( !creationResult )
+         {
+diff --git a/eeschema/api/api_handler_sch.h b/eeschema/api/api_handler_sch.h
+index 64e51892..1ac7d451 100644
+--- a/eeschema/api/api_handler_sch.h
++++ b/eeschema/api/api_handler_sch.h
+@@ -23,6 +23,7 @@
+ 
+ #include <api/api_handler_editor.h>
+ #include <api/common/commands/editor_commands.pb.h>
++#include <google/protobuf/empty.pb.h>
+ #include <kiid.h>
+ 
+ using namespace kiapi;
+@@ -67,6 +68,22 @@ private:
+     HANDLER_RESULT<commands::GetOpenDocumentsResponse> handleGetOpenDocuments(
+             const HANDLER_CONTEXT<commands::GetOpenDocuments>& aCtx );
+ 
++    // (kicad-mcp patch) SaveDocument support: KiCad 10.0's eeschema API only
++    // registers GetOpenDocuments, so saving a schematic via the API fails with
++    // "no handler available".  This registers a SaveDocument handler mirroring
++    // the pcbnew implementation.
++    HANDLER_RESULT<google::protobuf::Empty> handleSaveDocument(
++            const HANDLER_CONTEXT<commands::SaveDocument>& aCtx );
++
++    /**
++     * Create a schematic symbol, resolving its LIB_SYMBOL from the project's
++     * symbol library table.  The library symbol cannot be resolved by the item
++     * itself, so this must happen here where the frame (and thus the project)
++     * is available.
++     */
++    HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> createSymbolFromAny(
++            const google::protobuf::Any& aAny, EDA_ITEM* aContainer );
++
+     SCH_EDIT_FRAME* m_frame;
+ };
+ 
+diff --git a/eeschema/sch_symbol.cpp b/eeschema/sch_symbol.cpp
+index 5d88ad9f..3be595b7 100644
+--- a/eeschema/sch_symbol.cpp
++++ b/eeschema/sch_symbol.cpp
+@@ -48,6 +48,8 @@
+ #include <validators.h>
+ #include <properties/property.h>
+ #include <properties/property_mgr.h>
++#include <api/api_utils.h>
++#include <api/schematic/schematic_types.pb.h>
+ 
+ 
+ std::unordered_map<TRANSFORM, int> SCH_SYMBOL::s_transformToOrientationCache;
+@@ -71,6 +73,48 @@ std::string toUTFTildaText( const wxString& txt )
+ }
+ 
+ 
++void SCH_SYMBOL::Serialize( google::protobuf::Any& aContainer ) const
++{
++    kiapi::schematic::types::Symbol symbol;
++
++    symbol.mutable_id()->set_value( m_Uuid.AsStdString() );
++    kiapi::common::PackVector2( *symbol.mutable_position(), GetPosition() );
++    symbol.mutable_lib_id()->set_library_nickname( m_lib_id.GetLibNickname() );
++    symbol.mutable_lib_id()->set_entry_name( m_lib_id.GetLibItemName() );
++
++    for( const SCH_FIELD& field : m_fields )
++    {
++        kiapi::schematic::types::Field* f = symbol.add_fields();
++        f->set_name( field.GetName().ToStdString() );
++        f->set_value( field.GetText().ToStdString() );
++    }
++
++    aContainer.PackFrom( symbol );
++}
++
++
++bool SCH_SYMBOL::Deserialize( const google::protobuf::Any& aContainer )
++{
++    kiapi::schematic::types::Symbol symbol;
++
++    if( !aContainer.UnpackTo( &symbol ) )
++        return false;
++
++    const_cast<KIID&>( m_Uuid ) = KIID( symbol.id().value() );
++    SetPosition( kiapi::common::UnpackVector2( symbol.position() ) );
++
++    for( const kiapi::schematic::types::Field& f : symbol.fields() )
++    {
++        wxString fieldName = wxString::FromUTF8( f.name() );
++
++        if( SCH_FIELD* field = GetField( fieldName ) )
++            field->SetText( wxString::FromUTF8( f.value() ) );
++    }
++
++    return true;
++}
++
++
+ SCH_SYMBOL::SCH_SYMBOL() :
+         SYMBOL( nullptr, SCH_SYMBOL_T )
+ {
+diff --git a/eeschema/sch_symbol.h b/eeschema/sch_symbol.h
+index 02bcbf05..ddf2e0f4 100644
+--- a/eeschema/sch_symbol.h
++++ b/eeschema/sch_symbol.h
+@@ -117,6 +117,19 @@ public:
+         return wxT( "SCH_SYMBOL" );
+     }
+ 
++    /**
++     * Serialize this symbol to a kiapi.schematic.types.Symbol protobuf message.
++     */
++    void Serialize( google::protobuf::Any& aContainer ) const override;
++
++    /**
++     * Deserialize a kiapi.schematic.types.Symbol protobuf message into this item.
++     * The library symbol itself is resolved when the item is created (see the
++     * API_HANDLER_SCH::createSymbolFromAny); here we only apply position and fields.
++     * @return true if unpacking and deserialization succeeded
++     */
++    bool Deserialize( const google::protobuf::Any& aContainer ) override;
++
+     /**
+      * Check to see if the library symbol is set to the dummy library symbol.
+      *
+diff --git a/eeschema/sch_text.cpp b/eeschema/sch_text.cpp
+index 634fcfa5..14a7626e 100644
+--- a/eeschema/sch_text.cpp
++++ b/eeschema/sch_text.cpp
+@@ -50,6 +50,41 @@
+ #include <markup_parser.h>
+ #include <properties/property.h>
+ #include <properties/property_mgr.h>
++#include <api/api_utils.h>
++#include <api/schematic/schematic_types.pb.h>
++
++
++void SCH_TEXT::Serialize( google::protobuf::Any& aContainer ) const
++{
++    kiapi::schematic::types::Text text;
++
++    text.mutable_text()->set_text( GetText().ToStdString() );
++    kiapi::common::PackVector2( *text.mutable_text()->mutable_position(), GetPosition() );
++    text.mutable_text()->mutable_attributes()->mutable_size()->set_x_nm( GetTextWidth() );
++    text.mutable_text()->mutable_attributes()->mutable_size()->set_y_nm( GetTextHeight() );
++
++    aContainer.PackFrom( text );
++}
++
++
++bool SCH_TEXT::Deserialize( const google::protobuf::Any& aContainer )
++{
++    kiapi::schematic::types::Text text;
++
++    if( !aContainer.UnpackTo( &text ) )
++        return false;
++
++    SetText( wxString::FromUTF8( text.text().text() ) );
++    SetPosition( kiapi::common::UnpackVector2( text.text().position() ) );
++
++    if( text.text().has_attributes() && text.text().attributes().has_size() )
++    {
++        SetTextSize( VECTOR2I( text.text().attributes().size().x_nm(),
++                               text.text().attributes().size().y_nm() ) );
++    }
++
++    return true;
++}
+ 
+ 
+ SCH_TEXT::SCH_TEXT( const VECTOR2I& aPos, const wxString& aText, SCH_LAYER_ID aLayer, KICAD_T aType ) :
+diff --git a/eeschema/sch_text.h b/eeschema/sch_text.h
+index 40796481..f2157158 100644
+--- a/eeschema/sch_text.h
++++ b/eeschema/sch_text.h
+@@ -59,6 +59,17 @@ public:
+         return _( "Text" );
+     }
+ 
++    /**
++     * Serialize this text item to a kiapi.schematic.types.Text protobuf message.
++     */
++    void Serialize( google::protobuf::Any& aContainer ) const override;
++
++    /**
++     * Deserialize a kiapi.schematic.types.Text protobuf message into this item.
++     * @return true if unpacking and deserialization succeeded
++     */
++    bool Deserialize( const google::protobuf::Any& aContainer ) override;
++
+     KIFONT::FONT* GetDrawFont( const RENDER_SETTINGS* aSettings ) const override;
+ 
+     virtual wxString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+diff --git a/pcbnew/exporters/step/step_pcb_model.cpp b/pcbnew/exporters/step/step_pcb_model.cpp
+index 327aa910..2195abda 100644
+--- a/pcbnew/exporters/step/step_pcb_model.cpp
++++ b/pcbnew/exporters/step/step_pcb_model.cpp
+@@ -84,6 +84,7 @@
+ #include <Standard_Version.hxx>
+ #include <TCollection_ExtendedString.hxx>
+ #include <TDocStd_Document.hxx>
++#include <TDocStd_XLinkTool.hxx>
+ #include <TDataStd_Name.hxx>
+ #include <TDataStd_TreeNode.hxx>
+ #include <TDF_ChildIterator.hxx>
+@@ -3848,11 +3849,32 @@ TDF_Label STEP_PCB_MODEL::transferModel( Handle( TDocStd_Document ) & source,
+     // with linked components work as well.
+     TDF_Label d_targetLabel = d_assy->NewShape();
+ 
++#if OCC_VERSION_HEX >= 0x070700
+     if( !XCAFDoc_Editor::Extract( frshapes, d_targetLabel, false ) )
+     {
+         m_reporter->Report( wxT( "Failed to transfer model." ), RPT_SEVERITY_ERROR );
+         return TDF_Label();
+     }
++#else
++    // OCC < 7.7 does not provide XCAFDoc_Editor::Extract; fall back to copying
++    // each free shape into the target label with TDocStd_XLinkTool.
++    {
++        TDocStd_XLinkTool xlinkTool;
++
++        for( Standard_Integer i = 1; i <= frshapes.Length(); ++i )
++        {
++            try
++            {
++                xlinkTool.Copy( d_targetLabel, frshapes.Value( i ) );
++            }
++            catch( const Standard_Failure& )
++            {
++                m_reporter->Report( wxT( "Failed to transfer model." ), RPT_SEVERITY_ERROR );
++                return TDF_Label();
++            }
++        }
++    }
++#endif
+ 
+     if( aScale.x != 1.0 || aScale.y != 1.0 || aScale.z != 1.0 )
+         rescaleShapes( d_targetLabel, gp_XYZ( aScale.x, aScale.y, aScale.z ) );
