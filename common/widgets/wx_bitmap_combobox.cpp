@@ -1,0 +1,76 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 3
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you may find one here:
+ * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ * or you may search the http://www.gnu.org website for the version 2 license,
+ * or you may write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ */
+
+#include <widgets/wx_bitmap_combobox.h>
+#include <wx/textctrl.h>
+
+WX_BITMAP_COMBOBOX::WX_BITMAP_COMBOBOX( wxWindow* parent, wxWindowID id, const wxString& value,
+                                        const wxPoint& pos, const wxSize& size, int n,
+                                        const wxString choices[], long style,
+                                        const wxValidator& validator, const wxString& name ) :
+        wxBitmapComboBox( parent, id, value, pos, size, n, choices, style, validator, name )
+{
+}
+
+
+wxSize WX_BITMAP_COMBOBOX::DoGetBestSize() const
+{
+    wxSize size = wxBitmapComboBox::DoGetBestSize();
+
+#ifdef __WXGTK__
+    wxSize bmpSize = GetBitmapSize();
+
+    if( bmpSize.y > 0 )
+    {
+        // wxBitmapComboBox::DoGetBestSize on GTK only adjusts the height when the bitmap is
+        // taller than the text (GetCharHeight). When the text is taller, it skips the bitmap
+        // adjustment entirely. But on some GTK themes (Plasma/Breeze), the cell renderer
+        // padding around the bitmap means the combo still needs extra height beyond what the
+        // text-only calculation provides. Ensure the combo is at least tall enough for the
+        // bitmap plus the non-content overhead (borders, frame, focus ring).
+        int overhead = size.y - GetCharHeight();
+        size.y = std::max( size.y, bmpSize.y + overhead + 4 );
+    }
+
+    if( bmpSize.x > 0 )
+    {
+        // The width calculation in wxBitmapComboBox::DoGetBestSize on GTK is derived from the
+        // text-only wxComboBox best size and does not account for the pixbuf cell renderer.
+        // Add the bitmap width plus padding to prevent horizontal clipping.
+        size.x += bmpSize.x + 4;
+    }
+
+#if !wxCHECK_VERSION( 3, 2, 9 )
+    // wxWidgets had a bug on GTK where the wxBitmapComboBox doesn't scale correctly with fontsize.
+    // Fixed upstream in wxWidgets 3.2.9: https://github.com/wxWidgets/wxWidgets/issues/25468
+    wxTextCtrl dummyCtrl( m_parent, wxID_ANY );
+    int        dummyWidth = 100;
+
+    size.y = std::max( size.y, dummyCtrl.GetBestHeight( dummyWidth ) + 4 );
+#endif
+#endif
+
+    return size;
+}
+
+

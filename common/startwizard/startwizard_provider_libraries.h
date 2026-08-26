@@ -1,0 +1,81 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ * @author Jon Evans <jon@craftyjon.com>
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
+#ifndef STARTWIZARD_PROVIDER_LIBRARIES_H
+#define STARTWIZARD_PROVIDER_LIBRARIES_H
+
+#include <libraries/library_table.h>
+#include <startwizard/startwizard_provider.h>
+
+enum class STARTWIZARD_LIBRARIES_MODE
+{
+    USE_DEFAULTS,
+    IMPORT,
+    CREATE_BLANK
+};
+
+struct STARTWIZARD_PROVIDER_LIBRARIES_MODEL
+{
+    STARTWIZARD_LIBRARIES_MODE mode = STARTWIZARD_LIBRARIES_MODE::USE_DEFAULTS;
+    bool mode_initialized = false;
+    bool migrate_built_in_libraries = true;
+
+    std::vector<LIBRARY_TABLE_TYPE> missing_tables;
+};
+
+class STARTWIZARD_PROVIDER_LIBRARIES : public STARTWIZARD_PROVIDER
+{
+public:
+    STARTWIZARD_PROVIDER_LIBRARIES();
+
+    virtual ~STARTWIZARD_PROVIDER_LIBRARIES() {}
+
+    wxString Name() const override { return wxT( "libraries" ); }
+
+    bool NeedsUserInput() const override;
+
+    wxPanel* GetWizardPanel( wxWindow* aParent, STARTWIZARD* aWizard ) override;
+
+    void Finish() override;
+
+    void ApplyDefaults() override;
+
+    /**
+     * Migrates built-in (stock) library references in an imported global library table to the
+     * current version.  Direct stock rows are removed and re-added as a single chained reference,
+     * and an existing chained reference is repointed at the latest stock table.  If the imported
+     * table referenced no stock libraries, none are added.
+     *
+     * @param aTable is the imported table to migrate in place
+     * @param aType is the table type (symbol or footprint)
+     * @param aStockPath is the (unexpanded) URI of the current stock library table
+     * @param aStockPathValid is true if aStockPath resolves to a valid table on disk
+     * @return true if the table was modified and should be saved
+     */
+    static KICOMMON_API bool MigrateBuiltInLibraries( LIBRARY_TABLE& aTable, LIBRARY_TABLE_TYPE aType,
+                                                      const wxString& aStockPath, bool aStockPathValid );
+
+private:
+    std::shared_ptr<STARTWIZARD_PROVIDER_LIBRARIES_MODEL> m_model;
+};
+
+
+#endif //STARTWIZARD_PROVIDER_LIBRARIES_H

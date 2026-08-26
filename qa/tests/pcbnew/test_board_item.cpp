@@ -1,0 +1,794 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you may find one here:
+ * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ * or you may search the http://www.gnu.org website for the version 2 license,
+ * or you may write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ */
+
+#include <qa_utils/wx_utils/unit_test_utils.h>
+#include <eda_item_test_utils.h>
+#include <core/typeinfo.h>
+#include <drc/drc_item.h>
+
+// Code under test
+#include <board.h>
+#include <board_design_settings.h>
+#include <netinfo.h>
+#include <board_item.h>
+#include <footprint.h>
+#include <pad.h>
+#include <pcb_shape.h>
+#include <pcb_barcode.h>
+#include <pcb_text.h>
+#include <pcb_textbox.h>
+#include <pcb_table.h>
+#include <pcb_tablecell.h>
+#include <pcb_reference_image.h>
+#include <zone.h>
+#include <pcb_track.h>
+#include <pcb_marker.h>
+#include <pcb_dimension.h>
+#include <pcb_point.h>
+#include <pcb_target.h>
+#include <pcb_group.h>
+#include <pcb_board_outline.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
+
+class TEST_BOARD_ITEM_FIXTURE
+{
+public:
+    BOARD                     m_board;
+    FOOTPRINT                 m_footprint;
+    std::shared_ptr<DRC_ITEM> m_drcItem;
+    PCB_TEXT                  m_text;
+
+    TEST_BOARD_ITEM_FIXTURE() :
+            m_board(),
+            m_footprint( &m_board ),
+            m_drcItem( DRC_ITEM::Create( DRCE_MALFORMED_COURTYARD ) ),
+            m_text( &m_board )
+    {
+    }
+
+    ~TEST_BOARD_ITEM_FIXTURE()
+    {
+        m_text.SetParentGroup( nullptr );
+    }
+
+    BOARD_ITEM* Instantiate( KICAD_T aType )
+    {
+        if( !IsPcbnewType( aType ) )
+            return nullptr;
+
+        if( !IsInstantiableType( aType ) )
+            return nullptr;
+
+        switch( aType )
+        {
+        case PCB_FOOTPRINT_T:         return new FOOTPRINT( &m_board );
+        case PCB_PAD_T:               return new PAD( &m_footprint );
+        case PCB_FIELD_T:             return new PCB_FIELD( &m_footprint, FIELD_T::USER );
+        case PCB_SHAPE_T:             return new PCB_SHAPE( &m_board );
+
+        case PCB_BARCODE_T:
+        {
+            PCB_BARCODE* barcode = new PCB_BARCODE( &m_board );
+            barcode->SetText( "XXXX" );
+            barcode->AssembleBarcode();
+            return barcode;
+        }
+
+        case PCB_TEXT_T:              return new PCB_TEXT( &m_board );
+        case PCB_TEXTBOX_T:           return new PCB_TEXTBOX( &m_board );
+        case PCB_TABLECELL_T:         return new PCB_TABLECELL( &m_board );
+
+        case PCB_TABLE_T:
+        {
+            PCB_TABLE* table = new PCB_TABLE( &m_board, pcbIUScale.mmToIU( 0.1 ) );
+
+            const int colWidths[2] = { pcbIUScale.mmToIU( 20.0 ), pcbIUScale.mmToIU( 30.0 ) };
+            const int rowHeights[2] = { pcbIUScale.mmToIU( 5.0 ), pcbIUScale.mmToIU( 7.0 ) };
+
+            table->SetColCount( 2 );
+            table->SetColWidth( 0, colWidths[0] );
+            table->SetColWidth( 1, colWidths[1] );
+            table->SetRowHeight( 0, rowHeights[0] );
+            table->SetRowHeight( 1, rowHeights[1] );
+
+            int y = 0;
+
+            for( int row = 0; row < 2; ++row )
+            {
+                int x = 0;
+
+                for( int col = 0; col < 2; ++col )
+                {
+                    PCB_TABLECELL* cell = new PCB_TABLECELL( &m_board );
+                    cell->SetRectangleHeight( 0 );
+                    cell->SetRectangleWidth( 0 );
+                    cell->SetStart( VECTOR2I( x, y ) );
+                    cell->SetEnd( VECTOR2I( x + colWidths[col], y + rowHeights[row] ) );
+                    table->AddCell( cell );
+
+                    x += colWidths[col];
+                }
+
+                y += rowHeights[row];
+            }
+
+            return table;
+        }
+
+        case PCB_REFERENCE_IMAGE_T:   return new PCB_REFERENCE_IMAGE( &m_board );
+        case PCB_TRACE_T:             return new PCB_TRACK( &m_board );
+        case PCB_VIA_T:               return new PCB_VIA( &m_board );
+        case PCB_ARC_T:               return new PCB_ARC( &m_board );
+        case PCB_MARKER_T:            return new PCB_MARKER( m_drcItem, VECTOR2I( 0, 0 ) );
+        case PCB_DIM_ALIGNED_T:       return new PCB_DIM_ALIGNED( &m_board, PCB_DIM_ALIGNED_T );
+        case PCB_DIM_LEADER_T:        return new PCB_DIM_LEADER( &m_board );
+        case PCB_DIM_CENTER_T:        return new PCB_DIM_CENTER( &m_board );
+        case PCB_DIM_RADIAL_T:        return new PCB_DIM_RADIAL( &m_board );
+        case PCB_DIM_ORTHOGONAL_T:    return new PCB_DIM_ORTHOGONAL( &m_board );
+        case PCB_TARGET_T:            return new PCB_TARGET( &m_board );
+        case PCB_POINT_T:             return new PCB_POINT( &m_board );
+
+        case PCB_ZONE_T:
+        {
+            ZONE* zone = new ZONE( &m_board );
+
+            zone->AppendCorner( VECTOR2I( pcbIUScale.mmToIU( -100 ), pcbIUScale.mmToIU( -50 ) ), -1 );
+            zone->AppendCorner( VECTOR2I( pcbIUScale.mmToIU( -100 ), pcbIUScale.mmToIU( 50 ) ), -1 );
+            zone->AppendCorner( VECTOR2I( pcbIUScale.mmToIU( 100 ), pcbIUScale.mmToIU( 50 ) ), -1 );
+            zone->AppendCorner( VECTOR2I( pcbIUScale.mmToIU( 100 ), pcbIUScale.mmToIU( -50 ) ), -1 );
+
+            return zone;
+        }
+
+        case PCB_GROUP_T:
+        {
+            PCB_GROUP* group = new PCB_GROUP( &m_board );
+
+            // Group position only makes sense if there's at least one item in the group.
+            group->AddItem( &m_text );
+
+            return group;
+        }
+
+        case PCB_T:
+        case PCB_ITEM_LIST_T:
+        case PCB_NETINFO_T:
+        case PCB_GENERATOR_T:
+        case PCB_BOARD_OUTLINE_T:
+            return nullptr;
+
+        default:
+            BOOST_FAIL( wxString::Format( "Unhandled type: %d (if you created a new type you need to handle it in "
+                                          "this switch statement)",
+                                          aType ) );
+            return nullptr;
+        }
+    }
+
+    static void CompareItems( BOARD_ITEM* aItem, BOARD_ITEM* aOriginalItem )
+    {
+        BOOST_CHECK_EQUAL( aItem->GetPosition(), aOriginalItem->GetPosition() );
+        BOOST_CHECK_EQUAL( aItem->GetBoundingBox().GetTop(), aOriginalItem->GetBoundingBox().GetTop() );
+        BOOST_CHECK_EQUAL( aItem->GetBoundingBox().GetLeft(), aOriginalItem->GetBoundingBox().GetLeft() );
+        BOOST_CHECK_EQUAL( aItem->GetBoundingBox().GetBottom(), aOriginalItem->GetBoundingBox().GetBottom() );
+        BOOST_CHECK_EQUAL( aItem->GetBoundingBox().GetRight(), aOriginalItem->GetBoundingBox().GetRight() );
+    }
+};
+
+
+BOOST_FIXTURE_TEST_SUITE( PcbItem, TEST_BOARD_ITEM_FIXTURE )
+
+
+BOOST_AUTO_TEST_CASE( Type )
+{
+   for( int i = 0; i < MAX_STRUCT_TYPE_ID; i++ )
+   {
+       KICAD_T type = static_cast<KICAD_T>( i );
+
+       auto item = std::unique_ptr<BOARD_ITEM>( Instantiate( type ) );
+
+       if( item == nullptr )
+           continue;
+
+       BOOST_TEST_CONTEXT( "Class: " << item->GetClass() )
+       {
+           BOOST_CHECK( !ENUM_MAP<KICAD_T>::Instance().ToString( type ).IsEmpty() );
+       }
+   }
+}
+
+
+BOOST_AUTO_TEST_CASE( Move )
+{
+    for( int i = 0; i < MAX_STRUCT_TYPE_ID; i++ )
+    {
+        KICAD_T type = static_cast<KICAD_T>( i );
+
+        auto item = std::unique_ptr<BOARD_ITEM>( Instantiate( type ) );
+
+        if( item == nullptr )
+            continue;
+
+        BOOST_TEST_CONTEXT( "Class: " << item->GetClass() )
+        {
+            IterateOverPositionsAndReferences<BOARD_ITEM>(
+                    item.get(),
+                    []( BOARD_ITEM* aOriginalItem, VECTOR2I aRef )
+                    {
+                        // FIXME: Update() has to be called after SetPosition() to update dimension shapes.
+                        if( PCB_DIMENSION_BASE* dimension = dynamic_cast<PCB_DIMENSION_BASE*>( aOriginalItem ) )
+                            dimension->Update();
+
+                        auto     item = std::unique_ptr<BOARD_ITEM>( aOriginalItem->Duplicate( IGNORE_PARENT_GROUP ) );
+                        VECTOR2I originalPos = item->GetPosition();
+
+                        // Move to a point, then go back.
+                        // This has to be an identity transformation.
+
+                        item->Move( aRef );
+                        BOOST_CHECK_EQUAL( item->GetPosition(), originalPos + aRef );
+
+                        item->Move( -aRef );
+                        CompareItems( item.get(), aOriginalItem );
+                    } );
+        }
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE( Rotate )
+{
+    for( int i = 0; i < MAX_STRUCT_TYPE_ID; i++ )
+    {
+        KICAD_T type = static_cast<KICAD_T>( i );
+
+        auto item = std::unique_ptr<BOARD_ITEM>( Instantiate( type ) );
+
+        if( item == nullptr )
+            continue;
+
+        BOOST_TEST_CONTEXT( "Class: " << item->GetClass() )
+        {
+            // Four same 90 degree rotations are an identity.
+
+            IterateOverPositionsAndReferences<BOARD_ITEM>(
+                    item.get(),
+                    []( BOARD_ITEM* aOriginalItem, VECTOR2I aRef )
+                    {
+                        // FIXME: Update() has to be called after SetPosition() to update dimension shapes.
+                        if( PCB_DIMENSION_BASE* dimension = dynamic_cast<PCB_DIMENSION_BASE*>( aOriginalItem ) )
+                            dimension->Update();
+                        else if( PCB_BARCODE* barcode = dynamic_cast<PCB_BARCODE*>( aOriginalItem ) )
+                            barcode->AssembleBarcode();
+
+                        auto item = std::unique_ptr<BOARD_ITEM>( aOriginalItem->Duplicate( IGNORE_PARENT_GROUP ) );
+
+                        // Four equivalent 90 degree rotations are an identity.
+
+                        item->Rotate( aRef, EDA_ANGLE( 90.0, DEGREES_T ) );
+                        item->Rotate( aRef, EDA_ANGLE( 90.0, DEGREES_T ) );
+                        item->Rotate( aRef, EDA_ANGLE( 90.0, DEGREES_T ) );
+                        item->Rotate( aRef, EDA_ANGLE( 90.0, DEGREES_T ) );
+
+                        CompareItems( item.get(), aOriginalItem );
+                    } );
+        }
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE( FlipLeftRight )
+{
+    for( int i = 0; i < MAX_STRUCT_TYPE_ID; i++ )
+    {
+        KICAD_T type = static_cast<KICAD_T>( i );
+
+        auto item = std::unique_ptr<BOARD_ITEM>( Instantiate( type ) );
+
+        if( item == nullptr )
+            continue;
+
+        BOOST_TEST_CONTEXT( "Class: " << item->GetClass() )
+        {
+            IterateOverPositionsAndReferences<BOARD_ITEM>(
+                    item.get(),
+                    []( BOARD_ITEM* aOriginalItem, VECTOR2I aRef )
+                    {
+                        // FIXME: Update() has to be called after SetPosition() to update dimension shapes.
+                        if( PCB_DIMENSION_BASE* dimension = dynamic_cast<PCB_DIMENSION_BASE*>( aOriginalItem ) )
+                            dimension->Update();
+
+                        auto item = std::unique_ptr<BOARD_ITEM>( aOriginalItem->Duplicate( IGNORE_PARENT_GROUP ) );
+
+                        // Two equivalent flips are an identity.
+
+                        item->Flip( aRef, FLIP_DIRECTION::LEFT_RIGHT );
+                        item->Flip( aRef, FLIP_DIRECTION::LEFT_RIGHT );
+
+                        CompareItems( item.get(), aOriginalItem );
+                    } );
+        }
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE( FlipUpDown )
+{
+    for( int i = 0; i < MAX_STRUCT_TYPE_ID; i++ )
+    {
+        KICAD_T type = static_cast<KICAD_T>( i );
+
+        auto item = std::unique_ptr<BOARD_ITEM>( Instantiate( type ) );
+
+        if( item == nullptr )
+            continue;
+
+        BOOST_TEST_CONTEXT( "Class: " << item->GetClass() )
+        {
+            IterateOverPositionsAndReferences<BOARD_ITEM>(
+                    item.get(),
+                    []( BOARD_ITEM* aOriginalItem, VECTOR2I aRef )
+                    {
+                        // FIXME: Update() has to be called after SetPosition() to update dimension shapes.
+                        if( PCB_DIMENSION_BASE* dimension = dynamic_cast<PCB_DIMENSION_BASE*>( aOriginalItem ) )
+                            dimension->Update();
+
+                        auto item = std::unique_ptr<BOARD_ITEM>( aOriginalItem->Duplicate( IGNORE_PARENT_GROUP ) );
+
+                        // Two equivalent flips are an identity.
+
+                        item->Flip( aRef, FLIP_DIRECTION::TOP_BOTTOM );
+                        item->Flip( aRef, FLIP_DIRECTION::TOP_BOTTOM );
+
+                        CompareItems( item.get(), aOriginalItem );
+                    } );
+        }
+    }
+}
+
+
+// Two columns and two rows, built at the origin and then turned. Each cell carries its grid
+// position as text so a test can say where it ended up.
+static PCB_TABLE* makeTable( BOARD& aBoard, const int aColWidths[2], const int aRowHeights[2], double aDegrees )
+{
+    PCB_TABLE* table = new PCB_TABLE( &aBoard, pcbIUScale.mmToIU( 0.1 ) );
+
+    table->SetLayer( F_SilkS );
+    table->SetColCount( 2 );
+
+    for( int ii = 0; ii < 2; ++ii )
+    {
+        table->SetColWidth( ii, aColWidths[ii] );
+        table->SetRowHeight( ii, aRowHeights[ii] );
+    }
+
+    int y = 0;
+
+    for( int row = 0; row < 2; ++row )
+    {
+        int x = 0;
+
+        for( int col = 0; col < 2; ++col )
+        {
+            PCB_TABLECELL* cell = new PCB_TABLECELL( &aBoard );
+            cell->SetStart( VECTOR2I( x, y ) );
+            cell->SetEnd( VECTOR2I( x + aColWidths[col], y + aRowHeights[row] ) );
+            cell->SetText( wxString::Format( wxT( "%c%d" ), 'A' + col, row + 1 ) );
+            table->AddCell( cell );
+
+            x += aColWidths[col];
+        }
+
+        y += aRowHeights[row];
+    }
+
+    table->Normalize();
+    aBoard.Add( table );
+
+    if( aDegrees != 0.0 )
+        table->Rotate( table->GetPosition(), EDA_ANGLE( aDegrees, DEGREES_T ) );
+
+    return table;
+}
+
+
+// Flipping a cell turns its text 180 degrees, and the grid is laid out in the frame the cells
+// read in. A top to bottom flip that renumbers its rows as well undoes that turn and swaps the
+// columns instead.
+BOOST_AUTO_TEST_CASE( TableFlipSwapsTheChosenAxis )
+{
+    const int cols[2] = { pcbIUScale.mmToIU( 10.0 ), pcbIUScale.mmToIU( 10.0 ) };
+    const int rows[2] = { pcbIUScale.mmToIU( 4.0 ), pcbIUScale.mmToIU( 4.0 ) };
+
+    // Which cell sits in a corner, found by where it ended up rather than by its index.
+    auto textAt = []( PCB_TABLE* aTable, bool aRight, bool aBottom )
+    {
+        BOX2I box;
+
+        for( PCB_TABLECELL* cell : aTable->GetCells() )
+        {
+            box.Merge( cell->GetStart() );
+            box.Merge( cell->GetEnd() );
+        }
+
+        VECTOR2I mid = box.GetCenter();
+
+        for( PCB_TABLECELL* cell : aTable->GetCells() )
+        {
+            VECTOR2I centre = ( cell->GetStart() + cell->GetEnd() ) / 2;
+
+            if( ( centre.x > mid.x ) == aRight && ( centre.y > mid.y ) == aBottom )
+                return cell->GetText();
+        }
+
+        return wxString();
+    };
+
+    BOOST_TEST_CONTEXT( "left/right" )
+    {
+        PCB_TABLE* table = makeTable( m_board, cols, rows, 0.0 );
+
+        table->Flip( VECTOR2I( 0, 0 ), FLIP_DIRECTION::LEFT_RIGHT );
+
+        BOOST_CHECK_EQUAL( textAt( table, false, false ), wxString( wxT( "B1" ) ) );
+        BOOST_CHECK_EQUAL( textAt( table, true, false ), wxString( wxT( "A1" ) ) );
+        BOOST_CHECK_EQUAL( textAt( table, false, true ), wxString( wxT( "B2" ) ) );
+        BOOST_CHECK_EQUAL( textAt( table, true, true ), wxString( wxT( "A2" ) ) );
+    }
+
+    BOOST_TEST_CONTEXT( "top/bottom" )
+    {
+        PCB_TABLE* table = makeTable( m_board, cols, rows, 0.0 );
+
+        table->Flip( VECTOR2I( 0, 0 ), FLIP_DIRECTION::TOP_BOTTOM );
+
+        BOOST_CHECK_EQUAL( textAt( table, false, false ), wxString( wxT( "A2" ) ) );
+        BOOST_CHECK_EQUAL( textAt( table, true, false ), wxString( wxT( "B2" ) ) );
+        BOOST_CHECK_EQUAL( textAt( table, false, true ), wxString( wxT( "A1" ) ) );
+        BOOST_CHECK_EQUAL( textAt( table, true, true ), wxString( wxT( "B1" ) ) );
+    }
+}
+
+
+// The table's box is used for hit testing and for working out where a flip should land it, so
+// it has to cover every cell and not just the two on one diagonal.
+BOOST_AUTO_TEST_CASE( TableBoundingBoxCoversEveryCell )
+{
+    const int cols[2] = { pcbIUScale.mmToIU( 10.0 ), pcbIUScale.mmToIU( 30.0 ) };
+    const int rows[2] = { pcbIUScale.mmToIU( 4.0 ), pcbIUScale.mmToIU( 12.0 ) };
+
+    for( double degrees : { 0.0, 30.0, 45.0, 90.0 } )
+    {
+        BOOST_TEST_CONTEXT( "turned " << degrees )
+        {
+            PCB_TABLE* table = makeTable( m_board, cols, rows, degrees );
+            BOX2I      box = table->GetBoundingBox();
+
+            for( PCB_TABLECELL* cell : table->GetCells() )
+            {
+                BOOST_CHECK_MESSAGE(
+                        box.Contains( cell->GetBoundingBox() ),
+                        "cell ( " << cell->GetBoundingBox().GetLeft() << ", " << cell->GetBoundingBox().GetTop()
+                                  << " ) to ( " << cell->GetBoundingBox().GetRight() << ", "
+                                  << cell->GetBoundingBox().GetBottom() << " ) sticks out of the table box ( "
+                                  << box.GetLeft() << ", " << box.GetTop() << " ) to ( " << box.GetRight() << ", "
+                                  << box.GetBottom() << " )" );
+            }
+        }
+    }
+}
+
+
+// A flip mirrors an item about a board axis, which tilts it the way PCB_TEXTBOX::Mirror already
+// states: 180 minus the angle across a vertical axis, minus the angle across a horizontal one.
+// A table has to follow that too. Reading direction is free, because a table at one angle is the
+// same picture as one at that angle plus 180 with its cells reordered, so compare the lines.
+BOOST_AUTO_TEST_CASE( TableFlipTiltsTheWayEverythingElseDoes )
+{
+    const int cols[2] = { pcbIUScale.mmToIU( 10.0 ), pcbIUScale.mmToIU( 30.0 ) };
+    const int rows[2] = { pcbIUScale.mmToIU( 4.0 ), pcbIUScale.mmToIU( 12.0 ) };
+
+    const VECTOR2I point( pcbIUScale.mmToIU( 100.0 ), pcbIUScale.mmToIU( 50.0 ) );
+
+    auto sameLine = []( const EDA_ANGLE& aFirst, const EDA_ANGLE& aSecond )
+    {
+        double apart = std::fmod( std::abs( aFirst.AsDegrees() - aSecond.AsDegrees() ), 180.0 );
+        return apart < 0.01 || apart > 179.99;
+    };
+
+    for( double degrees : { 30.0, 45.0 } )
+    {
+        for( FLIP_DIRECTION dir : { FLIP_DIRECTION::LEFT_RIGHT, FLIP_DIRECTION::TOP_BOTTOM } )
+        {
+            BOOST_TEST_CONTEXT( "turned " << degrees
+                                          << ( dir == FLIP_DIRECTION::LEFT_RIGHT ? " left/right" : " top/bottom" ) )
+            {
+                PCB_TABLE* table = makeTable( m_board, cols, rows, degrees );
+                EDA_ANGLE  tilt( degrees, DEGREES_T );
+                EDA_ANGLE  reflected = dir == FLIP_DIRECTION::LEFT_RIGHT ? ANGLE_180 - tilt : -tilt;
+
+                std::vector<std::vector<VECTOR2I>> before;
+
+                for( PCB_TABLECELL* cell : table->GetCells() )
+                    before.push_back( cell->GetCorners() );
+
+                table->Flip( point, dir );
+
+                BOOST_CHECK_MESSAGE( sameLine( table->GetCell( 0, 0 )->GetTextAngle(), reflected ),
+                                     "table came back at " << table->GetCell( 0, 0 )->GetTextAngle().AsDegrees()
+                                                           << " degrees, expected " << reflected.AsDegrees() );
+
+                // Flipping back about the same point has to undo it exactly.
+                table->Flip( point, dir );
+
+                for( size_t ii = 0; ii < before.size(); ++ii )
+                {
+                    std::vector<VECTOR2I> corners = table->GetCells()[ii]->GetCorners();
+
+                    BOOST_REQUIRE_EQUAL( corners.size(), before[ii].size() );
+
+                    for( size_t jj = 0; jj < corners.size(); ++jj )
+                    {
+                        BOOST_CHECK_MESSAGE( ( corners[jj] - before[ii][jj] ).EuclideanNorm()
+                                                     <= pcbIUScale.mmToIU( 0.001 ),
+                                             "cell " << ii << " corner " << jj << " did not come back" );
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * Regression test for issue #23234:
+ * Changing padstack mode to Custom on a flipped footprint's pad and pressing OK caused an
+ * "Unhandled exception" (std::out_of_range) because PADSTACK::CopperLayer( F_Cu ) fell through
+ * to m_copperProps.at( ALL_LAYERS ) after FlipLayers() had renamed the F_Cu key to B_Cu.
+ */
+BOOST_AUTO_TEST_CASE( Issue23234_CustomPadstackFlip )
+{
+    // Create a board with two copper layers so Flip works correctly
+    BOARD board;
+    FOOTPRINT footprint( &board );
+    PAD pad( &footprint );
+
+    // Set up a circular SMD pad on F_Cu (NORMAL padstack mode)
+    pad.SetAttribute( PAD_ATTRIB::SMD );
+    pad.SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
+    pad.SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( 500000, 500000 ) );
+    LSET smd_layers;
+    smd_layers.set( F_Cu );
+    pad.SetLayerSet( smd_layers );
+
+    // Switch padstack to CUSTOM mode (as the dialog does when user selects "Custom")
+    pad.Padstack().SetMode( PADSTACK::MODE::CUSTOM );
+
+    // Now flip the pad (as TransferDataFromWindow does for pads on flipped footprints).
+    // This renames the F_Cu key in m_copperProps to B_Cu.
+    // After this, ALL_LAYERS (= F_Cu) is no longer in m_copperProps.
+    pad.Flip( VECTOR2I( 0, 0 ), FLIP_DIRECTION::TOP_BOTTOM );
+
+    // These calls must NOT throw std::out_of_range.
+    // Before the fix, CopperLayer( ALL_LAYERS ) called m_copperProps.at( F_Cu ) which threw
+    // because F_Cu was not in the map (it had been renamed to B_Cu by FlipLayers).
+    BOOST_CHECK_NO_THROW( pad.GetShape( PADSTACK::ALL_LAYERS ) );
+    BOOST_CHECK_NO_THROW( pad.GetSize( PADSTACK::ALL_LAYERS ) );
+    BOOST_CHECK_NO_THROW( pad.Padstack().EffectiveLayerFor( PADSTACK::ALL_LAYERS ) );
+
+    // Verify the returned shape is sane (the B_Cu props, which were originally F_Cu props)
+    BOOST_CHECK( pad.GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::CIRCLE );
+}
+
+
+BOOST_AUTO_TEST_CASE( ResolveItemCachePurgedOnRemoveAll )
+{
+    // DeleteAllFootprints() frees the footprints, so their UUIDs (and their pads') must not stay
+    // in m_itemByIdCache or ResolveItem() returns a dangling pointer and the DRC tree crashes.
+
+    BOARD board;
+
+    FOOTPRINT* footprint = new FOOTPRINT( &board );
+    PAD*       pad = new PAD( footprint );
+    footprint->Add( pad );
+
+    const KIID footprintId = footprint->m_Uuid;
+    const KIID padId = pad->m_Uuid;
+
+    board.Add( footprint );
+
+    BOOST_REQUIRE( board.ResolveItem( footprintId, true ) == footprint );
+    BOOST_REQUIRE( board.ResolveItem( padId, true ) == pad );
+
+    board.DeleteAllFootprints();
+
+    BOOST_CHECK( board.ResolveItem( footprintId, true ) == nullptr );
+    BOOST_CHECK( board.ResolveItem( padId, true ) == nullptr );
+}
+
+
+BOOST_AUTO_TEST_CASE( ResolveItemCachePurgedOnRemoveAllNets )
+{
+    // NETINFO_LIST::clear() frees the nets, so the net path must purge the cache entry without
+    // resolving the freed pointer (ASAN catches a regression of the deferred clear()).
+
+    BOARD board;
+
+    NETINFO_ITEM* net = new NETINFO_ITEM( &board, wxT( "Net-(U1-Pad1)" ), 1 );
+    const KIID    netId = net->m_Uuid;
+
+    board.Add( net );
+
+    BOOST_REQUIRE( board.ResolveItem( netId, true ) == net );
+
+    board.RemoveAll();
+
+    BOOST_CHECK( board.ResolveItem( netId, true ) == nullptr );
+}
+
+
+// Regression test for issue #24696: a grouped zone left its group after undo/redo of a fill.
+// SwapItemData() (used by undo/redo and commit revert) must not move group membership, which
+// is a structural back-reference rather than swappable item data.
+BOOST_AUTO_TEST_CASE( Issue24696_SwapItemDataKeepsGroupMembership )
+{
+    PCB_GROUP group( &m_board );
+    ZONE      live( &m_board );
+    ZONE      image( &m_board );
+
+    // Mirror the undo swap: BOARD::Remove() has already stripped the live item's group,
+    // while the undo image still carries the membership.
+    live.SetParentGroup( nullptr );
+    image.SetParentGroup( &group );
+
+    live.SwapItemData( &image );
+
+    BOOST_CHECK( live.GetParentGroup() == nullptr );
+    BOOST_CHECK( image.GetParentGroup() == &group );
+
+    image.SetParentGroup( nullptr );
+}
+
+
+// Partial hardening for the BOARD::RecordDRCExclusions crash family (Sentry KICAD-YT2,
+// KICAD-YTA).  A PCB_MARKER may legitimately carry a null RC_ITEM (its ctor and dtor both guard
+// the member), but SerializeToString() dereferences it unconditionally, so recording exclusions
+// during a project save or window close faulted on such a marker.
+BOOST_AUTO_TEST_CASE( RecordDRCExclusionsSkipsMarkerWithoutRCItem )
+{
+    BOARD board;
+
+    PCB_MARKER* marker = new PCB_MARKER( nullptr, VECTOR2I( 0, 0 ) );
+    marker->SetExcluded( true );
+    board.Add( marker );
+
+    BOOST_CHECK_NO_THROW( board.RecordDRCExclusions() );
+
+    // The item-less marker has no violation to serialize, so nothing is persisted.
+    BOOST_CHECK( board.GetDesignSettings().m_DrcExclusions.empty() );
+}
+
+
+BOOST_AUTO_TEST_CASE( ResolveItemIdentityCachePurgedOnDestruction )
+{
+    BOARD board;
+
+    FOOTPRINT* footprint = new FOOTPRINT( &board );
+    board.Add( footprint );
+
+    PAD* pad = new PAD( footprint );
+    footprint->Pads().push_back( pad );
+    board.CacheItemById( pad );
+
+    const KIID padId = pad->m_Uuid;
+
+    BOOST_REQUIRE( board.IsItemIndexedById( pad ) );
+    BOOST_REQUIRE_EQUAL( board.ResolveItem( padId, true ), static_cast<BOARD_ITEM*>( pad ) );
+
+    // Detach the pad from the footprint without FOOTPRINT::Remove()'s surgical eviction, leaving it
+    // parented to the still-board-attached footprint, then free it directly.  This stands in for the
+    // producer paths that free a board-parented item without touching the identity cache; only the
+    // ~BOARD_ITEM safety net can then keep ResolveItem() from returning a freed pointer.
+    std::deque<PAD*>& pads = footprint->Pads();
+    pads.erase( std::find( pads.begin(), pads.end(), pad ) );
+    delete pad;
+
+    BOOST_CHECK( board.ResolveItem( padId, true ) == nullptr );
+}
+
+
+// The per-item flag must track the board's identity cache across every mutation path.
+BOOST_AUTO_TEST_CASE( IndexMembershipFlagTracksCache )
+{
+    BOARD board;
+
+    FOOTPRINT* footprint = new FOOTPRINT( &board );
+    board.Add( footprint );
+
+    PAD* pad = new PAD( footprint );
+    footprint->Pads().push_back( pad );
+
+    BOOST_CHECK( !pad->IsIndexedInBoard() );
+
+    board.CacheItemById( pad );
+    BOOST_CHECK( pad->IsIndexedInBoard() );
+    BOOST_CHECK( board.IsItemIndexedById( pad ) );
+
+    // A clone is a distinct object, not itself indexed.
+    {
+        PAD copy( *pad );
+        BOOST_CHECK( !copy.IsIndexedInBoard() );
+    }
+
+    board.UncacheItemById( pad->m_Uuid );
+    BOOST_CHECK( !pad->IsIndexedInBoard() );
+    BOOST_CHECK( !board.IsItemIndexedById( pad ) );
+
+    board.CacheAndReturnItemById( pad->m_Uuid, pad );
+    BOOST_CHECK( pad->IsIndexedInBoard() );
+
+    board.UncacheItemByPtr( pad );
+    BOOST_CHECK( !pad->IsIndexedInBoard() );
+    BOOST_CHECK( !board.IsItemIndexedById( pad ) );
+
+    board.CacheItemById( pad );
+    BOOST_REQUIRE( pad->IsIndexedInBoard() );
+    board.ClearItemByIdCache();
+    BOOST_CHECK( !pad->IsIndexedInBoard() );
+}
+
+
+// A rejected Add() (here a track on a non-copper layer) must leave the item out of the cache.
+BOOST_AUTO_TEST_CASE( RejectedAddLeavesItemUnindexed )
+{
+    BOARD board;
+
+    PCB_TRACK* track = new PCB_TRACK( &board );
+    track->SetLayer( Edge_Cuts );
+
+    CHECK_WX_ASSERT( board.Add( track ) );
+
+    BOOST_CHECK( !track->IsIndexedInBoard() );
+    BOOST_CHECK( !board.IsItemIndexedById( track ) );
+
+    BOOST_CHECK_NO_THROW( delete track );
+}
+
+
+// A never-indexed item parented to a freed board must not touch that board on destruction, the
+// crash from the "KiCad master crashes" report (follow-up to ac12a1c820).
+BOOST_AUTO_TEST_CASE( UncachedItemSurvivesBoardDestruction )
+{
+    BOARD*   board = new BOARD();
+    PCB_VIA* dummy = new PCB_VIA( board );
+
+    BOOST_REQUIRE( !dummy->IsIndexedInBoard() );
+
+    delete board;
+
+    BOOST_CHECK_NO_THROW( delete dummy );
+}
+
+
+BOOST_AUTO_TEST_SUITE_END()

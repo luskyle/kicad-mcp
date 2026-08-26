@@ -1,0 +1,4328 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright (C) 2014-2017 CERN
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ * @author Tomasz Włostowski <tomasz.wlostowski@cern.ch>
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you may find one here:
+ * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ * or you may search the http://www.gnu.org website for the version 2 license,
+ * or you may write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ */
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <functional>
+#include <future>
+#include <thread>
+#include <wx/filename.h>
+#include <hash.h>
+#include <mmh3_hash.h>
+#include <set>
+#include <unordered_set>
+#include <core/kicad_algo.h>
+#include <advanced_config.h>
+#include <board.h>
+#include <board_design_settings.h>
+#include <drc/drc_engine.h>
+#include <zone.h>
+#include <footprint.h>
+#include <pad.h>
+#include <pcb_target.h>
+#include <pcb_track.h>
+#include <pcb_text.h>
+#include <pcb_textbox.h>
+#include <pcb_tablecell.h>
+#include <pcb_table.h>
+#include <pcb_dimension.h>
+#include <connectivity/connectivity_data.h>
+#include <convert_basic_shapes_to_polygon.h>
+#include <board_commit.h>
+#include <progress_reporter.h>
+#include <geometry/shape_poly_set.h>
+#include <geometry/convex_hull.h>
+#include <geometry/geometry_utils.h>
+#include <geometry/vertex_set.h>
+#include <geometry/poly_containment_index.h>
+#include <kidialog.h>
+#include <thread_pool.h>
+#include <math/util.h>      // for KiROUND
+#include "zone_filler.h"
+#include <wildcards_and_files_ext.h>
+#include "project.h"
+#include "project/project_local_settings.h"
+#include "pcb_barcode.h"
+
+// Helper classes for connect_nearby_polys
+class RESULTS
+{
+public:
+    RESULTS( int aOutline1, int aOutline2, int aVertex1, int aVertex2 ) :
+            m_outline1( aOutline1 ), m_outline2( aOutline2 ),
+            m_vertex1( aVertex1 ), m_vertex2( aVertex2 )
+    {
+    }
+
+    bool operator<( const RESULTS& aOther ) const
+    {
+        if( m_outline1 != aOther.m_outline1 )
+            return m_outline1 < aOther.m_outline1;
+        if( m_outline2 != aOther.m_outline2 )
+            return m_outline2 < aOther.m_outline2;
+        if( m_vertex1 != aOther.m_vertex1 )
+            return m_vertex1 < aOther.m_vertex1;
+        return m_vertex2 < aOther.m_vertex2;
+    }
+
+    int m_outline1;
+    int m_outline2;
+    int m_vertex1;
+    int m_vertex2;
+};
+
+class VERTEX_CONNECTOR : protected VERTEX_SET
+{
+public:
+    VERTEX_CONNECTOR( const BOX2I& aBBox, const SHAPE_POLY_SET& aPolys, int aDist ) :
+            VERTEX_SET( ADVANCED_CFG::GetCfg().m_TriangulateSimplificationLevel )
+    {
+        SetBoundingBox( aBBox );
+        VERTEX* tail = nullptr;
+
+        for( int i = 0; i < aPolys.OutlineCount(); i++ )
+        {
+            const SHAPE_LINE_CHAIN& outline = aPolys.Outline( i );
+            std::vector<double>&    distances = m_outlineDistances.emplace_back();
+
+            distances.reserve( outline.PointCount() + 1 );
+            distances.push_back( 0.0 );
+
+            for( int j = 0; j < outline.PointCount(); j++ )
+            {
+                distances.push_back( distances.back()
+                                     + ( outline.CPoint( j + 1 ) - outline.CPoint( j ) )
+                                               .EuclideanNorm() );
+            }
+
+            tail = createList( outline, tail, (void*)( intptr_t )( i ) );
+        }
+
+        if( tail )
+            tail->updateList();
+        m_dist = aDist;
+    }
+
+    VERTEX* getPoint( VERTEX* aPt ) const
+    {
+        // z-order range for the current point ± limit bounding box
+        const uint32_t     maxZ = zOrder( aPt->x + m_dist, aPt->y + m_dist );
+        const uint32_t     minZ = zOrder( aPt->x - m_dist, aPt->y - m_dist );
+        const SEG::ecoord limit2 = SEG::Square( m_dist );
+
+        // first look for points in increasing z-order
+        SEG::ecoord min_dist = std::numeric_limits<SEG::ecoord>::max();
+        VERTEX* retval = nullptr;
+
+        auto check_pt = [&]( VERTEX* p )
+        {
+            // A nearby point along the same contour is already connected and would consume the
+            // visited-point suppression before a contour-distant point across a neck is considered.
+            if( p->GetUserData() == aPt->GetUserData() )
+            {
+                const std::vector<double>& distances =
+                        m_outlineDistances[(intptr_t) p->GetUserData()];
+                double directDistance = std::abs( distances[p->i] - distances[aPt->i] );
+                double contourDistance =
+                        std::min( directDistance, distances.back() - directDistance );
+
+                if( contourDistance < m_dist )
+                    return;
+            }
+
+            VECTOR2D diff( p->x - aPt->x, p->y - aPt->y );
+            SEG::ecoord dist2 = diff.SquaredEuclideanNorm();
+
+            if( dist2 > 0 && dist2 < limit2 && dist2 < min_dist && p->isEar( true ) )
+            {
+                min_dist = dist2;
+                retval = p;
+            }
+        };
+
+        VERTEX* p = aPt->nextZ;
+
+        while( p && p->z <= maxZ )
+        {
+            check_pt( p );
+            p = p->nextZ;
+        }
+
+        p = aPt->prevZ;
+
+        while( p && p->z >= minZ )
+        {
+            check_pt( p );
+            p = p->prevZ;
+        }
+
+        return retval;
+    }
+
+    void FindResults()
+    {
+        if( m_vertices.empty() )
+            return;
+
+        VERTEX* p = m_vertices.front().next;
+        std::set<VERTEX*> visited;
+
+        while( p != &m_vertices.front() )
+        {
+            // Skip points that are concave
+            if( !p->isEar() )
+            {
+                p = p->next;
+                continue;
+            }
+
+            VERTEX* q = nullptr;
+
+            if( ( visited.empty() || !visited.contains( p ) ) && ( q = getPoint( p ) ) )
+            {
+                visited.insert( p );
+
+                if( !visited.contains( q ) &&
+                    m_results.emplace( (intptr_t) p->GetUserData(), (intptr_t) q->GetUserData(),
+                                        p->i, q->i ).second )
+                {
+                    // We don't want to connect multiple points in the same vicinity, so skip
+                    // 2 points before and after each point and match.
+                    visited.insert( p->prev );
+                    visited.insert( p->prev->prev );
+                    visited.insert( p->next );
+                    visited.insert( p->next->next );
+
+                    visited.insert( q->prev );
+                    visited.insert( q->prev->prev );
+                    visited.insert( q->next );
+                    visited.insert( q->next->next );
+
+                    visited.insert( q );
+                }
+            }
+
+            p = p->next;
+        }
+    }
+
+    std::set<RESULTS> GetResults() const
+    {
+        return m_results;
+    }
+
+private:
+    std::set<RESULTS>                m_results;
+    std::vector<std::vector<double>> m_outlineDistances;
+    int                              m_dist;
+};
+
+
+/**
+ * Helper structures for deduplicating coincident knockout items.
+ * When multiple pads, vias, or tracks occupy the same position with the same geometry,
+ * we only need to add them to the knockout polygon once.
+ */
+namespace
+{
+
+/// Key for deduplicating coincident pads.
+/// For circular pads: uses max of drill and pad size.
+/// For non-circular pads: uses pad size only.
+/// Net code is included so pads at the same position with different nets are not
+/// deduplicated, since they require different zone treatment (thermal vs clearance).
+struct PAD_KNOCKOUT_KEY
+{
+    VECTOR2I  position;
+    VECTOR2I  effectiveSize;   // For circular: max of drill and pad; otherwise pad size
+    int       shape;           // PAD_SHAPE enum value
+    EDA_ANGLE orientation;
+    int       netCode;
+
+    bool operator==( const PAD_KNOCKOUT_KEY& other ) const
+    {
+        return position == other.position && effectiveSize == other.effectiveSize
+               && shape == other.shape && orientation == other.orientation
+               && netCode == other.netCode;
+    }
+};
+
+struct PAD_KNOCKOUT_KEY_HASH
+{
+    size_t operator()( const PAD_KNOCKOUT_KEY& key ) const
+    {
+        return hash_val( key.position.x, key.position.y, key.effectiveSize.x, key.effectiveSize.y,
+                         key.shape, key.orientation.AsDegrees(), key.netCode );
+    }
+};
+
+/// Key for deduplicating coincident vias (circular, so use max of drill and width)
+/// Net code is included so vias at the same position with different nets are not
+/// deduplicated, since they require different zone treatment.
+struct VIA_KNOCKOUT_KEY
+{
+    VECTOR2I position;
+    int      effectiveSize;    // max of drill and via width
+    int      netCode;
+
+    bool operator==( const VIA_KNOCKOUT_KEY& other ) const
+    {
+        return position == other.position && effectiveSize == other.effectiveSize
+               && netCode == other.netCode;
+    }
+};
+
+struct VIA_KNOCKOUT_KEY_HASH
+{
+    size_t operator()( const VIA_KNOCKOUT_KEY& key ) const
+    {
+        return hash_val( key.position.x, key.position.y, key.effectiveSize, key.netCode );
+    }
+};
+
+/// Key for deduplicating coincident tracks (same endpoints, width)
+/// Endpoints are canonicalized so that start < end lexicographically
+struct TRACK_KNOCKOUT_KEY
+{
+    VECTOR2I start;
+    VECTOR2I end;
+    int      width;
+
+    TRACK_KNOCKOUT_KEY( const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth ) :
+            width( aWidth )
+    {
+        // Canonicalize endpoint order for consistent hashing
+        if( aStart.x < aEnd.x || ( aStart.x == aEnd.x && aStart.y <= aEnd.y ) )
+        {
+            start = aStart;
+            end = aEnd;
+        }
+        else
+        {
+            start = aEnd;
+            end = aStart;
+        }
+    }
+
+    bool operator==( const TRACK_KNOCKOUT_KEY& other ) const
+    {
+        return start == other.start && end == other.end && width == other.width;
+    }
+};
+
+struct TRACK_KNOCKOUT_KEY_HASH
+{
+    size_t operator()( const TRACK_KNOCKOUT_KEY& key ) const
+    {
+        return hash_val( key.start.x, key.start.y, key.end.x, key.end.y, key.width );
+    }
+};
+
+template<typename Func>
+void forEachBoardAndFootprintZone( BOARD* aBoard, Func&& aFunc )
+{
+    for( ZONE* zone : aBoard->Zones() )
+        aFunc( zone );
+
+    for( FOOTPRINT* footprint : aBoard->Footprints() )
+    {
+        for( ZONE* zone : footprint->Zones() )
+            aFunc( zone );
+    }
+}
+
+bool isZoneFillKeepout( const ZONE* aZone, PCB_LAYER_ID aLayer, const BOX2I& aBBox )
+{
+    return aZone->GetIsRuleArea()
+           && aZone->HasKeepoutParametersSet()
+           && aZone->GetDoNotAllowZoneFills()
+           && aZone->IsOnLayer( aLayer )
+           && aZone->GetBoundingBox().Intersects( aBBox );
+}
+
+void appendZoneOutlineWithoutArcs( const ZONE* aZone, SHAPE_POLY_SET& aPolys )
+{
+    if( aZone->Outline()->ArcCount() == 0 )
+    {
+        aPolys.Append( *aZone->Outline() );
+        return;
+    }
+
+    SHAPE_POLY_SET outline( *aZone->Outline() );
+    outline.ClearArcs();
+    aPolys.Append( outline );
+}
+
+} // anonymous namespace
+
+
+ZONE_FILLER::ZONE_FILLER( BOARD* aBoard, COMMIT* aCommit ) :
+        m_board( aBoard ),
+        m_brdOutlinesValid( false ),
+        m_commit( aCommit ),
+        m_progressReporter( nullptr ),
+        m_worstClearance( 0 )
+{
+    m_maxError = aBoard->GetDesignSettings().m_MaxError;
+    m_zoneKnockoutSlack = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_ExtraClearance ) + m_maxError;
+
+    // To enable add "DebugZoneFiller=1" to kicad_advanced settings file.
+    m_debugZoneFiller = ADVANCED_CFG::GetCfg().m_DebugZoneFiller;
+}
+
+
+ZONE_FILLER::~ZONE_FILLER()
+{
+}
+
+
+void ZONE_FILLER::SetProgressReporter( PROGRESS_REPORTER* aReporter )
+{
+    m_progressReporter = aReporter;
+}
+
+
+// Every read of another zone's fill must gate on this one predicate, or a read races the
+// writer and the fill is non-deterministic.  Reach spans the knockout inflation and apron.
+bool ZONE_FILLER::zoneKnockoutMayInteract( const ZONE* aZone, const ZONE* aKnockout ) const
+{
+    int reach = m_worstClearance + m_zoneKnockoutSlack + aZone->GetMinThickness();
+
+    if( m_board->GetDesignSettings().m_ZoneKeepExternalFillets )
+    {
+        for( const ZONE* zone : { aZone, aKnockout } )
+        {
+            if( zone->GetCornerSmoothingType() == ZONE_SETTINGS::SMOOTHING_CHAMFER
+                    || zone->GetCornerSmoothingType() == ZONE_SETTINGS::SMOOTHING_FILLET )
+            {
+                reach += (int) zone->GetCornerRadius();
+            }
+        }
+    }
+
+    BOX2I bbox = aZone->GetBoundingBox();
+    bbox.Inflate( reach );
+
+    if( !bbox.Intersects( aKnockout->GetBoundingBox() ) )
+        return false;
+
+    return aZone->Outline()->Collide( aKnockout->Outline(), reach );
+}
+
+
+/**
+ * Fills the given list of zones.
+ *
+ * NB: Invalidates connectivity - it is up to the caller to obtain a lock on the connectivity
+ * data before calling Fill to prevent access to stale data by other coroutines (for example,
+ * ratsnest redraw).  This will generally be required if a UI-based progress reporter has been
+ * installed.
+ *
+ * Caller is also responsible for re-building connectivity afterwards.
+ */
+bool ZONE_FILLER::Fill( const std::vector<ZONE*>& aZones, bool aCheck, wxWindow* aParent )
+{
+    std::lock_guard<KISPINLOCK> lock( m_board->GetConnectivity()->GetLock() );
+
+    // Keyed on knockout geometry only; valid for this fill's passes (pre-knockout fill is rebuilt
+    // below).
+    m_refillResultCache.clear();
+    m_preHatchSolidFillCache.clear();
+    m_sameNetApronCache.clear();
+
+    // The fill evaluates thermal-relief and clearance rules through the board's DRC engine on
+    // worker threads.  Interactive callers always supply an initialized engine, but headless
+    // consumers (the Python/API ZONE_FILLER) can reach here with none, which would crash on the
+    // first EvalRules() call.
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+    if( !bds.m_DRCEngine )
+    {
+        std::shared_ptr<DRC_ENGINE> drcEngine = std::make_shared<DRC_ENGINE>( m_board, &bds );
+
+        wxString rulesPath;
+
+        if( !m_board->GetFileName().IsEmpty() && m_board->GetProject() )
+        {
+            wxFileName fn( m_board->GetFileName() );
+            fn.SetExt( FILEEXT::DesignRulesFileExtension );
+            rulesPath = m_board->GetProject()->AbsolutePath( fn.GetFullName() );
+        }
+
+        try
+        {
+            drcEngine->InitEngine( wxFileName( rulesPath ) );
+        }
+        catch( ... )
+        {
+            // Rules failing to compile only matters when the user runs DRC; the fill falls back
+            // to the implicit constraints, which is enough to avoid the crash.
+        }
+
+        // Publish only after InitEngine() has fully populated the engine so a concurrent reader
+        // never observes a non-null but half-initialized engine.
+        bds.m_DRCEngine = drcEngine;
+    }
+
+    std::vector<std::pair<ZONE*, PCB_LAYER_ID>>               toFill;
+    std::map<std::pair<ZONE*, PCB_LAYER_ID>, HASH_128>        oldFillHashes;
+    std::map<ZONE*, std::map<PCB_LAYER_ID, ISOLATED_ISLANDS>> isolatedIslandsMap;
+
+    std::shared_ptr<CONNECTIVITY_DATA> connectivity = m_board->GetConnectivity();
+
+    // Ensure that multiple threads don't attempt to initialize the advanced cfg global at the same
+    // time.
+    ADVANCED_CFG::GetCfg();
+
+    // Rebuild (from scratch, ignoring dirty flags) just in case. This really needs to be reliable.
+    connectivity->ClearRatsnest();
+    connectivity->Build( m_board, m_progressReporter );
+
+    m_worstClearance = m_board->GetMaxClearanceValue();
+
+    if( m_progressReporter )
+    {
+        m_progressReporter->Report( aCheck ? _( "Checking zone fills..." )
+                                           : _( "Building zone fills..." ) );
+        m_progressReporter->SetMaxProgress( aZones.size() );
+        m_progressReporter->KeepRefreshing();
+    }
+
+    // The board outlines is used to clip solid areas inside the board (when outlines are valid)
+    m_boardOutline.RemoveAllContours();
+    m_brdOutlinesValid = m_board->GetBoardPolygonOutlines( m_boardOutline, true );
+
+    // Update and cache zone bounding boxes and pad effective shapes so that we don't have to
+    // make them thread-safe.
+    //
+    for( ZONE* zone : m_board->Zones() )
+        zone->CacheBoundingBox();
+
+    for( FOOTPRINT* footprint : m_board->Footprints() )
+    {
+        for( PAD* pad : footprint->Pads() )
+        {
+            if( pad->IsDirty() )
+            {
+                pad->BuildEffectiveShapes();
+                pad->BuildEffectivePolygon( ERROR_OUTSIDE );
+            }
+        }
+
+        for( ZONE* zone : footprint->Zones() )
+            zone->CacheBoundingBox();
+
+        // Rules may depend on insideCourtyard() or other expressions
+        footprint->BuildCourtyardCaches();
+        footprint->BuildNetTieCache();
+    }
+
+    LSET boardCuMask = LSET::AllCuMask( m_board->GetCopperLayerCount() );
+
+    auto findHighestPriorityZone =
+            [&]( const BOX2I& bbox, PCB_LAYER_ID itemLayer, int netcode,
+                 const std::function<bool( const ZONE* )>& testFn ) -> ZONE*
+            {
+                unsigned highestPriority = 0;
+                ZONE*    highestPriorityZone = nullptr;
+
+                for( ZONE* zone : m_board->Zones() )
+                {
+                    // Rule areas are not filled
+                    if( zone->GetIsRuleArea() )
+                        continue;
+
+                    if( zone->GetAssignedPriority() < highestPriority )
+                        continue;
+
+                    if( !zone->IsOnLayer( itemLayer ) )
+                        continue;
+
+                    // Degenerate zones will cause trouble; skip them
+                    if( zone->GetNumCorners() <= 2 )
+                        continue;
+
+                    if( !zone->GetBoundingBox().Intersects( bbox ) )
+                        continue;
+
+                    if( !testFn( zone ) )
+                        continue;
+
+                    // Prefer highest priority and matching netcode
+                    if( zone->GetAssignedPriority() > highestPriority
+                            || zone->GetNetCode() == netcode )
+                    {
+                        highestPriority = zone->GetAssignedPriority();
+                        highestPriorityZone = zone;
+                    }
+                }
+
+                return highestPriorityZone;
+            };
+
+    auto isInPourKeepoutArea =
+            [&]( const BOX2I& bbox, PCB_LAYER_ID itemLayer, const VECTOR2I& testPoint ) -> bool
+            {
+                for( ZONE* zone : m_board->Zones() )
+                {
+                    if( !zone->GetIsRuleArea() )
+                        continue;
+
+                    if( !zone->HasKeepoutParametersSet() )
+                        continue;
+
+                    if( !zone->GetDoNotAllowZoneFills() )
+                        continue;
+
+                    if( !zone->IsOnLayer( itemLayer ) )
+                        continue;
+
+                    // Degenerate zones will cause trouble; skip them
+                    if( zone->GetNumCorners() <= 2 )
+                        continue;
+
+                    if( !zone->GetBoundingBox().Intersects( bbox ) )
+                        continue;
+
+                    if( zone->Outline()->Contains( testPoint ) )
+                        return true;
+                }
+
+                return false;
+            };
+
+    // Determine state of conditional via flashing
+    // This is now done completely deterministically prior to filling due to the pathological
+    // case presented in https://gitlab.com/kicad/code/kicad/-/issues/12964.
+    for( PCB_TRACK* track : m_board->Tracks() )
+    {
+        if( track->Type() == PCB_VIA_T )
+        {
+            PCB_VIA*  via = static_cast<PCB_VIA*>( track );
+            PADSTACK& padstack = via->Padstack();
+
+            via->ClearZoneLayerOverrides();
+
+            if( !via->GetRemoveUnconnected() )
+                continue;
+
+            BOX2I    bbox = via->GetBoundingBox();
+            VECTOR2I center = via->GetPosition();
+            int      holeRadius = via->GetDrillValue() / 2 + 1;
+            int      netcode = via->GetNetCode();
+            LSET     layers = via->GetLayerSet() & boardCuMask;
+
+            // Checking if the via hole touches the zone outline
+            auto viaTestFn =
+                    [&]( const ZONE* aZone ) -> bool
+                    {
+                        return aZone->Outline()->Contains( center, -1, holeRadius );
+                    };
+
+            for( PCB_LAYER_ID layer : layers )
+            {
+                if( !via->ConditionallyFlashed( layer ) )
+                    continue;
+
+                if( isInPourKeepoutArea( bbox, layer, center ) )
+                {
+                    via->SetZoneLayerOverride( layer, ZLO_FORCE_NO_ZONE_CONNECTION );
+                }
+                else
+                {
+                    ZONE* zone = findHighestPriorityZone( bbox, layer, netcode, viaTestFn );
+
+                    if( zone && zone->GetNetCode() == via->GetNetCode()
+                             && ( padstack.UnconnectedLayerMode() != UNCONNECTED_LAYER_MODE::START_END_ONLY
+                                  || layer == padstack.Drill().start
+                                  || layer == padstack.Drill().end ) )
+                    {
+                        via->SetZoneLayerOverride( layer, ZLO_FORCE_FLASHED );
+                    }
+                    else
+                    {
+                        via->SetZoneLayerOverride( layer, ZLO_FORCE_NO_ZONE_CONNECTION );
+                    }
+                }
+            }
+        }
+    }
+
+    // Determine state of conditional pad flashing
+    for( FOOTPRINT* footprint : m_board->Footprints() )
+    {
+        for( PAD* pad : footprint->Pads() )
+        {
+            pad->ClearZoneLayerOverrides();
+
+            if( !pad->GetRemoveUnconnected() )
+                continue;
+
+            BOX2I    bbox = pad->GetBoundingBox();
+            VECTOR2I center = pad->GetPosition();
+            int      netcode = pad->GetNetCode();
+            LSET     layers = pad->GetLayerSet() & boardCuMask;
+
+            auto padTestFn =
+                    [&]( const ZONE* aZone ) -> bool
+                    {
+                        return aZone->Outline()->Contains( center );
+                    };
+
+            for( PCB_LAYER_ID layer : layers )
+            {
+                if( !pad->ConditionallyFlashed( layer ) )
+                    continue;
+
+                if( isInPourKeepoutArea( bbox, layer, center ) )
+                {
+                    pad->SetZoneLayerOverride( layer, ZLO_FORCE_NO_ZONE_CONNECTION );
+                }
+                else
+                {
+                    ZONE* zone = findHighestPriorityZone( bbox, layer, netcode, padTestFn );
+
+                    if( zone && zone->GetNetCode() == pad->GetNetCode() )
+                        pad->SetZoneLayerOverride( layer, ZLO_FORCE_FLASHED );
+                    else
+                        pad->SetZoneLayerOverride( layer, ZLO_FORCE_NO_ZONE_CONNECTION );
+                }
+            }
+        }
+    }
+
+    for( ZONE* zone : aZones )
+    {
+        // Rule areas are not filled
+        if( zone->GetIsRuleArea() )
+            continue;
+
+        // Degenerate zones will cause trouble; skip them
+        if( zone->GetNumCorners() <= 2 )
+            continue;
+
+        if( m_commit )
+            m_commit->Modify( zone );
+
+        // calculate the hash value for filled areas. it will be used later to know if the
+        // current filled areas are up to date
+        for( PCB_LAYER_ID layer : zone->GetLayerSet() )
+        {
+            zone->BuildHashValue( layer );
+            oldFillHashes[ { zone, layer } ] = zone->GetHashValue( layer );
+
+            // Add the zone to the list of zones to test or refill
+            toFill.emplace_back( std::make_pair( zone, layer ) );
+
+            isolatedIslandsMap[zone][layer] = ISOLATED_ISLANDS();
+        }
+
+        // Remove existing fill first to prevent drawing invalid polygons on some platforms
+        zone->UnFill();
+    }
+
+    auto zone_fill_dependency =
+            [&]( ZONE* aZone, PCB_LAYER_ID aLayer, ZONE* aOtherZone,
+                 bool aRequireCompletedOtherFill ) -> bool
+            {
+                // Check to see if we have to knock-out the filled areas of a higher-priority
+                // zone.  If so we have to wait until said zone is filled before we can fill.
+
+                // If the other zone is already filled on the requested layer then we're
+                // good-to-go
+                if( aRequireCompletedOtherFill && aOtherZone->GetFillFlag( aLayer ) )
+                    return false;
+
+                // Even if keepouts exclude copper pours, the exclusion is by outline rather than
+                // filled area, so we're good-to-go here too
+                if( aOtherZone->GetIsRuleArea() )
+                    return false;
+
+                // If the other zone is never going to be filled then don't wait for it
+                if( aOtherZone->GetNumCorners() <= 2 )
+                    return false;
+
+                // If the zones share no common layers
+                if( !aOtherZone->GetLayerSet().test( aLayer ) )
+                    return false;
+
+                if( aZone->HigherPriority( aOtherZone ) )
+                    return false;
+
+                // Same-net zones always use outlines to produce determinate results
+                if( aOtherZone->SameNet( aZone ) )
+                    return false;
+
+                // Must be the same gate the knockout reads use, or the read races the writer.
+                return zoneKnockoutMayInteract( aZone, aOtherZone );
+            };
+
+    auto check_fill_dependency =
+            [&]( ZONE* aZone, PCB_LAYER_ID aLayer, ZONE* aOtherZone ) -> bool
+            {
+                return zone_fill_dependency( aZone, aLayer, aOtherZone, true );
+            };
+
+    auto fill_item_dependency =
+            [&]( const std::pair<ZONE*, PCB_LAYER_ID>& aWaiter,
+                 const std::pair<ZONE*, PCB_LAYER_ID>& aDependency ) -> bool
+            {
+                if( aWaiter.first == aDependency.first || aWaiter.second != aDependency.second )
+                    return false;
+
+                return check_fill_dependency( aWaiter.first, aWaiter.second, aDependency.first );
+            };
+
+    auto fill_lambda =
+            [&]( std::pair<ZONE*, PCB_LAYER_ID> aFillItem ) -> int
+            {
+                if( m_progressReporter && m_progressReporter->IsCancelled() )
+                    return 0;
+
+                PCB_LAYER_ID layer = aFillItem.second;
+                ZONE*        zone = aFillItem.first;
+
+                SHAPE_POLY_SET fillPolys;
+
+                if( !fillSingleZone( zone, layer, fillPolys ) )
+                    return 0;
+
+                zone->SetFilledPolysList( layer, fillPolys );
+
+                if( m_progressReporter )
+                    m_progressReporter->AdvanceProgress();
+
+                return 1;
+            };
+
+    auto tesselate_lambda =
+            [&]( std::pair<ZONE*, PCB_LAYER_ID> aFillItem ) -> int
+            {
+                if( m_progressReporter && m_progressReporter->IsCancelled() )
+                    return 0;
+
+                PCB_LAYER_ID layer = aFillItem.second;
+                ZONE*        zone = aFillItem.first;
+
+                zone->CacheTriangulation( layer );
+                zone->SetFillFlag( layer, true );
+
+                return 1;
+            };
+
+    thread_pool&      tp = GetKiCadThreadPool();
+    std::atomic<bool> cancelled = false;
+
+    // Walk the dependency DAG without wave barriers, which would idle the whole pool on the
+    // slowest fill in each wave.  Release an item's successors the instant its fill publishes
+    // and tessellate inline, keeping the pool saturated.  A fill only reads the outlines and
+    // published fills of its dependencies, so releasing on completion is safe.
+    auto run_fill_waves =
+            [&]( const std::vector<std::pair<ZONE*, PCB_LAYER_ID>>& aFillItems, auto&& aFillFn,
+                 auto&& aTessFn, auto&& aHasDependency, bool aAnyDependencies )
+            {
+                const size_t count = aFillItems.size();
+
+                if( count == 0 )
+                    return;
+
+                std::vector<std::vector<size_t>> successors( count );
+                std::vector<std::atomic<int>>    inDegree( count );
+
+                for( size_t i = 0; i < count; ++i )
+                    inDegree[i].store( 0, std::memory_order_relaxed );
+
+                // Skip the O(N²) dependency scan when the caller guarantees no deps.
+                if( aAnyDependencies )
+                {
+                    for( size_t i = 0; i < count; ++i )
+                    {
+                        for( size_t j = 0; j < count; ++j )
+                        {
+                            if( i == j )
+                                continue;
+
+                            if( aHasDependency( aFillItems[j], aFillItems[i] ) )
+                            {
+                                successors[i].push_back( j );
+                                inDegree[j].fetch_add( 1, std::memory_order_relaxed );
+                            }
+                        }
+                    }
+                }
+
+                std::atomic<int> remaining( (int) count );
+
+                std::function<void( size_t )> process;
+                process =
+                        [&]( size_t idx )
+                        {
+                            int filled = aFillFn( aFillItems[idx] );
+
+                            // Release dependents; their fills read this one's now-published result.
+                            for( size_t succ : successors[idx] )
+                            {
+                                if( inDegree[succ].fetch_sub( 1, std::memory_order_acq_rel ) == 1 )
+                                    tp.detach_task( [&process, succ]() { process( succ ); } );
+                            }
+
+                            if( filled != 0 && !cancelled.load() )
+                                aTessFn( aFillItems[idx] );
+
+                            remaining.fetch_sub( 1, std::memory_order_acq_rel );
+                        };
+
+                // Seed the pool with every dependency-free item.
+                for( size_t i = 0; i < count; ++i )
+                {
+                    if( inDegree[i].load( std::memory_order_relaxed ) == 0 )
+                        tp.detach_task( [&process, i]() { process( i ); } );
+                }
+
+                // Drain the DAG, keeping the UI responsive and honoring cancellation.
+                while( remaining.load( std::memory_order_acquire ) > 0 )
+                {
+                    if( m_progressReporter )
+                    {
+                        m_progressReporter->KeepRefreshing();
+
+                        if( m_progressReporter->IsCancelled() )
+                            cancelled = true;
+                    }
+
+                    std::this_thread::sleep_for( std::chrono::milliseconds( 20 ) );
+                }
+
+                // remaining hits zero inside the final task, before it has unwound.  The detached
+                // tasks capture process/successors/inDegree by reference, so we must let every
+                // worker fully exit before those locals leave scope or a straggler dereferences
+                // freed state (issue 24758).
+                tp.wait();
+            };
+
+    run_fill_waves( toFill, fill_lambda, tesselate_lambda, fill_item_dependency, true );
+
+    // Now update the connectivity to check for isolated copper islands
+    // (NB: FindIsolatedCopperIslands() is multi-threaded)
+    if( m_progressReporter )
+    {
+        if( m_progressReporter->IsCancelled() )
+            return false;
+
+        m_progressReporter->AdvancePhase();
+        m_progressReporter->Report( _( "Removing isolated copper islands..." ) );
+        m_progressReporter->KeepRefreshing();
+    }
+
+    connectivity->SetProgressReporter( m_progressReporter );
+    connectivity->FillIsolatedIslandsMap( isolatedIslandsMap );
+    connectivity->SetProgressReporter( nullptr );
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    for( ZONE* zone : aZones )
+    {
+        // Keepout zones are not filled
+        if( zone->GetIsRuleArea() )
+            continue;
+
+        zone->SetIsFilled( true );
+    }
+
+    // Now remove isolated copper islands according to the isolated islands strategy assigned
+    // by the user (always, never, below-certain-size).
+    //
+    // Track zone-layer pairs that had islands removed for potential iterative refill.
+    // Per-layer granularity lets the iterative loop re-refill only the layers that actually
+    // changed, instead of every layer of every changed zone.
+    std::set<std::pair<ZONE*, PCB_LAYER_ID>> zonesWithRemovedIslandLayers;
+
+    // Per-layer tracking: a zone-layer pair is "initially fully isolated" when every fill
+    // outline on that layer was an island in the initial pass (i.e. the zone has no pad
+    // connectivity on that layer).  Used in the iterative loop to distinguish legitimately
+    // unconnected pours — which must be preserved — from zones that became fully isolated
+    // only because other fills changed.
+    std::set<std::pair<ZONE*, PCB_LAYER_ID>> initiallyFullyIsolatedLayers;
+
+    for( const auto& [ zone, zoneIslands ] : isolatedIslandsMap )
+    {
+        // Track per-layer isolation, and skip island removal on layers where every
+        // outline is an island (unconnected pour — must be preserved as-is).
+        bool allLayersFullyIsolated = true;
+
+        for( const auto& [ layer, layerIslands ] : zoneIslands )
+        {
+            bool layerFullyIsolated = ( layerIslands.m_IsolatedOutlines.size()
+                                        == static_cast<size_t>( zone->GetFilledPolysList( layer )->OutlineCount() ) );
+
+            if( layerFullyIsolated )
+                initiallyFullyIsolatedLayers.insert( { zone, layer } );
+            else
+                allLayersFullyIsolated = false;
+        }
+
+        if( allLayersFullyIsolated )
+            continue;
+
+        for( const auto& [ layer, layerIslands ] : zoneIslands )
+        {
+            if( m_debugZoneFiller && LSET::InternalCuMask().Contains( layer ) )
+                continue;
+
+            if( layerIslands.m_IsolatedOutlines.empty() )
+                continue;
+
+            std::vector<int> islands = layerIslands.m_IsolatedOutlines;
+
+            // The list of polygons to delete must be explored from last to first in list,
+            // to allow deleting a polygon from list without breaking the remaining of the list
+            std::sort( islands.begin(), islands.end(), std::greater<int>() );
+
+            std::shared_ptr<SHAPE_POLY_SET> poly = zone->GetFilledPolysList( layer );
+            long long int                   minArea = zone->GetMinIslandArea();
+            ISLAND_REMOVAL_MODE             mode = zone->GetIslandRemovalMode();
+
+            for( int idx : islands )
+            {
+                SHAPE_LINE_CHAIN& outline = poly->Outline( idx );
+
+                if( mode == ISLAND_REMOVAL_MODE::ALWAYS )
+                {
+                    poly->DeletePolygonAndTriangulationData( idx, false );
+                    zonesWithRemovedIslandLayers.insert( { zone, layer } );
+                }
+                else if ( mode == ISLAND_REMOVAL_MODE::AREA && outline.Area( true ) < minArea )
+                {
+                    poly->DeletePolygonAndTriangulationData( idx, false );
+                    zonesWithRemovedIslandLayers.insert( { zone, layer } );
+                }
+                else
+                {
+                    zone->SetIsIsland( layer, idx );
+                }
+            }
+
+            poly->UpdateTriangulationDataHash();
+            zone->CalculateFilledArea();
+
+            if( m_progressReporter && m_progressReporter->IsCancelled() )
+                return false;
+        }
+    }
+
+    // Iterative refill: when islands are removed, overlapping zones may be able to reclaim
+    // the freed space.  Repeat until fills stabilise (convergence), up to a safety limit.
+    //
+    // Each wave captures a snapshot of all zone fills before running.  Every task in the wave
+    // reads knockouts from the snapshot rather than from the live zone objects.  This guarantees
+    // that all tasks see the same pre-wave fill state regardless of the order in which parallel
+    // tasks complete — preventing a fast-finishing task's expanded fill from blocking a
+    // slower task from claiming the same freed area.
+    const bool iterativeRefill = ADVANCED_CFG::GetCfg().m_ZoneFillIterativeRefill;
+
+    // The initial fill subtracts a higher-priority same-net zone's outline, but
+    // refillZoneFromCache() subtracts its actual fill; seed the refill with overlapping
+    // lower zones so they reclaim any notch the higher zone left unfilled (issue 23790).
+    std::set<std::pair<ZONE*, PCB_LAYER_ID>> sameNetOverlapSeeds;
+
+    if( iterativeRefill )
+    {
+        LSET boardCu = LSET::AllCuMask( m_board->GetCopperLayerCount() );
+
+        // Bucket by net so each lower zone scans only its own net.
+        std::map<int, std::vector<ZONE*>> zonesByNet;
+
+        forEachBoardAndFootprintZone(
+                m_board,
+                [&]( ZONE* zone )
+                {
+                    if( !zone->GetIsRuleArea() && !zone->IsTeardropArea() )
+                        zonesByNet[zone->GetNetCode()].push_back( zone );
+                } );
+
+        for( ZONE* lowerZone : aZones )
+        {
+            if( lowerZone->GetIsRuleArea() || lowerZone->IsTeardropArea() )
+                continue;
+
+            auto netIt = zonesByNet.find( lowerZone->GetNetCode() );
+
+            if( netIt == zonesByNet.end() )
+                continue;
+
+            LSET lowerLayers = lowerZone->GetLayerSet() & boardCu;
+
+            for( ZONE* higherZone : netIt->second )
+            {
+                if( higherZone == lowerZone
+                        || higherZone->GetAssignedPriority() <= lowerZone->GetAssignedPriority() )
+                    continue;
+
+                if( !lowerZone->GetBoundingBox().Intersects( higherZone->GetBoundingBox() ) )
+                    continue;
+
+                LSET sharedLayers = lowerLayers & higherZone->GetLayerSet();
+
+                for( PCB_LAYER_ID layer : sharedLayers.Seq() )
+                {
+                    // Without a higher-zone fill in the snapshot the lower zone would pour
+                    // through the higher zone's outline.
+                    if( lowerZone->HasFilledPolysForLayer( layer )
+                            && higherZone->HasFilledPolysForLayer( layer ) )
+                    {
+                        sameNetOverlapSeeds.insert( { lowerZone, layer } );
+                    }
+                }
+            }
+        }
+    }
+
+    if( iterativeRefill
+            && ( !zonesWithRemovedIslandLayers.empty() || !sameNetOverlapSeeds.empty() ) )
+    {
+        const int maxIterations = 8;
+        bool      progressReported = false;
+        bool      hitIterationLimit = false;
+
+        // Seed: island-removal changes plus same-net overlap reclaims (see above).
+        std::set<std::pair<ZONE*, PCB_LAYER_ID>> changedZoneLayers( zonesWithRemovedIslandLayers );
+        changedZoneLayers.insert( sameNetOverlapSeeds.begin(), sameNetOverlapSeeds.end() );
+
+        auto cached_refill_tessellate_lambda = [&]( const std::pair<ZONE*, PCB_LAYER_ID>& aFillItem ) -> int
+        {
+            ZONE*        zone = aFillItem.first;
+            PCB_LAYER_ID layer = aFillItem.second;
+            zone->CacheTriangulation( layer );
+            zone->SetFillFlag( layer, true );
+            return 1;
+        };
+
+        auto no_dependency = []( const std::pair<ZONE*, PCB_LAYER_ID>&, const std::pair<ZONE*, PCB_LAYER_ID>& ) -> bool
+        {
+            return false;
+        };
+
+        for( int iteration = 0; iteration < maxIterations; ++iteration )
+        {
+            // Candidate selection: only re-refill (zone, layer) pairs where `layer` is the
+            // same layer that changed on some seed zone and whose bbox touches it.
+            // Per-layer narrowing skips the N-1 other layers of each changed zone.
+            std::vector<std::pair<ZONE*, PCB_LAYER_ID>> zonesToRefill;
+            std::set<std::pair<ZONE*, PCB_LAYER_ID>>    zonesToRefillSet;
+
+            for( const auto& [changedZone, changedLayer] : changedZoneLayers )
+            {
+                BOX2I bbox = changedZone->GetBoundingBox();
+                bbox.Inflate( m_worstClearance );
+
+                for( ZONE* zone : aZones )
+                {
+                    if( zone->GetIsRuleArea() )
+                        continue;
+
+                    if( !zone->GetLayerSet().test( changedLayer ) )
+                        continue;
+
+                    // A candidate only needs re-evaluation when the changed zone can
+                    // affect it in one of two ways:
+                    //   1. Fill shape: changed zone is a higher-priority knockout of
+                    //      candidate — candidate's refill may now claim freed space.
+                    //   2. Connectivity cluster: changed zone is same-net as candidate —
+                    //      even if candidate's fill shape is unchanged, refilling from
+                    //      cache restores outlines that were previously removed as
+                    //      islands, and island detection re-evaluates with the new
+                    //      same-net bridging geometry.  This is what drives cascading
+                    //      island refills: a low-priority same-net zone growing can
+                    //      un-orphan a higher-priority zone's standalone outline.
+                    // Zones that are neither higher-priority knockouts nor same-net have
+                    // no fill or connectivity dependency on the changed zone — skip.
+                    if( zone != changedZone && !changedZone->HigherPriority( zone ) && !changedZone->SameNet( zone ) )
+                    {
+                        continue;
+                    }
+
+                    // Same gate as the initial fill keeps the refill's knockout set identical;
+                    // same-net candidates interact through connectivity, not a knockout.
+                    if( zone != changedZone && !changedZone->SameNet( zone ) )
+                    {
+                        if( !zoneKnockoutMayInteract( zone, changedZone ) )
+                            continue;
+                    }
+                    else if( !zone->GetBoundingBox().Intersects( bbox ) )
+                    {
+                        continue;
+                    }
+
+                    auto fillItem = std::make_pair( zone, changedLayer );
+
+                    if( zonesToRefillSet.insert( fillItem ).second )
+                        zonesToRefill.push_back( fillItem );
+                }
+            }
+
+            if( zonesToRefill.empty() )
+                break;
+
+            if( !progressReported )
+            {
+                if( m_progressReporter )
+                {
+                    m_progressReporter->AdvancePhase();
+                    m_progressReporter->Report( _( "Refilling overlapping zones..." ) );
+                    m_progressReporter->KeepRefreshing();
+                }
+
+                progressReported = true;
+            }
+
+            // Snapshot hashes before the wave for convergence detection.  Only zones in
+            // zonesToRefill can change their fill this wave (refill writes them; subsequent
+            // island removal also only touches them), so we only need pre-hashes for those.
+            std::map<std::pair<ZONE*, PCB_LAYER_ID>, HASH_128> iterHashes;
+
+            for( const auto& fillItem : zonesToRefill )
+            {
+                fillItem.first->BuildHashValue( fillItem.second );
+                iterHashes[fillItem] = fillItem.first->GetHashValue( fillItem.second );
+            }
+
+            // Snapshot fills before the wave.  Every refill task reads knockouts from this
+            // snapshot so all tasks see the same pre-wave state regardless of completion
+            // order — preventing a fast-finishing task's expanded fill from blocking a
+            // slower task from claiming the same freed area.
+            //
+            // refillZoneFromCache only reads knockouts on the layer being refilled, so we
+            // only need to clone fills on layers that appear in zonesToRefill.  On boards
+            // with many layers and few changed layers this avoids most of the snapshot cost.
+            LSET snapshotLayers;
+
+            for( const auto& [zone, layer] : zonesToRefill )
+                snapshotLayers.set( layer );
+
+            FillSnapshot snapshot;
+
+            forEachBoardAndFootprintZone( m_board,
+                                          [&]( ZONE* zone )
+                                          {
+                                              if( zone->GetIsRuleArea() )
+                                                  return;
+
+                                              LSET copperLayers = zone->GetLayerSet()
+                                                                  & LSET::AllCuMask( m_board->GetCopperLayerCount() )
+                                                                  & snapshotLayers;
+
+                                              for( PCB_LAYER_ID layer : copperLayers )
+                                              {
+                                                  if( !zone->HasFilledPolysForLayer( layer ) )
+                                                      continue;
+
+                                                  auto sp = zone->GetFilledPolysList( layer );
+
+                                                  if( sp && sp->OutlineCount() > 0 )
+                                                      snapshot[{ zone, layer }] = sp->CloneDropTriangulation();
+                                              }
+                                          } );
+
+            auto cached_refill_fill_lambda =
+                    [&]( const std::pair<ZONE*, PCB_LAYER_ID>& aFillItem ) -> int
+                    {
+                        ZONE*          zone = aFillItem.first;
+                        PCB_LAYER_ID   layer = aFillItem.second;
+                        SHAPE_POLY_SET fillPolys;
+
+                        if( !refillZoneFromCache( zone, layer, fillPolys, &snapshot ) )
+                            return 0;
+
+                        zone->SetFilledPolysList( layer, fillPolys );
+                        zone->SetFillFlag( layer, false );
+                        return 1;
+                    };
+
+            run_fill_waves( zonesToRefill, cached_refill_fill_lambda, cached_refill_tessellate_lambda, no_dependency,
+                            /* aAnyDependencies */ false );
+
+            // Island detection on the refilled zones only.  Zones that grew into freed space
+            // can still develop islands if they are simultaneously blocked on one side by a
+            // higher-priority zone that grew in a prior wave.
+            std::map<ZONE*, std::map<PCB_LAYER_ID, ISOLATED_ISLANDS>> refillIslandsMap;
+
+            for( const auto& [zone, layer] : zonesToRefill )
+            {
+                if( m_debugZoneFiller && LSET::InternalCuMask().Contains( layer ) )
+                    continue;
+
+                refillIslandsMap[zone][layer] = ISOLATED_ISLANDS();
+            }
+
+            connectivity->FillIsolatedIslandsMap( refillIslandsMap );
+
+            for( const auto& [zone, zoneIslands] : refillIslandsMap )
+            {
+                for( const auto& [layer, layerIslands] : zoneIslands )
+                {
+                    if( m_debugZoneFiller && LSET::InternalCuMask().Contains( layer ) )
+                        continue;
+
+                    if( layerIslands.m_IsolatedOutlines.empty() )
+                        continue;
+
+                    // Preserve layers that were initially fully isolated (unconnected pours):
+                    // if every outline on this layer is still an island, keep them as-is.
+                    if( initiallyFullyIsolatedLayers.count( { zone, layer } ) > 0 )
+                    {
+                        if( layerIslands.m_IsolatedOutlines.size()
+                            == static_cast<size_t>( zone->GetFilledPolysList( layer )->OutlineCount() ) )
+                        {
+                            continue;
+                        }
+                    }
+
+                    std::vector<int> islands = layerIslands.m_IsolatedOutlines;
+                    std::sort( islands.begin(), islands.end(), std::greater<int>() );
+
+                    std::shared_ptr<SHAPE_POLY_SET> poly = zone->GetFilledPolysList( layer );
+                    long long int                   minArea = zone->GetMinIslandArea();
+                    ISLAND_REMOVAL_MODE             mode = zone->GetIslandRemovalMode();
+
+                    for( int idx : islands )
+                    {
+                        SHAPE_LINE_CHAIN& outline = poly->Outline( idx );
+
+                        if( mode == ISLAND_REMOVAL_MODE::ALWAYS )
+                            poly->DeletePolygonAndTriangulationData( idx, false );
+                        else if( mode == ISLAND_REMOVAL_MODE::AREA && outline.Area( true ) < minArea )
+                            poly->DeletePolygonAndTriangulationData( idx, false );
+                        else
+                            zone->SetIsIsland( layer, idx );
+                    }
+
+                    poly->UpdateTriangulationDataHash();
+                    zone->CalculateFilledArea();
+                }
+            }
+
+            // Convergence check: collect zone-layer pairs whose fill changed (refill or
+            // island removal) compared to the pre-wave hash snapshot.  These seed the next
+            // iteration.  Only zonesToRefill entries can have changed, so we only scan those.
+            changedZoneLayers.clear();
+
+            for( const auto& fillItem : zonesToRefill )
+            {
+                fillItem.first->BuildHashValue( fillItem.second );
+
+                auto     hashIt = iterHashes.find( fillItem );
+                HASH_128 oldHash = ( hashIt != iterHashes.end() ) ? hashIt->second : HASH_128{};
+
+                if( fillItem.first->GetHashValue( fillItem.second ) != oldHash )
+                    changedZoneLayers.insert( fillItem );
+            }
+
+            if( changedZoneLayers.empty() )
+                break; // Stable — converged.
+
+            if( iteration + 1 >= maxIterations )
+            {
+                hitIterationLimit = true;
+                break;
+            }
+        }
+
+        if( hitIterationLimit )
+        {
+            wxString msg = wxString::Format( _( "Zone fills may be incorrect: iterative refill did not converge "
+                                                "after %d passes.\n\n"
+                                                "This can happen with complex overlapping zones.  "
+                                                "Consider simplifying your zones." ),
+                                             maxIterations );
+
+            if( aParent )
+            {
+                KIDIALOG dlg( aParent, msg, _( "Warning" ), wxOK | wxICON_WARNING );
+                dlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+                dlg.ShowModal();
+            }
+            else
+            {
+                wxLogWarning( msg );
+            }
+        }
+    }
+
+    // Now remove islands which are either outside the board edge or fail to meet the minimum
+    // area requirements
+    using island_check_return = std::vector<std::pair<std::shared_ptr<SHAPE_POLY_SET>, int>>;
+
+    std::vector<std::pair<std::shared_ptr<SHAPE_POLY_SET>, double>> polys_to_check;
+
+    // rough estimate to save re-allocation time
+    polys_to_check.reserve( m_board->GetCopperLayerCount() * aZones.size() );
+
+    for( ZONE* zone : aZones )
+    {
+        // Don't check for connections on layers that only exist in the zone but
+        // were disabled in the board
+        BOARD* board = zone->GetBoard();
+        LSET zoneCopperLayers = zone->GetLayerSet() & LSET::AllCuMask( board->GetCopperLayerCount() );
+
+        // Min-thickness is the web thickness.  On the other hand, a blob min-thickness by
+        // min-thickness is not useful.  Since there's no obvious definition of web vs. blob, we
+        // arbitrarily choose "at least 3X the area".
+        double minArea = (double) zone->GetMinThickness() * zone->GetMinThickness() * 3;
+
+        for( PCB_LAYER_ID layer : zoneCopperLayers )
+        {
+            if( m_debugZoneFiller && LSET::InternalCuMask().Contains( layer ) )
+                continue;
+
+            polys_to_check.emplace_back( zone->GetFilledPolysList( layer ), minArea );
+        }
+    }
+
+    auto island_lambda =
+            [&]( int aStart, int aEnd ) -> island_check_return
+            {
+                island_check_return retval;
+
+                for( int ii = aStart; ii < aEnd && !cancelled.load(); ++ii )
+                {
+                    auto [poly, minArea] = polys_to_check[ii];
+
+                    for( int jj = poly->OutlineCount() - 1; jj >= 0; jj-- )
+                    {
+                        SHAPE_POLY_SET island;
+                        SHAPE_POLY_SET intersection;
+                        const SHAPE_LINE_CHAIN& test_poly = poly->Polygon( jj ).front();
+                        double island_area = test_poly.Area();
+
+                        if( island_area < minArea )
+                            continue;
+
+
+                        island.AddOutline( test_poly );
+                        intersection.BooleanIntersection( m_boardOutline, island );
+
+                        // Nominally, all of these areas should be either inside or outside the
+                        // board outline.  So this test should be able to just compare areas (if
+                        // they are equal, you are inside).  But in practice, we sometimes have
+                        // slight overlap at the edges, so testing against half-size area acts as
+                        // a fail-safe.
+                        if( intersection.Area() < island_area / 2.0 )
+                            retval.emplace_back( poly, jj );
+                    }
+                }
+
+                return retval;
+            };
+
+    auto island_returns = tp.submit_blocks( 0, polys_to_check.size(), island_lambda );
+    cancelled = false;
+
+    // Allow island removal threads to finish
+    for( size_t ii = 0; ii < island_returns.size(); ++ii )
+    {
+        std::future<island_check_return>& ret = island_returns[ii];
+
+        if( ret.valid() )
+        {
+            std::future_status status = ret.wait_for( std::chrono::seconds( 0 ) );
+
+            while( status != std::future_status::ready )
+            {
+                if( m_progressReporter )
+                {
+                    m_progressReporter->KeepRefreshing();
+
+                    if( m_progressReporter->IsCancelled() )
+                        cancelled = true;
+                }
+
+                status = ret.wait_for( std::chrono::milliseconds( 100 ) );
+            }
+        }
+    }
+
+    if( cancelled.load() )
+        return false;
+
+    for( size_t ii = 0; ii < island_returns.size(); ++ii )
+    {
+        std::future<island_check_return>& ret = island_returns[ii];
+
+        if( ret.valid() )
+        {
+            for( auto& action_item : ret.get() )
+                action_item.first->DeletePolygonAndTriangulationData( action_item.second, true );
+        }
+    }
+
+    for( ZONE* zone : aZones )
+        zone->CalculateFilledArea();
+
+    // Second pass: Re-evaluate via flashing based on actual filled polygons.
+    // The first pass (before filling) marks vias as ZLO_FORCE_FLASHED if they're within the
+    // zone outline. However, if the fill doesn't actually reach the via (due to obstacles like
+    // tracks), we should not flash the via. See https://gitlab.com/kicad/code/kicad/-/issues/22010
+    //
+    // Build a spatial index per filled zone-layer for O(log V) containment queries instead of
+    // O(V) ray-casting. This is critical for boards with large zone fills (many vertices) and
+    // many vias/pads.
+    struct INDEXED_ZONE
+    {
+        BOX2I                                       bbox;
+        std::unique_ptr<POLY_CONTAINMENT_INDEX>     index;
+    };
+
+    struct NET_LAYER_HASH
+    {
+        size_t operator()( const std::pair<int, PCB_LAYER_ID>& k ) const
+        {
+            return std::hash<int>()( k.first ) ^ ( std::hash<int>()( k.second ) << 16 );
+        }
+    };
+
+    std::unordered_map<std::pair<int, PCB_LAYER_ID>, std::vector<INDEXED_ZONE>, NET_LAYER_HASH>
+            filledZonesByNetLayer;
+
+    for( ZONE* zone : m_board->Zones() )
+    {
+        if( zone->GetIsRuleArea() )
+            continue;
+
+        for( PCB_LAYER_ID layer : zone->GetLayerSet() )
+        {
+            if( !zone->HasFilledPolysForLayer( layer ) )
+                continue;
+
+            const std::shared_ptr<SHAPE_POLY_SET>& fill = zone->GetFilledPolysList( layer );
+
+            if( fill->IsEmpty() )
+                continue;
+
+            INDEXED_ZONE iz;
+            iz.bbox = zone->GetBoundingBox();
+            iz.index = std::make_unique<POLY_CONTAINMENT_INDEX>();
+            iz.index->Build( *fill );
+            filledZonesByNetLayer[{ zone->GetNetCode(), layer }].push_back( std::move( iz ) );
+        }
+    }
+
+    auto zoneReachesPoint =
+            [&]( int aNetcode, PCB_LAYER_ID aLayer, const VECTOR2I& aCenter, int aRadius ) -> bool
+            {
+                auto it = filledZonesByNetLayer.find( { aNetcode, aLayer } );
+
+                if( it == filledZonesByNetLayer.end() )
+                    return false;
+
+                for( const INDEXED_ZONE& iz : it->second )
+                {
+                    if( !iz.bbox.GetInflated( aRadius ).Contains( aCenter ) )
+                        continue;
+
+                    if( iz.index->Contains( aCenter, aRadius ) )
+                        return true;
+                }
+
+                return false;
+            };
+
+    for( PCB_TRACK* track : m_board->Tracks() )
+    {
+        if( track->Type() != PCB_VIA_T )
+            continue;
+
+        PCB_VIA*  via = static_cast<PCB_VIA*>( track );
+        VECTOR2I  center = via->GetPosition();
+        int       holeRadius = via->GetDrillValue() / 2;
+        int       netcode = via->GetNetCode();
+        LSET      layers = via->GetLayerSet() & boardCuMask;
+
+        for( PCB_LAYER_ID layer : layers )
+        {
+            if( via->GetZoneLayerOverride( layer ) != ZLO_FORCE_FLASHED )
+                continue;
+
+            int reach = std::max( holeRadius, via->GetWidth( layer ) / 2 );
+
+            if( !zoneReachesPoint( netcode, layer, center, reach ) )
+                via->SetZoneLayerOverride( layer, ZLO_FORCE_NO_ZONE_CONNECTION );
+        }
+    }
+
+    for( FOOTPRINT* footprint : m_board->Footprints() )
+    {
+        for( PAD* pad : footprint->Pads() )
+        {
+            VECTOR2I center = pad->GetPosition();
+            int      netcode = pad->GetNetCode();
+            LSET     layers = pad->GetLayerSet() & boardCuMask;
+
+            int holeRadius = 0;
+
+            if( pad->HasHole() )
+                holeRadius = std::min( pad->GetDrillSizeX(), pad->GetDrillSizeY() ) / 2;
+
+            for( PCB_LAYER_ID layer : layers )
+            {
+                if( pad->GetZoneLayerOverride( layer ) != ZLO_FORCE_FLASHED )
+                    continue;
+
+                // A thermal spoke reaches the pad copper edge. Testing only the hole radius lands
+                // on the spoke endpoint and rounds out for some hole sizes, dropping a connected
+                // pad's flashing (issue 24865). Use the pad copper radius, still inside the gap.
+                VECTOR2I padSize = pad->GetSize( layer );
+                int      reach = std::max( holeRadius, std::min( padSize.x, padSize.y ) / 2 );
+
+                if( !zoneReachesPoint( netcode, layer, center, reach ) )
+                    pad->SetZoneLayerOverride( layer, ZLO_FORCE_NO_ZONE_CONNECTION );
+            }
+        }
+    }
+
+    if( aCheck )
+    {
+        bool outOfDate = false;
+
+        for( ZONE* zone : aZones )
+        {
+            // Keepout zones are not filled
+            if( zone->GetIsRuleArea() )
+                continue;
+
+            for( PCB_LAYER_ID layer : zone->GetLayerSet() )
+            {
+                zone->BuildHashValue( layer );
+
+                if( oldFillHashes[ { zone, layer } ] != zone->GetHashValue( layer ) )
+                    outOfDate = true;
+            }
+        }
+
+        if( ( m_board->GetProject()
+              && m_board->GetProject()->GetLocalSettings().m_PrototypeZoneFill ) )
+        {
+            KIDIALOG dlg( aParent, _( "Prototype zone fill enabled. Disable setting and refill?" ), _( "Confirmation" ),
+                          wxOK | wxCANCEL | wxICON_WARNING );
+            dlg.SetOKCancelLabels( _( "Disable and refill" ), _( "Continue without Refill" ) );
+            dlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+
+            if( dlg.ShowModal() == wxID_OK )
+            {
+                m_board->GetProject()->GetLocalSettings().m_PrototypeZoneFill = false;
+            }
+            else if( !outOfDate )
+            {
+                return false;
+            }
+        }
+
+        if( outOfDate )
+        {
+            KIDIALOG dlg( aParent, _( "Zone fills are out-of-date. Refill?" ), _( "Confirmation" ),
+                          wxOK | wxCANCEL | wxICON_WARNING );
+            dlg.SetOKCancelLabels( _( "Refill" ), _( "Continue without Refill" ) );
+            dlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+
+            if( dlg.ShowModal() == wxID_CANCEL )
+                return false;
+        }
+        else
+        {
+            // No need to commit something that hasn't changed (and committing will set
+            // the modified flag).
+            return false;
+        }
+    }
+
+    if( m_progressReporter )
+    {
+        if( m_progressReporter->IsCancelled() )
+            return false;
+
+        m_progressReporter->AdvancePhase();
+        m_progressReporter->KeepRefreshing();
+    }
+
+    return true;
+}
+
+
+/**
+ * Add a knockout for a pad or via.  The knockout is 'aGap' larger than the pad (which might be
+ * either the thermal clearance or the electrical clearance).
+ */
+void ZONE_FILLER::addKnockout( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer, int aGap, SHAPE_POLY_SET& aHoles )
+{
+    if( aItem->Type() == PCB_PAD_T && static_cast<PAD*>( aItem )->GetShape( aLayer ) == PAD_SHAPE::CUSTOM )
+    {
+        PAD* pad = static_cast<PAD*>( aItem );
+        SHAPE_POLY_SET poly;
+        pad->TransformShapeToPolygon( poly, aLayer, aGap, m_maxError, ERROR_OUTSIDE );
+
+        // the pad shape in zone can be its convex hull or the shape itself
+        if( pad->GetCustomShapeInZoneOpt() == CUSTOM_SHAPE_ZONE_MODE::CONVEXHULL )
+        {
+            std::vector<VECTOR2I> convex_hull;
+            BuildConvexHull( convex_hull, poly );
+
+            aHoles.NewOutline();
+
+            for( const VECTOR2I& pt : convex_hull )
+                aHoles.Append( pt );
+        }
+        else
+        {
+            aHoles.Append( poly );
+        }
+    }
+    else
+    {
+        aItem->TransformShapeToPolygon( aHoles, aLayer, aGap, m_maxError, ERROR_OUTSIDE );
+    }
+}
+
+
+/**
+ * Add a knockout for a pad's hole.
+ */
+void ZONE_FILLER::addHoleKnockout( PAD* aPad, int aGap, SHAPE_POLY_SET& aHoles )
+{
+    aPad->TransformHoleToPolygon( aHoles, aGap, m_maxError, ERROR_OUTSIDE );
+}
+
+
+
+/**
+ * Add a knockout for a graphic item.  The knockout is 'aGap' larger than the item (which
+ * might be either the electrical clearance or the board edge clearance).
+ */
+void ZONE_FILLER::addKnockout( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer, int aGap,
+                               bool aIgnoreLineWidth, SHAPE_POLY_SET& aHoles )
+{
+    switch( aItem->Type() )
+    {
+    case PCB_FIELD_T:
+    case PCB_TEXT_T:
+    {
+        PCB_TEXT* text = static_cast<PCB_TEXT*>( aItem );
+
+        if( text->IsVisible() )
+        {
+            if( text->IsKnockout() )
+            {
+                // Knockout text should only leave holes where the text is, not where the copper fill
+                // around it would be.
+                PCB_TEXT textCopy = *text;
+                textCopy.SetIsKnockout( false );
+                textCopy.TransformTextToPolySet( aHoles, 0, m_maxError, ERROR_INSIDE );
+            }
+            else
+            {
+                text->TransformShapeToPolygon( aHoles, aLayer, aGap, m_maxError, ERROR_OUTSIDE );
+            }
+        }
+
+        break;
+    }
+
+    case PCB_TEXTBOX_T:
+    case PCB_TABLE_T:
+    case PCB_SHAPE_T:
+    case PCB_TARGET_T:
+        aItem->TransformShapeToPolygon( aHoles, aLayer, aGap, m_maxError, ERROR_OUTSIDE, aIgnoreLineWidth );
+        break;
+
+    case PCB_BARCODE_T:
+    {
+        PCB_BARCODE* barcode = static_cast<PCB_BARCODE*>( aItem );
+        barcode->GetBoundingHull( aHoles, aLayer, aGap, m_maxError, ERROR_OUTSIDE );
+        break;
+    }
+
+    case PCB_DIM_ALIGNED_T:
+    case PCB_DIM_LEADER_T:
+    case PCB_DIM_CENTER_T:
+    case PCB_DIM_RADIAL_T:
+    case PCB_DIM_ORTHOGONAL_T:
+    {
+        PCB_DIMENSION_BASE* dim = static_cast<PCB_DIMENSION_BASE*>( aItem );
+
+        dim->TransformShapeToPolygon( aHoles, aLayer, aGap, m_maxError, ERROR_OUTSIDE, false );
+        dim->PCB_TEXT::TransformShapeToPolygon( aHoles, aLayer, aGap, m_maxError, ERROR_OUTSIDE );
+        break;
+    }
+
+    default:
+        break;
+    }
+}
+
+
+/**
+ * Removes thermal reliefs from the shape for any pads connected to the zone.  Does NOT add
+ * in spokes, which must be done later.
+ */
+void ZONE_FILLER::knockoutThermalReliefs( const ZONE* aZone, PCB_LAYER_ID aLayer, SHAPE_POLY_SET& aFill,
+                                          std::vector<BOARD_ITEM*>& aThermalConnectionPads,
+                                          std::vector<PAD*>&        aNoConnectionPads,
+                                          std::vector<BOARD_ITEM*>& aSolidConnectionItems )
+{
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+    ZONE_CONNECTION        connection;
+    DRC_CONSTRAINT         constraint;
+    int                    padClearance;
+    std::shared_ptr<SHAPE> padShape;
+    int                    holeClearance;
+    SHAPE_POLY_SET         holes;
+
+    // Deduplication sets for coincident pads and vias
+    std::unordered_set<PAD_KNOCKOUT_KEY, PAD_KNOCKOUT_KEY_HASH> processedPads;
+    std::unordered_set<VIA_KNOCKOUT_KEY, VIA_KNOCKOUT_KEY_HASH> processedVias;
+
+    for( FOOTPRINT* footprint : m_board->Footprints() )
+    {
+        for( PAD* pad : footprint->Pads() )
+        {
+            // NPTH pads with a drill hole affect all copper layers even when they carry no copper
+            // on that layer (e.g. layers limited to "*.Mask"). The physical hole still requires
+            // a clearance knockout, so skip only pads that are truly irrelevant to this layer.
+            bool npthWithHole = pad->GetAttribute() == PAD_ATTRIB::NPTH
+                                && pad->GetDrillSize().x > 0;
+
+            if( !pad->IsOnLayer( aLayer ) && !npthWithHole )
+                continue;
+
+            BOX2I padBBox = pad->GetBoundingBox();
+            padBBox.Inflate( m_worstClearance );
+
+            if( !padBBox.Intersects( aZone->GetBoundingBox() ) )
+                continue;
+
+            // Deduplicate coincident pads (skip custom pads - they have complex shapes)
+            PAD_SHAPE padShapeType = pad->GetShape( aLayer );
+
+            if( padShapeType != PAD_SHAPE::CUSTOM )
+            {
+                // For circular pads: use max of drill and pad size; otherwise just pad size
+                VECTOR2I padSize = pad->GetSize( aLayer );
+                VECTOR2I effectiveSize;
+
+                if( padShapeType == PAD_SHAPE::CIRCLE )
+                {
+                    int drill = std::max( pad->GetDrillSize().x, pad->GetDrillSize().y );
+                    int maxDim = std::max( { padSize.x, padSize.y, drill } );
+                    effectiveSize = VECTOR2I( maxDim, maxDim );
+                }
+                else
+                {
+                    effectiveSize = padSize;
+                }
+
+                PAD_KNOCKOUT_KEY padKey{ pad->GetPosition(), effectiveSize,
+                                         static_cast<int>( padShapeType ),
+                                         pad->GetOrientation(), pad->GetNetCode() };
+
+                if( !processedPads.insert( padKey ).second )
+                    continue;
+            }
+
+            bool noConnection = pad->GetNetCode() != aZone->GetNetCode();
+
+            if( !aZone->IsTeardropArea() )
+            {
+                if( aZone->GetNetCode() == 0
+                    || pad->GetZoneLayerOverride( aLayer ) == ZLO_FORCE_NO_ZONE_CONNECTION )
+                {
+                    noConnection = true;
+                }
+            }
+
+            // Check if the pad is backdrilled or post-machined on this layer
+            if( pad->IsBackdrilledOrPostMachined( aLayer ) )
+                noConnection = true;
+
+            if( noConnection )
+            {
+                // collect these for knockout in buildCopperItemClearances()
+                aNoConnectionPads.push_back( pad );
+                continue;
+            }
+
+            // For hatch zones, respect the zone connection type just like solid zones
+            // Pads with THERMAL connection get thermal rings; FULL connections get no knockout;
+            // NONE connections get handled later in buildCopperItemClearances.
+            if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+            {
+                constraint = bds.m_DRCEngine->EvalZoneConnection( pad, aZone, aLayer );
+                connection = constraint.m_ZoneConnection;
+
+                if( connection == ZONE_CONNECTION::THERMAL && !pad->CanFlashLayer( aLayer ) )
+                    connection = ZONE_CONNECTION::NONE;
+
+                switch( connection )
+                {
+                case ZONE_CONNECTION::THERMAL:
+                {
+                    padShape = pad->GetEffectiveShape( aLayer, FLASHING::ALWAYS_FLASHED );
+
+                    if( aFill.Collide( padShape.get(), 0 ) )
+                    {
+                        // Get the thermal relief gap
+                        constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, pad,
+                                                                  aZone, aLayer );
+                        int thermalGap = constraint.GetValue().Min();
+
+                        // Knock out the thermal gap only - the thermal ring will be added separately
+                        aThermalConnectionPads.push_back( pad );
+                        addKnockout( pad, aLayer, thermalGap, holes );
+                    }
+
+                    break;
+                }
+
+                case ZONE_CONNECTION::NONE:
+                    // Will be handled by buildCopperItemClearances
+                    aNoConnectionPads.push_back( pad );
+                    break;
+
+                case ZONE_CONNECTION::FULL:
+                default:
+                    // No knockout - pad connects directly to the hatch
+                    break;
+                }
+
+                continue;
+            }
+
+            if( aZone->IsTeardropArea() )
+            {
+                connection = ZONE_CONNECTION::FULL;
+            }
+            else
+            {
+                constraint = bds.m_DRCEngine->EvalZoneConnection( pad, aZone, aLayer );
+                connection = constraint.m_ZoneConnection;
+            }
+
+            if( connection == ZONE_CONNECTION::THERMAL && !pad->CanFlashLayer( aLayer ) )
+                connection = ZONE_CONNECTION::NONE;
+
+            switch( connection )
+            {
+            case ZONE_CONNECTION::THERMAL:
+                padShape = pad->GetEffectiveShape( aLayer, FLASHING::ALWAYS_FLASHED );
+
+                if( aFill.Collide( padShape.get(), 0 ) )
+                {
+                    constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, pad, aZone, aLayer );
+                    padClearance = constraint.GetValue().Min();
+
+                    aThermalConnectionPads.push_back( pad );
+                    addKnockout( pad, aLayer, padClearance, holes );
+                }
+
+                break;
+
+            case ZONE_CONNECTION::NONE:
+                constraint = bds.m_DRCEngine->EvalRules( PHYSICAL_CLEARANCE_CONSTRAINT, pad, aZone, aLayer );
+
+                if( constraint.GetValue().Min() > aZone->GetLocalClearance().value() )
+                    padClearance = constraint.GetValue().Min();
+                else
+                    padClearance = aZone->GetLocalClearance().value();
+
+                if( pad->FlashLayer( aLayer ) )
+                {
+                    addKnockout( pad, aLayer, padClearance, holes );
+                }
+                else if( pad->GetDrillSize().x > 0 )
+                {
+                    constraint = bds.m_DRCEngine->EvalRules( PHYSICAL_HOLE_CLEARANCE_CONSTRAINT, pad, aZone, aLayer );
+
+                    if( constraint.GetValue().Min() > padClearance )
+                        holeClearance = constraint.GetValue().Min();
+                    else
+                        holeClearance = padClearance;
+
+                    pad->TransformHoleToPolygon( holes, holeClearance, m_maxError, ERROR_OUTSIDE );
+                }
+
+                break;
+
+            default:
+                // No knockout
+                continue;
+            }
+        }
+    }
+
+    // For hatch zones, vias also need thermal treatment to prevent isolation inside hatch holes.
+    // We respect the zone connection type just like pads: THERMAL gets a relief knockout,
+    // FULL connects directly to the webbing, NONE is handled in buildCopperItemClearances.
+    if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+    {
+        for( PCB_TRACK* track : m_board->Tracks() )
+        {
+            if( track->Type() != PCB_VIA_T )
+                continue;
+
+            PCB_VIA* via = static_cast<PCB_VIA*>( track );
+
+            if( !via->IsOnLayer( aLayer ) )
+                continue;
+
+            BOX2I viaBBox = via->GetBoundingBox();
+            viaBBox.Inflate( m_worstClearance );
+
+            if( !viaBBox.Intersects( aZone->GetBoundingBox() ) )
+                continue;
+
+            // Deduplicate coincident vias (circular, so use max of drill and width)
+            int viaEffectiveSize = std::max( via->GetDrillValue(), via->GetWidth( aLayer ) );
+            VIA_KNOCKOUT_KEY viaKey{ via->GetPosition(), viaEffectiveSize, via->GetNetCode() };
+
+            if( !processedVias.insert( viaKey ).second )
+                continue;
+
+            bool noConnection = via->GetNetCode() != aZone->GetNetCode()
+                    || ( via->Padstack().UnconnectedLayerMode() == UNCONNECTED_LAYER_MODE::START_END_ONLY
+                         && aLayer != via->Padstack().Drill().start
+                         && aLayer != via->Padstack().Drill().end );
+
+            if( via->GetZoneLayerOverride( aLayer ) == ZLO_FORCE_NO_ZONE_CONNECTION )
+                noConnection = true;
+
+            // Check if this layer is affected by backdrill or post-machining
+            if( via->IsBackdrilledOrPostMachined( aLayer ) )
+            {
+                noConnection = true;
+
+                // Add knockout for backdrill/post-machining hole
+                int pmSize = 0;
+                int bdSize = 0;
+
+                const PADSTACK::POST_MACHINING_PROPS& frontPM = via->Padstack().FrontPostMachining();
+                const PADSTACK::POST_MACHINING_PROPS& backPM = via->Padstack().BackPostMachining();
+
+                if( frontPM.mode != PAD_DRILL_POST_MACHINING_MODE::NOT_POST_MACHINED
+                    && frontPM.mode != PAD_DRILL_POST_MACHINING_MODE::UNKNOWN )
+                {
+                    pmSize = std::max( pmSize, frontPM.size );
+                }
+
+                if( backPM.mode != PAD_DRILL_POST_MACHINING_MODE::NOT_POST_MACHINED
+                    && backPM.mode != PAD_DRILL_POST_MACHINING_MODE::UNKNOWN )
+                {
+                    pmSize = std::max( pmSize, backPM.size );
+                }
+
+                const PADSTACK::DRILL_PROPS& secDrill = via->Padstack().SecondaryDrill();
+
+                if( secDrill.start != UNDEFINED_LAYER && secDrill.end != UNDEFINED_LAYER )
+                    bdSize = secDrill.size.x;
+
+                int knockoutSize = std::max( pmSize, bdSize );
+
+                if( knockoutSize > 0 )
+                {
+                    int clearance = aZone->GetLocalClearance().value_or( 0 );
+
+                    TransformCircleToPolygon( holes, via->GetPosition(), knockoutSize / 2 + clearance,
+                                              m_maxError, ERROR_OUTSIDE );
+                }
+            }
+
+            if( noConnection )
+                continue;
+
+            constraint = bds.m_DRCEngine->EvalZoneConnection( via, aZone, aLayer );
+            connection = constraint.m_ZoneConnection;
+
+            switch( connection )
+            {
+            case ZONE_CONNECTION::THERMAL:
+            {
+                constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, via,
+                                                          aZone, aLayer );
+                int thermalGap = constraint.GetValue().Min();
+
+                // Only force thermal if the via is small enough to be isolated in a hatch hole.
+                // A via wider than the hole width will always touch the webbing naturally.
+                if( thermalGap > 0 )
+                {
+                    aThermalConnectionPads.push_back( via );
+                    addKnockout( via, aLayer, thermalGap, holes );
+                }
+
+                break;
+            }
+
+            case ZONE_CONNECTION::NONE:
+                // Will be handled by buildCopperItemClearances
+                break;
+
+            case ZONE_CONNECTION::FULL:
+            default:
+                // No knockout. A small via in a hatch hole would be isolated, so register it
+                // to drop that hole and keep the via on the webbing.
+                aSolidConnectionItems.push_back( via );
+                break;
+            }
+        }
+    }
+
+    aFill.BooleanSubtract( holes );
+}
+
+
+/**
+ * Removes clearance from the shape for copper items which share the zone's layer but are
+ * not connected to it.
+ */
+void ZONE_FILLER::buildCopperItemClearances( const ZONE* aZone, PCB_LAYER_ID aLayer,
+                                             const std::vector<PAD*>& aNoConnectionPads,
+                                             SHAPE_POLY_SET& aHoles,
+                                             bool aIncludeZoneClearances )
+{
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+    long                   ticker = 0;
+
+    // Deduplication sets for coincident items
+    std::unordered_set<PAD_KNOCKOUT_KEY, PAD_KNOCKOUT_KEY_HASH>     processedPads;
+    std::unordered_set<VIA_KNOCKOUT_KEY, VIA_KNOCKOUT_KEY_HASH>     processedVias;
+    std::unordered_set<TRACK_KNOCKOUT_KEY, TRACK_KNOCKOUT_KEY_HASH> processedTracks;
+
+    auto checkForCancel =
+            [&ticker]( PROGRESS_REPORTER* aReporter ) -> bool
+            {
+                return aReporter && ( ticker++ % 50 ) == 0 && aReporter->IsCancelled();
+            };
+
+    // A small extra clearance to be sure actual track clearances are not smaller than
+    // requested clearance due to many approximations in calculations, like arc to segment
+    // approx, rounding issues, etc.
+    BOX2I zone_boundingbox = aZone->GetBoundingBox();
+    int   extra_margin = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_ExtraClearance );
+
+    // Items outside the zone bounding box are skipped, so it needs to be inflated by the
+    // largest clearance value found in the netclasses and rules
+    zone_boundingbox.Inflate( m_worstClearance + extra_margin );
+
+    auto evalRulesForItems =
+            [&bds]( DRC_CONSTRAINT_T aConstraint, const BOARD_ITEM* a, const BOARD_ITEM* b,
+                    PCB_LAYER_ID aEvalLayer ) -> int
+            {
+                DRC_CONSTRAINT c = bds.m_DRCEngine->EvalRules( aConstraint, a, b, aEvalLayer );
+
+                if( c.IsNull() )
+                    return -1;
+                else
+                    return c.GetValue().Min();
+            };
+
+    // Add non-connected pad clearances
+    //
+    auto knockoutPadClearance =
+            [&]( PAD* aPad )
+            {
+                int  init_gap = evalRulesForItems( PHYSICAL_CLEARANCE_CONSTRAINT, aZone, aPad, aLayer );
+                int  gap = init_gap;
+                bool hasHole = aPad->GetDrillSize().x > 0;
+                bool flashLayer = aPad->FlashLayer( aLayer );
+                bool platedHole = hasHole && aPad->GetAttribute() == PAD_ATTRIB::PTH;
+
+                if( flashLayer || platedHole )
+                {
+                    gap = std::max( gap, evalRulesForItems( CLEARANCE_CONSTRAINT, aZone, aPad, aLayer ) );
+                }
+
+                if( flashLayer && gap >= 0 )
+                    addKnockout( aPad, aLayer, gap + extra_margin, aHoles );
+
+                if( hasHole )
+                {
+                    // NPTH do not need copper clearance gaps to their holes
+                    if( aPad->GetAttribute() == PAD_ATTRIB::NPTH )
+                        gap = init_gap;
+
+                    gap = std::max( gap, evalRulesForItems( PHYSICAL_HOLE_CLEARANCE_CONSTRAINT, aZone, aPad, aLayer ) );
+
+                    gap = std::max( gap, evalRulesForItems( HOLE_CLEARANCE_CONSTRAINT, aZone, aPad, aLayer ) );
+
+                    // Oblong NPTH holes are milled rather than drilled, so they need
+                    // edge clearance in addition to hole clearance
+                    if( aPad->GetAttribute() == PAD_ATTRIB::NPTH
+                        && aPad->GetDrillSize().x != aPad->GetDrillSize().y )
+                    {
+                        gap = std::max( gap, evalRulesForItems( EDGE_CLEARANCE_CONSTRAINT, aZone,
+                                                                aPad, aLayer ) );
+                    }
+
+                    if( gap >= 0 )
+                        addHoleKnockout( aPad, gap + extra_margin, aHoles );
+                }
+
+                // Handle backdrill and post-machining knockouts
+                if( aPad->IsBackdrilledOrPostMachined( aLayer ) )
+                {
+                    int pmSize = 0;
+                    int bdSize = 0;
+
+                    const PADSTACK::POST_MACHINING_PROPS& frontPM = aPad->Padstack().FrontPostMachining();
+                    const PADSTACK::POST_MACHINING_PROPS& backPM = aPad->Padstack().BackPostMachining();
+
+                    if( frontPM.mode != PAD_DRILL_POST_MACHINING_MODE::NOT_POST_MACHINED
+                        && frontPM.mode != PAD_DRILL_POST_MACHINING_MODE::UNKNOWN )
+                    {
+                        pmSize = std::max( pmSize, frontPM.size );
+                    }
+
+                    if( backPM.mode != PAD_DRILL_POST_MACHINING_MODE::NOT_POST_MACHINED
+                        && backPM.mode != PAD_DRILL_POST_MACHINING_MODE::UNKNOWN )
+                    {
+                        pmSize = std::max( pmSize, backPM.size );
+                    }
+
+                    const PADSTACK::DRILL_PROPS& secDrill = aPad->Padstack().SecondaryDrill();
+
+                    if( secDrill.start != UNDEFINED_LAYER && secDrill.end != UNDEFINED_LAYER )
+                        bdSize = secDrill.size.x;
+
+                    int knockoutSize = std::max( pmSize, bdSize );
+
+                    if( knockoutSize > 0 )
+                    {
+                        int clearance = std::max( gap, 0 ) + extra_margin;
+
+                        TransformCircleToPolygon( aHoles, aPad->GetPosition(), knockoutSize / 2 + clearance,
+                                                  m_maxError, ERROR_OUTSIDE );
+                    }
+                }
+            };
+
+    for( PAD* pad : aNoConnectionPads )
+    {
+        if( checkForCancel( m_progressReporter ) )
+            return;
+
+        // Deduplicate coincident pads (skip custom pads - they have complex shapes)
+        PAD_SHAPE padShape = pad->GetShape( aLayer );
+
+        if( padShape != PAD_SHAPE::CUSTOM )
+        {
+            // For circular pads: use max of drill and pad size; otherwise just pad size
+            VECTOR2I padSize = pad->GetSize( aLayer );
+            VECTOR2I effectiveSize;
+
+            if( padShape == PAD_SHAPE::CIRCLE )
+            {
+                int drill = std::max( pad->GetDrillSize().x, pad->GetDrillSize().y );
+                int maxDim = std::max( { padSize.x, padSize.y, drill } );
+                effectiveSize = VECTOR2I( maxDim, maxDim );
+            }
+            else
+            {
+                effectiveSize = padSize;
+            }
+
+            PAD_KNOCKOUT_KEY padKey{ pad->GetPosition(), effectiveSize,
+                                     static_cast<int>( padShape ), pad->GetOrientation(),
+                                     pad->GetNetCode() };
+
+            if( !processedPads.insert( padKey ).second )
+                continue;
+        }
+
+        knockoutPadClearance( pad );
+    }
+
+    // Add non-connected track clearances
+    //
+    auto knockoutTrackClearance =
+            [&]( PCB_TRACK* aTrack )
+            {
+                if( aTrack->GetBoundingBox().Intersects( zone_boundingbox ) )
+                {
+                    bool sameNet = aTrack->GetNetCode() == aZone->GetNetCode();
+
+                    if( !aZone->IsTeardropArea() && aZone->GetNetCode() == 0 )
+                        sameNet = false;
+
+                    int  gap = evalRulesForItems( PHYSICAL_CLEARANCE_CONSTRAINT, aZone, aTrack, aLayer );
+
+                    if( aTrack->Type() == PCB_VIA_T )
+                    {
+                        PCB_VIA* via = static_cast<PCB_VIA*>( aTrack );
+
+                        if( via->GetZoneLayerOverride( aLayer ) == ZLO_FORCE_NO_ZONE_CONNECTION )
+                            sameNet = false;
+                    }
+
+                    if( !sameNet )
+                        gap = std::max( gap, evalRulesForItems( CLEARANCE_CONSTRAINT, aZone, aTrack, aLayer ) );
+
+                    if( aTrack->Type() == PCB_VIA_T )
+                    {
+                        PCB_VIA* via = static_cast<PCB_VIA*>( aTrack );
+
+                        if( via->FlashLayer( aLayer ) && gap > 0 )
+                        {
+                            via->TransformShapeToPolygon( aHoles, aLayer, gap + extra_margin, m_maxError,
+                                                          ERROR_OUTSIDE );
+                        }
+
+                        gap = std::max( gap, evalRulesForItems( PHYSICAL_HOLE_CLEARANCE_CONSTRAINT, aZone, via,
+                                                                aLayer ) );
+
+                        if( !sameNet )
+                            gap = std::max( gap, evalRulesForItems( HOLE_CLEARANCE_CONSTRAINT, aZone, via, aLayer ) );
+
+                        if( gap >= 0 )
+                        {
+                            int radius = via->GetDrillValue() / 2;
+
+                            TransformCircleToPolygon( aHoles, via->GetPosition(), radius + gap + extra_margin,
+                                                      m_maxError, ERROR_OUTSIDE );
+                        }
+
+                        // Handle backdrill and post-machining knockouts
+                        if( via->IsBackdrilledOrPostMachined( aLayer ) )
+                        {
+                            int pmSize = 0;
+                            int bdSize = 0;
+
+                            const PADSTACK::POST_MACHINING_PROPS& frontPM = via->Padstack().FrontPostMachining();
+                            const PADSTACK::POST_MACHINING_PROPS& backPM = via->Padstack().BackPostMachining();
+
+                            if( frontPM.mode != PAD_DRILL_POST_MACHINING_MODE::NOT_POST_MACHINED
+                                && frontPM.mode != PAD_DRILL_POST_MACHINING_MODE::UNKNOWN )
+                            {
+                                pmSize = std::max( pmSize, frontPM.size );
+                            }
+
+                            if( backPM.mode != PAD_DRILL_POST_MACHINING_MODE::NOT_POST_MACHINED
+                                && backPM.mode != PAD_DRILL_POST_MACHINING_MODE::UNKNOWN )
+                            {
+                                pmSize = std::max( pmSize, backPM.size );
+                            }
+
+                            const PADSTACK::DRILL_PROPS& secDrill = via->Padstack().SecondaryDrill();
+
+                            if( secDrill.start != UNDEFINED_LAYER && secDrill.end != UNDEFINED_LAYER )
+                                bdSize = secDrill.size.x;
+
+                            int knockoutSize = std::max( pmSize, bdSize );
+
+                            if( knockoutSize > 0 )
+                            {
+                                int clearance = std::max( gap, 0 ) + extra_margin;
+
+                                TransformCircleToPolygon( aHoles, via->GetPosition(), knockoutSize / 2 + clearance,
+                                                          m_maxError, ERROR_OUTSIDE );
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if( gap >= 0 )
+                        {
+                            aTrack->TransformShapeToPolygon( aHoles, aLayer, gap + extra_margin, m_maxError,
+                                                             ERROR_OUTSIDE );
+                        }
+                    }
+                }
+            };
+
+    for( PCB_TRACK* track : m_board->Tracks() )
+    {
+        if( !track->IsOnLayer( aLayer ) )
+            continue;
+
+        if( checkForCancel( m_progressReporter ) )
+            return;
+
+        // Deduplicate coincident tracks and vias
+        if( track->Type() == PCB_VIA_T )
+        {
+            PCB_VIA* via = static_cast<PCB_VIA*>( track );
+            int viaEffectiveSize = std::max( via->GetDrillValue(), via->GetWidth( aLayer ) );
+            VIA_KNOCKOUT_KEY viaKey{ via->GetPosition(), viaEffectiveSize, via->GetNetCode() };
+
+            if( !processedVias.insert( viaKey ).second )
+                continue;
+        }
+        else
+        {
+            TRACK_KNOCKOUT_KEY trackKey( track->GetStart(), track->GetEnd(), track->GetWidth() );
+
+            if( !processedTracks.insert( trackKey ).second )
+                continue;
+        }
+
+        knockoutTrackClearance( track );
+    }
+
+    // Add graphic item clearances.
+    //
+    auto knockoutGraphicClearance =
+            [&]( BOARD_ITEM* aItem )
+            {
+                int shapeNet = -1;
+
+                if( aItem->Type() == PCB_SHAPE_T )
+                    shapeNet = static_cast<PCB_SHAPE*>( aItem )->GetNetCode();
+
+                bool sameNet = shapeNet == aZone->GetNetCode();
+
+                if( !aZone->IsTeardropArea() && aZone->GetNetCode() == 0 )
+                    sameNet = false;
+
+                // A item on the Edge_Cuts or Margin is always seen as on any layer:
+                if( aItem->IsOnLayer( aLayer )
+                        || aItem->IsOnLayer( Edge_Cuts )
+                        || aItem->IsOnLayer( Margin ) )
+                {
+                    if( aItem->GetBoundingBox().Intersects( zone_boundingbox ) )
+                    {
+                        bool ignoreLineWidths = false;
+                        int  gap = evalRulesForItems( PHYSICAL_CLEARANCE_CONSTRAINT, aZone, aItem, aLayer );
+
+                        if( aItem->IsOnLayer( aLayer ) && !sameNet )
+                        {
+                            gap = std::max( gap, evalRulesForItems( CLEARANCE_CONSTRAINT, aZone, aItem, aLayer ) );
+                        }
+                        else if( aItem->IsOnLayer( Edge_Cuts ) )
+                        {
+                            gap = std::max( gap, evalRulesForItems( EDGE_CLEARANCE_CONSTRAINT, aZone, aItem, aLayer ) );
+                            ignoreLineWidths = true;
+                        }
+                        else if( aItem->IsOnLayer( Margin ) )
+                        {
+                            gap = std::max( gap, evalRulesForItems( EDGE_CLEARANCE_CONSTRAINT, aZone, aItem, aLayer ) );
+                        }
+
+                        if( gap >= 0 )
+                        {
+                            gap += extra_margin;
+                            addKnockout( aItem, aLayer, gap, ignoreLineWidths, aHoles );
+                        }
+                    }
+                }
+            };
+
+    auto knockoutCourtyardClearance =
+            [&]( FOOTPRINT* aFootprint )
+            {
+                if( aFootprint->GetBoundingBox().Intersects( zone_boundingbox ) )
+                {
+                    int gap = evalRulesForItems( PHYSICAL_CLEARANCE_CONSTRAINT, aZone, aFootprint, aLayer );
+
+                    // For internal copper layers, GetCourtyard( aLayer ) always returns the
+                    // front courtyard because IsBackLayer() is false for all internal layers.
+                    // Use the footprint's own layer to select the correct courtyard instead.
+                    PCB_LAYER_ID courtyardSide = IsInnerCopperLayer( aLayer ) ? aFootprint->GetLayer() : aLayer;
+
+                    if( gap == 0 )
+                    {
+                        aHoles.Append( aFootprint->GetCourtyard( courtyardSide ) );
+                    }
+                    else if( gap > 0 )
+                    {
+                        SHAPE_POLY_SET hole = aFootprint->GetCourtyard( courtyardSide );
+                        hole.Inflate( gap, CORNER_STRATEGY::ROUND_ALL_CORNERS, m_maxError );
+                        aHoles.Append( hole );
+                    }
+                }
+            };
+
+    for( FOOTPRINT* footprint : m_board->Footprints() )
+    {
+        knockoutCourtyardClearance( footprint );
+        knockoutGraphicClearance( &footprint->Reference() );
+        knockoutGraphicClearance( &footprint->Value() );
+
+        std::set<PAD*> allowedNetTiePads;
+
+        // Don't knock out holes for graphic items which implement a net-tie to the zone's net
+        // on the layer being filled.
+        if( footprint->IsNetTie() )
+        {
+            for( PAD* pad : footprint->Pads() )
+            {
+                bool sameNet = pad->GetNetCode() == aZone->GetNetCode();
+
+                if( !aZone->IsTeardropArea() && aZone->GetNetCode() == 0 )
+                    sameNet = false;
+
+                if( sameNet )
+                {
+                    if( pad->IsOnLayer( aLayer ) )
+                        allowedNetTiePads.insert( pad );
+
+                    for( PAD* other : footprint->GetNetTiePads( pad ) )
+                    {
+                        if( other->IsOnLayer( aLayer ) )
+                            allowedNetTiePads.insert( other );
+                    }
+                }
+            }
+        }
+
+        for( BOARD_ITEM* item : footprint->GraphicalItems() )
+        {
+            if( checkForCancel( m_progressReporter ) )
+                return;
+
+            BOX2I itemBBox = item->GetBoundingBox();
+
+            if( !zone_boundingbox.Intersects( itemBBox ) )
+                continue;
+
+            bool skipItem = false;
+
+            if( item->IsOnLayer( aLayer ) )
+            {
+                std::shared_ptr<SHAPE> itemShape = item->GetEffectiveShape();
+
+                for( PAD* pad : allowedNetTiePads )
+                {
+                    if( pad->GetBoundingBox().Intersects( itemBBox )
+                            && pad->GetEffectiveShape( aLayer )->Collide( itemShape.get() ) )
+                    {
+                        skipItem = true;
+                        break;
+                    }
+                }
+            }
+
+            if( !skipItem )
+                knockoutGraphicClearance( item );
+        }
+    }
+
+    for( BOARD_ITEM* item : m_board->Drawings() )
+    {
+        if( checkForCancel( m_progressReporter ) )
+            return;
+
+        knockoutGraphicClearance( item );
+    }
+
+    // Add non-connected zone clearances
+    //
+    auto knockoutZoneClearance =
+            [&]( ZONE* aKnockout )
+            {
+                // If the zones share no common layers
+                if( !aKnockout->GetLayerSet().test( aLayer ) )
+                    return;
+
+                if( aKnockout->GetIsRuleArea() )
+                {
+                    if( aKnockout->GetBoundingBox().Intersects( zone_boundingbox )
+                            && aKnockout->GetDoNotAllowZoneFills() && !aZone->IsTeardropArea() )
+                    {
+                        // Keepouts use outline with no clearance
+                        aKnockout->TransformSmoothedOutlineToPolygon( aHoles, 0, m_maxError, ERROR_OUTSIDE,
+                                                                      nullptr );
+                    }
+                }
+                else if( aKnockout->HigherPriority( aZone ) && !aKnockout->SameNet( aZone )
+                         && zoneKnockoutMayInteract( aZone, aKnockout ) )
+                {
+                    int gap = std::max( 0, evalRulesForItems( PHYSICAL_CLEARANCE_CONSTRAINT, aZone, aKnockout,
+                                                              aLayer ) );
+
+                    gap = std::max( gap, evalRulesForItems( CLEARANCE_CONSTRAINT, aZone, aKnockout, aLayer ) );
+
+                    // Negative clearance permits zones to short
+                    if( gap < 0 )
+                        return;
+
+                    SHAPE_POLY_SET poly;
+                    aKnockout->TransformShapeToPolygon( poly, aLayer, gap + extra_margin, m_maxError,
+                                                        ERROR_OUTSIDE );
+                    aHoles.Append( poly );
+                }
+            };
+
+    if( aIncludeZoneClearances )
+    {
+        for( ZONE* otherZone : m_board->Zones() )
+        {
+            if( checkForCancel( m_progressReporter ) )
+                return;
+
+            knockoutZoneClearance( otherZone );
+        }
+
+        for( FOOTPRINT* footprint : m_board->Footprints() )
+        {
+            for( ZONE* otherZone : footprint->Zones() )
+            {
+                if( checkForCancel( m_progressReporter ) )
+                    return;
+
+                knockoutZoneClearance( otherZone );
+            }
+        }
+    }
+
+    aHoles.Simplify();
+}
+
+
+/**
+ * Builds clearance knockout holes for higher-priority zones on different nets.
+ * This is separated from buildCopperItemClearances to allow caching before zone knockouts.
+ */
+void ZONE_FILLER::buildDifferentNetZoneClearances( const ZONE* aZone, PCB_LAYER_ID aLayer, SHAPE_POLY_SET& aHoles )
+{
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+    int extra_margin = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_ExtraClearance );
+
+    auto evalRulesForItems =
+            [&bds]( DRC_CONSTRAINT_T aConstraint, const BOARD_ITEM* a, const BOARD_ITEM* b,
+                    PCB_LAYER_ID aEvalLayer ) -> int
+            {
+                DRC_CONSTRAINT c = bds.m_DRCEngine->EvalRules( aConstraint, a, b, aEvalLayer );
+
+                if( c.IsNull() )
+                    return -1;
+                else
+                    return c.GetValue().Min();
+            };
+
+    // Keepout zones (rule areas) are excluded here because they are subtracted earlier in the
+    // fill process, before the deflate/inflate min-width cycle.  Subtracting them here would
+    // trigger a second deflate/inflate pass that creates artifacts along curved keepout
+    // boundaries (issue 23515).
+    auto knockoutZoneClearance =
+            [&]( ZONE* aKnockout )
+            {
+                if( aKnockout->GetIsRuleArea() )
+                    return;
+
+                if( !aKnockout->GetLayerSet().test( aLayer ) )
+                    return;
+
+                if( aKnockout->HigherPriority( aZone ) && !aKnockout->SameNet( aZone )
+                        && zoneKnockoutMayInteract( aZone, aKnockout ) )
+                {
+                    int gap = std::max( 0, evalRulesForItems( PHYSICAL_CLEARANCE_CONSTRAINT,
+                                                               aZone, aKnockout, aLayer ) );
+
+                    gap = std::max( gap, evalRulesForItems( CLEARANCE_CONSTRAINT, aZone,
+                                                             aKnockout, aLayer ) );
+
+                    if( gap < 0 )
+                        return;
+
+                    SHAPE_POLY_SET poly;
+                    aKnockout->TransformShapeToPolygon( poly, aLayer, gap + extra_margin,
+                                                         m_maxError, ERROR_OUTSIDE );
+                    aHoles.Append( poly );
+                }
+            };
+
+    forEachBoardAndFootprintZone( m_board, knockoutZoneClearance );
+
+    aHoles.Simplify();
+}
+
+
+/**
+ * Removes the outlines of higher-proirity zones with the same net.  These zones should be
+ * in charge of the fill parameters within their own outlines.
+ */
+void ZONE_FILLER::subtractHigherPriorityZones( const ZONE* aZone, PCB_LAYER_ID aLayer,
+                                                SHAPE_POLY_SET& aRawFill )
+{
+    BOX2I          zoneBBox = aZone->GetBoundingBox();
+    SHAPE_POLY_SET knockouts;
+
+    auto collectZoneOutline =
+            [&]( ZONE* aKnockout )
+            {
+                if( !aKnockout->GetLayerSet().test( aLayer ) )
+                    return;
+
+                if( aKnockout->GetBoundingBox().Intersects( zoneBBox ) )
+                    appendZoneOutlineWithoutArcs( aKnockout, knockouts );
+            };
+
+    forEachBoardAndFootprintZone(
+            m_board,
+            [&]( ZONE* otherZone )
+            {
+                // Don't use `HigherPriority()` here because we only want explicitly-higher
+                // priorities, not equal-priority zones.
+                bool higherPrioritySameNet =
+                        otherZone->SameNet( aZone )
+                        && otherZone->GetAssignedPriority() > aZone->GetAssignedPriority();
+
+                if( higherPrioritySameNet && !otherZone->IsTeardropArea() )
+                    collectZoneOutline( otherZone );
+            } );
+
+    if( knockouts.OutlineCount() > 0 )
+        aRawFill.BooleanSubtract( knockouts );
+}
+
+
+void ZONE_FILLER::connect_nearby_polys( SHAPE_POLY_SET& aPolys, double aDistance )
+{
+    if( aPolys.OutlineCount() < 1 )
+        return;
+
+    VERTEX_CONNECTOR vs( aPolys.BBoxFromCaches(), aPolys, aDistance );
+
+    vs.FindResults();
+
+    // This cannot be a reference because we need to do the comparison below while
+    // changing the values
+    std::map<int, std::vector<std::pair<int, VECTOR2I>>> insertion_points;
+
+    for( const RESULTS& result : vs.GetResults() )
+    {
+        SHAPE_LINE_CHAIN& line1 = aPolys.Outline( result.m_outline1 );
+        SHAPE_LINE_CHAIN& line2 = aPolys.Outline( result.m_outline2 );
+
+        VECTOR2I pt1 = line1.CPoint( result.m_vertex1 );
+        VECTOR2I pt2 = line2.CPoint( result.m_vertex2 );
+
+        // We want to insert the existing point first so that we can place the new point
+        // between the two points at the same location.
+        insertion_points[result.m_outline1].push_back( { result.m_vertex1, pt1 } );
+        insertion_points[result.m_outline1].push_back( { result.m_vertex1, pt2 } );
+    }
+
+    for( auto& [outline, vertices] : insertion_points )
+    {
+        SHAPE_LINE_CHAIN& line = aPolys.Outline( outline );
+
+        // Stable sort here because we want to make sure that we are inserting pt1 first and
+        // pt2 second but still sorting the rest of the indices from highest to lowest.
+        // This allows us to insert into the existing polygon without modifying the future
+        // insertion points.
+        std::stable_sort( vertices.begin(), vertices.end(),
+                  []( const std::pair<int, VECTOR2I>& a, const std::pair<int, VECTOR2I>& b )
+                  {
+                      return a.first > b.first;
+                  } );
+
+        for( const auto& [vertex, pt] : vertices )
+            line.Insert( vertex + 1, pt );
+    }
+}
+
+
+// Subtracting a neighbouring zone's fill along an edge the two share sheds sub-micron contours
+// that survive Fracture() and are then counted as islands
+static void dropSubResolutionOutlines( SHAPE_POLY_SET& aPolys, int aMaxError )
+{
+    const double noiseArea = (double) aMaxError * aMaxError;
+
+    for( int ii = aPolys.OutlineCount() - 1; ii >= 0; ii-- )
+    {
+        if( aPolys.Outline( ii ).Area() < noiseArea )
+            aPolys.DeletePolygon( ii );
+    }
+}
+
+
+void ZONE_FILLER::postKnockoutMinWidthPrune( const ZONE* aZone, SHAPE_POLY_SET& aFillPolys,
+                                             const SHAPE_POLY_SET& aSameNetApron )
+{
+    int half_min_width = aZone->GetMinThickness() / 2;
+    int epsilon = pcbIUScale.mmToIU( 0.001 );
+
+    if( half_min_width - epsilon <= epsilon )
+        return;
+
+    // Captured before the apron goes in so the closing intersection strips the apron back off
+    SHAPE_POLY_SET preDeflate = aFillPolys.CloneDropTriangulation();
+
+    if( aSameNetApron.OutlineCount() > 0 )
+        aFillPolys.BooleanAdd( aSameNetApron );
+
+    aFillPolys.Deflate( half_min_width - epsilon, CORNER_STRATEGY::CHAMFER_ALL_CORNERS,
+                        m_maxError );
+
+    aFillPolys.Fracture();
+    connect_nearby_polys( aFillPolys, aZone->GetMinThickness() );
+
+    for( int ii = aFillPolys.OutlineCount() - 1; ii >= 0; ii-- )
+    {
+        std::vector<SHAPE_LINE_CHAIN>& island = aFillPolys.Polygon( ii );
+        BOX2I                          islandExtents;
+
+        for( const VECTOR2I& pt : island.front().CPoints() )
+        {
+            islandExtents.Merge( pt );
+
+            if( islandExtents.GetSizeMax() > aZone->GetMinThickness() )
+                break;
+        }
+
+        if( islandExtents.GetSizeMax() < aZone->GetMinThickness() )
+            aFillPolys.DeletePolygon( ii );
+    }
+
+    aFillPolys.Inflate( half_min_width - epsilon, CORNER_STRATEGY::ROUND_ALL_CORNERS, m_maxError,
+                        true );
+    aFillPolys.BooleanIntersection( preDeflate );
+}
+
+
+#define DUMP_POLYS_TO_COPPER_LAYER( a, b, c ) \
+    { if( m_debugZoneFiller && aDebugLayer == b ) \
+        { \
+            m_board->SetLayerName( b, c ); \
+            SHAPE_POLY_SET d = a; \
+            d.Fracture(); \
+            aFillPolys = d; \
+            return false; \
+        } \
+    }
+
+
+/*
+ * Note that aSmoothedOutline is larger than the zone where it intersects with other, same-net
+ * zones.  This is to prevent the re-inflation post min-width trimming from createing divots
+ * between adjacent zones.  The final aMaxExtents trimming will remove these areas from the final
+ * fill.
+ */
+bool ZONE_FILLER::fillCopperZone( const ZONE* aZone, PCB_LAYER_ID aLayer, PCB_LAYER_ID aDebugLayer,
+                                  const SHAPE_POLY_SET& aSmoothedOutline,
+                                  const SHAPE_POLY_SET& aMaxExtents, SHAPE_POLY_SET& aFillPolys )
+{
+    // m_maxError is initialized in the constructor. Don't reassign here to avoid data races
+    // when multiple threads call this function concurrently.
+
+    // Features which are min_width should survive pruning; features that are *less* than
+    // min_width should not.  Therefore we subtract epsilon from the min_width when
+    // deflating/inflating.
+    int half_min_width = aZone->GetMinThickness() / 2;
+    int epsilon = pcbIUScale.mmToIU( 0.001 );
+
+    // Solid polygons are deflated and inflated during calculations.  Deflating doesn't cause
+    // issues, but inflate is tricky as it can create excessively long and narrow spikes for
+    // acute angles.
+    // ALLOW_ACUTE_CORNERS cannot be used due to the spike problem.
+    // CHAMFER_ACUTE_CORNERS is tempting, but can still produce spikes in some unusual
+    // circumstances (https://gitlab.com/kicad/code/kicad/-/issues/5581).
+    // It's unclear if ROUND_ACUTE_CORNERS would have the same issues, but is currently avoided
+    // as a "less-safe" option.
+    // ROUND_ALL_CORNERS produces the uniformly nicest shapes, but also a lot of segments.
+    // CHAMFER_ALL_CORNERS improves the segment count.
+    CORNER_STRATEGY fastCornerStrategy = CORNER_STRATEGY::CHAMFER_ALL_CORNERS;
+    CORNER_STRATEGY cornerStrategy = CORNER_STRATEGY::ROUND_ALL_CORNERS;
+
+    std::vector<BOARD_ITEM*>     thermalConnectionPads;
+    std::vector<PAD*>            noConnectionPads;
+    std::vector<BOARD_ITEM*>     solidConnectionItems;
+    std::deque<SHAPE_LINE_CHAIN> thermalSpokes;
+    SHAPE_POLY_SET               clearanceHoles;
+
+    aFillPolys = aSmoothedOutline;
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In1_Cu, wxT( "smoothed-outline" ) );
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    /* -------------------------------------------------------------------------------------
+     * Knockout thermal reliefs.
+     */
+
+    knockoutThermalReliefs( aZone, aLayer, aFillPolys, thermalConnectionPads, noConnectionPads, solidConnectionItems );
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In2_Cu, wxT( "minus-thermal-reliefs" ) );
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    /* -------------------------------------------------------------------------------------
+     * For hatch zones, add thermal rings around pads with thermal relief.
+     * The rings are clipped to the zone boundary and provide the connection point
+     * for the hatch webbing instead of connecting directly to the pad.
+     */
+
+    SHAPE_POLY_SET thermalRings;
+
+    if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+    {
+        buildHatchZoneThermalRings( aZone, aLayer, aSmoothedOutline, thermalConnectionPads,
+                                    aFillPolys, thermalRings );
+        DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In2_Cu, wxT( "plus-thermal-rings" ) );
+    }
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    /* -------------------------------------------------------------------------------------
+     * Knockout electrical clearances.
+     */
+
+    // When iterative refill is enabled, we build zone-to-zone clearances separately so we can
+    // cache the fill before zone knockouts are applied (issue 21746).  Keepout zones are always
+    // included in clearanceHoles regardless of the iterative refill setting so they are
+    // subtracted before the deflate/inflate min-width cycle.  Subtracting keepouts after that
+    // cycle and running a second deflate/inflate pass creates artifacts along curved keepout
+    // boundaries (issue 23515).
+    const bool iterativeRefill = ADVANCED_CFG::GetCfg().m_ZoneFillIterativeRefill;
+
+    buildCopperItemClearances( aZone, aLayer, noConnectionPads, clearanceHoles,
+                               !iterativeRefill /* include zone clearances only if not iterative */ );
+
+    if( iterativeRefill )
+    {
+        BOX2I zone_boundingbox = aZone->GetBoundingBox();
+        bool  addedKeepoutHoles = false;
+
+        auto collectKeepoutHoles =
+                [&]( ZONE* candidate )
+                {
+                    if( aZone->IsTeardropArea() )
+                        return;
+
+                    if( !isZoneFillKeepout( candidate, aLayer, zone_boundingbox ) )
+                        return;
+
+                    candidate->TransformSmoothedOutlineToPolygon( clearanceHoles, 0, m_maxError,
+                                                                  ERROR_OUTSIDE, nullptr );
+                    addedKeepoutHoles = true;
+                };
+
+        forEachBoardAndFootprintZone( m_board, collectKeepoutHoles );
+
+        if( addedKeepoutHoles )
+            clearanceHoles.Simplify();
+    }
+
+    DUMP_POLYS_TO_COPPER_LAYER( clearanceHoles, In3_Cu, wxT( "clearance-holes" ) );
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    /* -------------------------------------------------------------------------------------
+     * Add thermal relief spokes.
+     */
+
+    buildThermalSpokes( aZone, aLayer, thermalConnectionPads, thermalSpokes );
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    // Create a temporary zone that we can hit-test spoke-ends against.  It's only temporary
+    // because the "real" subtract-clearance-holes has to be done after the spokes are added.
+    static const bool USE_BBOX_CACHES = true;
+    SHAPE_POLY_SET testAreas = aFillPolys.CloneDropTriangulation();
+    testAreas.BooleanSubtract( clearanceHoles );
+
+    // When iterative refill is enabled, zone-to-zone clearances are not included in
+    // clearanceHoles (they're applied later to allow pre-knockout caching).  But we still
+    // need to account for them when testing spoke endpoints, otherwise spokes will be kept
+    // that point into areas that will be knocked out by higher-priority zones.
+    SHAPE_POLY_SET zoneClearances;
+
+    if( iterativeRefill )
+    {
+        buildDifferentNetZoneClearances( aZone, aLayer, zoneClearances );
+
+        if( zoneClearances.OutlineCount() > 0 )
+            testAreas.BooleanSubtract( zoneClearances );
+    }
+
+    DUMP_POLYS_TO_COPPER_LAYER( testAreas, In4_Cu, wxT( "minus-clearance-holes" ) );
+
+    // Prune features that don't meet minimum-width criteria
+    if( half_min_width - epsilon > epsilon )
+    {
+        testAreas.Deflate( half_min_width - epsilon, fastCornerStrategy, m_maxError );
+        DUMP_POLYS_TO_COPPER_LAYER( testAreas, In5_Cu, wxT( "spoke-test-deflated" ) );
+
+        testAreas.Inflate( half_min_width - epsilon, fastCornerStrategy, m_maxError );
+        DUMP_POLYS_TO_COPPER_LAYER( testAreas, In6_Cu, wxT( "spoke-test-reinflated" ) );
+    }
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    // Spoke-end-testing is hugely expensive so we generate cached bounding-boxes to speed
+    // things up a bit.
+    testAreas.BuildBBoxCaches();
+    int interval = 0;
+
+    SHAPE_POLY_SET debugSpokes;
+
+    for( const SHAPE_LINE_CHAIN& spoke : thermalSpokes )
+    {
+        const VECTOR2I& testPt = spoke.CPoint( 3 );
+
+        // Hit-test against zone body
+        if( testAreas.Contains( testPt, -1, 1, USE_BBOX_CACHES ) )
+        {
+            if( m_debugZoneFiller )
+                debugSpokes.AddOutline( spoke );
+
+            aFillPolys.AddOutline( spoke );
+            continue;
+        }
+
+        if( interval++ > 400 )
+        {
+            if( m_progressReporter && m_progressReporter->IsCancelled() )
+                return false;
+
+            interval = 0;
+        }
+
+        // Hit-test against other spokes
+        for( const SHAPE_LINE_CHAIN& other : thermalSpokes )
+        {
+            // Hit test in both directions to avoid interactions with round-off errors.
+            // (See https://gitlab.com/kicad/code/kicad/-/issues/13316.)
+            if( &other != &spoke
+                && other.PointInside( testPt, 1, USE_BBOX_CACHES )
+                && spoke.PointInside( other.CPoint( 3 ), 1, USE_BBOX_CACHES ) )
+            {
+                if( m_debugZoneFiller )
+                    debugSpokes.AddOutline( spoke );
+
+                aFillPolys.AddOutline( spoke );
+                break;
+            }
+        }
+    }
+
+    DUMP_POLYS_TO_COPPER_LAYER( debugSpokes, In7_Cu, wxT( "spokes" ) );
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    aFillPolys.BooleanSubtract( clearanceHoles );
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In8_Cu, wxT( "after-spoke-trimming" ) );
+
+    /* -------------------------------------------------------------------------------------
+     * Prune features that don't meet minimum-width criteria
+     */
+
+    if( half_min_width - epsilon > epsilon )
+    {
+        aFillPolys.Deflate( half_min_width - epsilon, fastCornerStrategy, m_maxError );
+
+        // Also deflate thermal rings to match, for correct hatch hole notching
+        if( thermalRings.OutlineCount() > 0 )
+            thermalRings.Deflate( half_min_width - epsilon, fastCornerStrategy, m_maxError );
+    }
+
+    // Min-thickness is the web thickness.  On the other hand, a blob min-thickness by
+    // min-thickness is not useful.  Since there's no obvious definition of web vs. blob, we
+    // arbitrarily choose "at least 2X min-thickness on one axis".  (Since we're doing this
+    // during the deflated state, that means we test for "at least min-thickness".)
+    for( int ii = aFillPolys.OutlineCount() - 1; ii >= 0; ii-- )
+    {
+        std::vector<SHAPE_LINE_CHAIN>& island = aFillPolys.Polygon( ii );
+        BOX2I                          islandExtents;
+
+        for( const VECTOR2I& pt : island.front().CPoints() )
+        {
+            islandExtents.Merge( pt );
+
+            if( islandExtents.GetSizeMax() > aZone->GetMinThickness() )
+                break;
+        }
+
+        if( islandExtents.GetSizeMax() < aZone->GetMinThickness() )
+            aFillPolys.DeletePolygon( ii );
+    }
+
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In9_Cu, wxT( "deflated" ) );
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    /* -------------------------------------------------------------------------------------
+     * Process the hatch pattern (note that we do this while deflated)
+     */
+
+    if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN
+        && ( !m_board->GetProject()
+             || !m_board->GetProject()->GetLocalSettings().m_PrototypeZoneFill ) )
+    {
+        // Combine thermal rings with clearance holes (non-connected pad clearances) so that
+        // the hatch hole-dropping logic considers both types of rings
+        SHAPE_POLY_SET ringsToProtect = thermalRings;
+        ringsToProtect.BooleanAdd( clearanceHoles );
+
+        // Drop the hatch hole around each fully connected via so it stays on the webbing.
+        // Feed only the hole-drop set, not the fill, so wider vias are left untouched.
+        for( BOARD_ITEM* item : solidConnectionItems )
+        {
+            if( item->Type() != PCB_VIA_T || !item->IsOnLayer( aLayer ) )
+                continue;
+
+            PCB_VIA* via = static_cast<PCB_VIA*>( item );
+
+            SHAPE_POLY_SET disc;
+            TransformCircleToPolygon( disc, via->GetPosition(), via->GetWidth( aLayer ) / 2, m_maxError,
+                                      ERROR_OUTSIDE );
+            disc.BooleanIntersection( aSmoothedOutline );
+            ringsToProtect.BooleanAdd( disc );
+        }
+
+        // The refiller needs the un-hatched extent to re-border zones it later carves (issue 24758).
+        if( ADVANCED_CFG::GetCfg().m_ZoneFillIterativeRefill )
+        {
+            SHAPE_POLY_SET solid = aFillPolys.CloneDropTriangulation();
+
+            if( half_min_width - epsilon > epsilon )
+                solid.Inflate( half_min_width - epsilon, cornerStrategy, m_maxError, true );
+
+            solid.BooleanIntersection( aMaxExtents );
+            solid.BooleanSubtract( clearanceHoles );
+
+            std::lock_guard<std::mutex> lock( m_cacheMutex );
+            m_preHatchSolidFillCache[{ aZone, aLayer }] = solid;
+        }
+
+        if( !addHatchFillTypeOnZone( aZone, aLayer, aDebugLayer, aFillPolys, ringsToProtect ) )
+            return false;
+    }
+    else
+    {
+        /* ---------------------------------------------------------------------------------
+         * Connect nearby polygons with zero-width lines in order to ensure correct
+         * re-inflation.
+         */
+        aFillPolys.Fracture();
+        connect_nearby_polys( aFillPolys, aZone->GetMinThickness() );
+
+        DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In10_Cu, wxT( "connected-nearby-polys" ) );
+    }
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    /* -------------------------------------------------------------------------------------
+     * Finish minimum-width pruning by re-inflating
+     */
+
+    if( half_min_width - epsilon > epsilon )
+        aFillPolys.Inflate( half_min_width - epsilon, cornerStrategy, m_maxError, true );
+
+    // The deflation/inflation process can leave notches in the outline.  Remove these by
+    // doing a union with the original ring
+    aFillPolys.BooleanAdd( thermalRings );
+
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In15_Cu, wxT( "after-reinflating" ) );
+
+    /* -------------------------------------------------------------------------------------
+     * Ensure additive changes (thermal stubs and inflating acute corners) do not add copper
+     * outside the zone boundary, inside the clearance holes, or between otherwise isolated
+     * islands
+     */
+
+    for( BOARD_ITEM* item : thermalConnectionPads )
+    {
+        if( item->Type() == PCB_PAD_T )
+            addHoleKnockout( static_cast<PAD*>( item ), 0, clearanceHoles );
+    }
+
+    aFillPolys.BooleanIntersection( aMaxExtents );
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In16_Cu, wxT( "after-trim-to-outline" ) );
+    aFillPolys.BooleanSubtract( clearanceHoles );
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In17_Cu, wxT( "after-trim-to-clearance-holes" ) );
+
+    // Cache the pre-knockout fill for iterative refill optimization (issue 21746).
+    // The cache stores the fill BEFORE zone-to-zone knockouts so the iterative refill can
+    // reclaim space when higher-priority zones have islands removed.
+    bool           knockoutsApplied = false;
+    SHAPE_POLY_SET sameNetApron;
+
+    if( iterativeRefill )
+    {
+        // The band the aMaxExtents trim just took away but an abutting same-net zone still
+        // pours into (issue 23790)
+        sameNetApron = aSmoothedOutline.CloneDropTriangulation();
+        sameNetApron.BooleanSubtract( aMaxExtents );
+        sameNetApron.BooleanSubtract( clearanceHoles );
+
+        {
+            std::lock_guard<std::mutex> lock( m_cacheMutex );
+            m_preKnockoutFillCache[{ aZone, aLayer }] = aFillPolys;
+            m_sameNetApronCache[{ aZone, aLayer }] = sameNetApron;
+        }
+
+        // Reuse the zone clearances already computed for spoke endpoint testing
+        if( zoneClearances.OutlineCount() > 0 )
+        {
+            aFillPolys.BooleanSubtract( zoneClearances );
+            sameNetApron.BooleanSubtract( zoneClearances );
+            knockoutsApplied = true;
+        }
+    }
+
+    /* -------------------------------------------------------------------------------------
+     * Re-prune minimum-width violations introduced by different-net zone knockouts.
+     *
+     * This must run BEFORE subtracting same-net higher-priority zones.  The fill no longer
+     * reaches into overlapping same-net zone areas once trimmed to aMaxExtents, so sameNetApron
+     * stands in for that overlap and keeps the deflate/inflate cycle from carving divots at
+     * same-net zone boundaries (the same role aSmoothedOutline plays in the initial pass).
+     */
+
+    if( knockoutsApplied )
+        postKnockoutMinWidthPrune( aZone, aFillPolys, sameNetApron );
+
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In18_Cu, wxT( "after-post-knockout-min-width" ) );
+
+    /* -------------------------------------------------------------------------------------
+     * Lastly give any same-net but higher-priority zones control over their own area.
+     */
+
+    subtractHigherPriorityZones( aZone, aLayer, aFillPolys );
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In19_Cu, wxT( "minus-higher-priority-zones" ) );
+
+    dropSubResolutionOutlines( aFillPolys, m_maxError );
+
+    aFillPolys.Fracture();
+    return true;
+}
+
+
+bool ZONE_FILLER::fillNonCopperZone( const ZONE* aZone, PCB_LAYER_ID aLayer,
+                                     const SHAPE_POLY_SET& aSmoothedOutline,
+                                     SHAPE_POLY_SET& aFillPolys )
+{
+    BOX2I                  zone_boundingbox = aZone->GetBoundingBox();
+    SHAPE_POLY_SET         clearanceHoles;
+    long                   ticker = 0;
+
+    auto checkForCancel =
+            [&ticker]( PROGRESS_REPORTER* aReporter ) -> bool
+            {
+                return aReporter && ( ticker++ % 50 ) == 0 && aReporter->IsCancelled();
+            };
+
+    auto knockoutGraphicItem =
+            [&]( BOARD_ITEM* aItem )
+            {
+                if( aItem->IsKnockout() && aItem->IsOnLayer( aLayer )
+                        && aItem->GetBoundingBox().Intersects( zone_boundingbox ) )
+                {
+                    addKnockout( aItem, aLayer, 0, true, clearanceHoles );
+                }
+            };
+
+    for( FOOTPRINT* footprint : m_board->Footprints() )
+    {
+        if( checkForCancel( m_progressReporter ) )
+            return false;
+
+        knockoutGraphicItem( &footprint->Reference() );
+        knockoutGraphicItem( &footprint->Value() );
+
+        for( BOARD_ITEM* item : footprint->GraphicalItems() )
+            knockoutGraphicItem( item );
+    }
+
+    for( BOARD_ITEM* item : m_board->Drawings() )
+    {
+        if( checkForCancel( m_progressReporter ) )
+            return false;
+
+        knockoutGraphicItem( item );
+    }
+
+    aFillPolys = aSmoothedOutline;
+    aFillPolys.BooleanSubtract( clearanceHoles );
+
+    SHAPE_POLY_SET keepoutHoles;
+
+    auto collectKeepout =
+            [&]( ZONE* candidate )
+            {
+                if( !isZoneFillKeepout( candidate, aLayer, zone_boundingbox ) )
+                    return;
+
+                appendZoneOutlineWithoutArcs( candidate, keepoutHoles );
+            };
+
+    bool cancelledKeepoutScan = false;
+
+    forEachBoardAndFootprintZone(
+            m_board,
+            [&]( ZONE* keepout )
+            {
+                if( cancelledKeepoutScan )
+                    return;
+
+                if( checkForCancel( m_progressReporter ) )
+                {
+                    cancelledKeepoutScan = true;
+                    return;
+                }
+
+                collectKeepout( keepout );
+            } );
+
+    if( cancelledKeepoutScan )
+        return false;
+
+    if( keepoutHoles.OutlineCount() > 0 )
+        aFillPolys.BooleanSubtract( keepoutHoles );
+
+    // Features which are min_width should survive pruning; features that are *less* than
+    // min_width should not.  Therefore we subtract epsilon from the min_width when
+    // deflating/inflating.
+    int half_min_width = aZone->GetMinThickness() / 2;
+    int epsilon = pcbIUScale.mmToIU( 0.001 );
+
+    aFillPolys.Deflate( half_min_width - epsilon, CORNER_STRATEGY::CHAMFER_ALL_CORNERS, m_maxError );
+
+    // Remove the non filled areas due to the hatch pattern
+    if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+    {
+        SHAPE_POLY_SET noThermalRings;  // Non-copper zones have no thermal reliefs
+
+        if( !addHatchFillTypeOnZone( aZone, aLayer, aLayer, aFillPolys, noThermalRings ) )
+            return false;
+    }
+
+    // Re-inflate after pruning of areas that don't meet minimum-width criteria
+    if( half_min_width - epsilon > epsilon )
+        aFillPolys.Inflate( half_min_width - epsilon, CORNER_STRATEGY::ROUND_ALL_CORNERS, m_maxError );
+
+    aFillPolys.Fracture();
+    return true;
+}
+
+
+/*
+ * Build the filled solid areas data from real outlines (stored in m_Poly)
+ * The solid areas can be more than one on copper layers, and do not have holes
+ * ( holes are linked by overlapping segments to the main outline)
+ */
+bool ZONE_FILLER::fillSingleZone( ZONE* aZone, PCB_LAYER_ID aLayer, SHAPE_POLY_SET& aFillPolys )
+{
+    SHAPE_POLY_SET* boardOutline = m_brdOutlinesValid ? &m_boardOutline : nullptr;
+    SHAPE_POLY_SET  maxExtents;
+    SHAPE_POLY_SET  smoothedPoly;
+    PCB_LAYER_ID    debugLayer = UNDEFINED_LAYER;
+
+    if( m_debugZoneFiller && LSET::InternalCuMask().Contains( aLayer ) )
+    {
+        debugLayer = aLayer;
+        aLayer = F_Cu;
+    }
+
+    if( !aZone->BuildSmoothedPoly( maxExtents, aLayer, boardOutline, &smoothedPoly ) )
+        return false;
+
+    if( m_progressReporter && m_progressReporter->IsCancelled() )
+        return false;
+
+    if( aZone->IsOnCopperLayer() )
+    {
+        if( fillCopperZone( aZone, aLayer, debugLayer, smoothedPoly, maxExtents, aFillPolys ) )
+            aZone->SetNeedRefill( false );
+    }
+    else
+    {
+        if( fillNonCopperZone( aZone, aLayer, smoothedPoly, aFillPolys ) )
+            aZone->SetNeedRefill( false );
+    }
+
+    return true;
+}
+
+
+/**
+ * Function buildThermalSpokes
+ */
+void ZONE_FILLER::buildThermalSpokes( const ZONE* aZone, PCB_LAYER_ID aLayer,
+                                      const std::vector<BOARD_ITEM*>& aSpokedPadsList,
+                                      std::deque<SHAPE_LINE_CHAIN>& aSpokesList )
+{
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+    BOX2I                  zoneBB = aZone->GetBoundingBox();
+    DRC_CONSTRAINT         constraint;
+    int                    zone_half_width = aZone->GetMinThickness() / 2;
+
+    if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+        zone_half_width = aZone->GetHatchThickness() / 2;
+
+    zoneBB.Inflate( std::max( bds.GetBiggestClearanceValue(), aZone->GetLocalClearance().value() ) );
+
+    // Is a point on the boundary of the polygon inside or outside?
+    // The boundary may be off by MaxError
+    int epsilon = bds.m_MaxError;
+
+    for( BOARD_ITEM* item : aSpokedPadsList )
+    {
+        // We currently only connect to pads, not pad holes
+        if( !item->IsOnLayer( aLayer ) )
+            continue;
+
+        int       thermalReliefGap = 0;
+        int       spoke_w = 0;
+        PAD*      pad = nullptr;
+        PCB_VIA*  via = nullptr;
+        bool      circular = false;
+
+        if( item->Type() == PCB_PAD_T )
+        {
+            pad = static_cast<PAD*>( item );
+            VECTOR2I padSize = pad->GetSize( aLayer );
+
+            if( pad->GetShape( aLayer) == PAD_SHAPE::CIRCLE
+                    || ( pad->GetShape( aLayer ) == PAD_SHAPE::OVAL && padSize.x == padSize.y ) )
+            {
+                circular = true;
+            }
+        }
+        else if( item->Type() == PCB_VIA_T )
+        {
+            via = static_cast<PCB_VIA*>( item );
+            circular = true;
+        }
+
+        // For hatch zones, use proper DRC constraints for thermal gap and spoke width,
+        // just like solid zones. This ensures consistent thermal relief appearance and
+        // respects pad-specific thermal spoke settings.
+        if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+        {
+            if( pad )
+            {
+                constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, pad,
+                                                        aZone, aLayer );
+                thermalReliefGap = constraint.GetValue().Min();
+
+                constraint = bds.m_DRCEngine->EvalRules( THERMAL_SPOKE_WIDTH_CONSTRAINT, pad,
+                                                        aZone, aLayer );
+                spoke_w = constraint.GetValue().Opt();
+
+                int spoke_max_allowed_w = std::min( pad->GetSize( aLayer ).x, pad->GetSize( aLayer ).y );
+                spoke_w = std::clamp( spoke_w, constraint.Value().Min(), constraint.Value().Max() );
+                spoke_w = std::min( spoke_w, spoke_max_allowed_w );
+
+                if( spoke_w < aZone->GetMinThickness() )
+                    continue;
+            }
+            else if( via )
+            {
+                constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, via,
+                                                        aZone, aLayer );
+                thermalReliefGap = constraint.GetValue().Min();
+
+                constraint = bds.m_DRCEngine->EvalRules( THERMAL_SPOKE_WIDTH_CONSTRAINT, via,
+                                                        aZone, aLayer );
+                spoke_w = constraint.GetValue().Opt();
+
+                spoke_w = std::min( spoke_w, via->GetWidth( aLayer ) );
+
+                if( spoke_w < aZone->GetMinThickness() )
+                    continue;
+            }
+            else
+            {
+                continue;
+            }
+        }
+        else if( pad )
+        {
+            constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, pad, aZone, aLayer );
+            thermalReliefGap = constraint.GetValue().Min();
+
+            constraint = bds.m_DRCEngine->EvalRules( THERMAL_SPOKE_WIDTH_CONSTRAINT, pad, aZone, aLayer );
+            spoke_w = constraint.GetValue().Opt();
+
+            // Spoke width should ideally be smaller than the pad minor axis.
+            // Otherwise the thermal shape is not really a thermal relief,
+            // and the algo to count the actual number of spokes can fail
+            int spoke_max_allowed_w = std::min( pad->GetSize( aLayer ).x, pad->GetSize( aLayer ).y );
+
+            spoke_w = std::clamp( spoke_w, constraint.Value().Min(), constraint.Value().Max() );
+
+            // ensure the spoke width is smaller than the pad minor size
+            spoke_w = std::min( spoke_w, spoke_max_allowed_w );
+
+            // Cannot create stubs having a width < zone min thickness
+            if( spoke_w < aZone->GetMinThickness() )
+                continue;
+        }
+        else
+        {
+            // We don't currently support via thermal connections *except* in a hatched zone.
+            continue;
+        }
+
+        int spoke_half_w = spoke_w / 2;
+
+        // Quick test here to possibly save us some work
+        BOX2I itemBB = item->GetBoundingBox();
+        itemBB.Inflate( thermalReliefGap + epsilon );
+
+        if( !( itemBB.Intersects( zoneBB ) ) )
+            continue;
+
+        bool customSpokes = false;
+
+        if( pad && pad->GetShape( aLayer ) == PAD_SHAPE::CUSTOM )
+        {
+            for( const std::shared_ptr<PCB_SHAPE>& primitive : pad->GetPrimitives( aLayer ) )
+            {
+                if( primitive->IsProxyItem() && primitive->GetShape() == SHAPE_T::SEGMENT )
+                {
+                    customSpokes = true;
+                    break;
+                }
+            }
+        }
+
+        // Thermal spokes consist of square-ended segments from the pad center to points just
+        // outside the thermal relief.  The outside end has an extra center point (which must be
+        // at idx 3) which is used for testing whether or not the spoke connects to copper in the
+        // parent zone.
+
+        auto buildSpokesFromOrigin =
+                [&]( const BOX2I& box, EDA_ANGLE angle )
+                {
+                    VECTOR2I center = box.GetCenter();
+                    VECTOR2I half_size = KiROUND( box.GetWidth() / 2.0, box.GetHeight() / 2.0 );
+
+                    // Function to find intersection of line with box edge
+                    auto intersectBBox =
+                            [&]( const EDA_ANGLE& spokeAngle, VECTOR2I* spoke_side ) -> VECTOR2I
+                            {
+                                double dx = spokeAngle.Cos();
+                                double dy = spokeAngle.Sin();
+
+                                // Short-circuit the axis cases because they will be degenerate in the
+                                // intersection test
+                                if( dx == 0 )
+                                {
+                                    *spoke_side = VECTOR2I( spoke_half_w, 0 );
+                                    return KiROUND( 0.0, dy * half_size.y );
+                                }
+                                else if( dy == 0 )
+                                {
+                                    *spoke_side = VECTOR2I( 0, spoke_half_w );
+                                    return KiROUND( dx * half_size.x, 0.0 );
+                                }
+
+                                // We are going to intersect with one side or the other.  Whichever
+                                // we hit first is the fraction of the spoke length we keep
+                                double dist_x = half_size.x / std::abs( dx );
+                                double dist_y = half_size.y / std::abs( dy );
+
+                                if( dist_x < dist_y )
+                                {
+                                    *spoke_side = KiROUND( 0.0, spoke_half_w / ( ANGLE_90 - spokeAngle ).Sin() );
+                                    return KiROUND( dx * dist_x, dy * dist_x );
+                                }
+                                else
+                                {
+                                    *spoke_side = KiROUND( spoke_half_w / spokeAngle.Sin(), 0.0 );
+                                    return KiROUND( dx * dist_y, dy * dist_y );
+                                }
+                            };
+
+                    // Precalculate angles for four cardinal directions
+                    const EDA_ANGLE angles[4] = {
+                        EDA_ANGLE(  0.0, DEGREES_T ) + angle,  // Right
+                        EDA_ANGLE( 90.0, DEGREES_T ) + angle,  // Up
+                        EDA_ANGLE( 180.0, DEGREES_T ) + angle, // Left
+                        EDA_ANGLE( 270.0, DEGREES_T ) + angle  // Down
+                    };
+
+                    // Generate four spokes in cardinal directions
+                    for( const EDA_ANGLE& spokeAngle : angles )
+                    {
+                        VECTOR2I spoke_side;
+                        VECTOR2I intersection = intersectBBox( spokeAngle, &spoke_side );
+
+                        SHAPE_LINE_CHAIN spoke;
+                        spoke.Append( center + spoke_side );
+                        spoke.Append( center - spoke_side );
+                        spoke.Append( center + intersection - spoke_side );
+                        spoke.Append( center + intersection ); // test pt
+                        spoke.Append( center + intersection + spoke_side );
+                        spoke.SetClosed( true );
+                        aSpokesList.push_back( std::move( spoke ) );
+                    }
+                };
+
+        if( customSpokes )
+        {
+            SHAPE_POLY_SET   thermalPoly;
+            SHAPE_LINE_CHAIN thermalOutline;
+
+            pad->TransformShapeToPolygon( thermalPoly, aLayer, thermalReliefGap + epsilon, m_maxError, ERROR_OUTSIDE );
+
+            if( thermalPoly.OutlineCount() )
+                thermalOutline = thermalPoly.Outline( 0 );
+
+            SHAPE_LINE_CHAIN padOutline = pad->GetEffectivePolygon( aLayer, ERROR_OUTSIDE )->Outline( 0 );
+
+            auto trimToOutline = [&]( SEG& aSegment )
+            {
+                SHAPE_LINE_CHAIN::INTERSECTIONS intersections;
+
+                if( padOutline.Intersect( aSegment, intersections ) )
+                {
+                    intersections.clear();
+
+                    // Trim the segment to the thermal outline
+                    if( thermalOutline.Intersect( aSegment, intersections ) )
+                    {
+                        aSegment.B = intersections.front().p;
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            for( const std::shared_ptr<PCB_SHAPE>& primitive : pad->GetPrimitives( aLayer ) )
+            {
+                if( primitive->IsProxyItem() && primitive->GetShape() == SHAPE_T::SEGMENT )
+                {
+                    SEG seg( primitive->GetStart(), primitive->GetEnd() );
+                    SHAPE_LINE_CHAIN::INTERSECTIONS intersections;
+
+                    RotatePoint( seg.A, pad->GetOrientation() );
+                    RotatePoint( seg.B, pad->GetOrientation() );
+                    seg.A += pad->ShapePos( aLayer );
+                    seg.B += pad->ShapePos( aLayer );
+
+                    // Make sure seg.A is the origin
+                    if( !pad->GetEffectivePolygon( aLayer, ERROR_OUTSIDE )->Contains( seg.A ) )
+                    {
+                        // Do not create this spoke if neither point is in the pad.
+                        if( !pad->GetEffectivePolygon( aLayer, ERROR_OUTSIDE )->Contains( seg.B ) )
+                            continue;
+
+                        seg.Reverse();
+                    }
+
+                    // Trim segment to pad and thermal outline polygon.
+                    // If there is no intersection with the pad, don't create the spoke.
+                    if( trimToOutline( seg ) )
+                    {
+                        VECTOR2I direction = ( seg.B - seg.A ).Resize( spoke_half_w );
+                        VECTOR2I offset = direction.Perpendicular().Resize( spoke_half_w );
+                        // Extend the spoke edges by half the spoke width to capture convex pad shapes
+                        // with a maximum of 45 degrees.
+                        SEG segL( seg.A - direction - offset, seg.B + direction - offset );
+                        SEG segR( seg.A - direction + offset, seg.B + direction + offset );
+
+                        // Only create this spoke if both edges intersect the pad and thermal outline
+                        if( trimToOutline( segL ) && trimToOutline( segR ) )
+                        {
+                            // Extend the spoke by the minimum thickness for the zone to ensure full
+                            // connection width
+                            direction = direction.Resize( aZone->GetMinThickness() );
+
+                            SHAPE_LINE_CHAIN spoke;
+
+                            spoke.Append( seg.A + offset );
+                            spoke.Append( seg.A - offset );
+
+                            spoke.Append( segL.B + direction );
+                            spoke.Append( seg.B + direction ); // test pt at index 3.
+                            spoke.Append( segR.B + direction );
+
+                            spoke.SetClosed( true );
+                            aSpokesList.push_back( std::move( spoke ) );
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            EDA_ANGLE thermalSpokeAngle;
+
+            // Use pad's thermal spoke angle for both solid and hatch zones.
+            // This ensures custom thermal spoke templates are respected.
+            if( pad )
+                thermalSpokeAngle = pad->GetThermalSpokeAngle();
+
+            BOX2I     spokesBox;
+            VECTOR2I  position;
+            EDA_ANGLE orientation;
+
+            // Since the bounding-box needs to be correclty rotated we use a dummy pad to keep
+            // from dirtying the real pad's cached shapes.
+            if( pad )
+            {
+                PAD dummy_pad( *pad );
+                dummy_pad.SetOrientation( ANGLE_0 );
+
+                // Spokes are from center of pad shape, not from hole. So the dummy pad has no shape
+                // offset and is at position 0,0
+                dummy_pad.SetPosition( VECTOR2I( 0, 0 ) );
+                dummy_pad.SetOffset( aLayer, VECTOR2I( 0, 0 ) );
+
+                spokesBox = dummy_pad.GetBoundingBox( aLayer );
+                position = pad->ShapePos( aLayer );
+                orientation = pad->GetOrientation();
+            }
+            else if( via )
+            {
+                PCB_VIA dummy_via( *via );
+                dummy_via.SetPosition( VECTOR2I( 0, 0 ) );
+
+                spokesBox = dummy_via.GetBoundingBox( aLayer );
+                position = via->GetPosition();
+            }
+
+            // Add half the zone mininum width to the inflate amount to account for the fact that
+            // the deflation procedure will shrink the results by half the half the zone min width.
+            spokesBox.Inflate( thermalReliefGap + epsilon + zone_half_width );
+
+            // Yet another wrinkle: the bounding box for circles will overshoot the mark considerably
+            // when the spokes are near a 45 degree increment.  So we build the spokes at 0 degrees
+            // and then rotate them to the correct position.
+            if( circular )
+            {
+                buildSpokesFromOrigin( spokesBox, ANGLE_0 );
+
+                if( thermalSpokeAngle != ANGLE_0 )
+                {
+                    // Rotate the last four elements of aspokeslist
+                    for( auto it = aSpokesList.rbegin(); it != aSpokesList.rbegin() + 4; ++it )
+                        it->Rotate( thermalSpokeAngle );
+                }
+            }
+            else
+            {
+                buildSpokesFromOrigin( spokesBox, thermalSpokeAngle );
+            }
+
+            auto spokeIter = aSpokesList.rbegin();
+
+            for( int ii = 0; ii < 4; ++ii, ++spokeIter )
+            {
+                spokeIter->Rotate( orientation );
+                spokeIter->Move( position );
+            }
+        }
+    }
+
+    for( size_t ii = 0; ii < aSpokesList.size(); ++ii )
+        aSpokesList[ii].GenerateBBoxCache();
+}
+
+
+void ZONE_FILLER::buildHatchZoneThermalRings( const ZONE* aZone, PCB_LAYER_ID aLayer,
+                                              const SHAPE_POLY_SET& aSmoothedOutline,
+                                              const std::vector<BOARD_ITEM*>& aThermalConnectionPads,
+                                              SHAPE_POLY_SET& aFillPolys,
+                                              SHAPE_POLY_SET& aThermalRings )
+{
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+    DRC_CONSTRAINT         constraint;
+
+    for( BOARD_ITEM* item : aThermalConnectionPads )
+    {
+        if( !item->IsOnLayer( aLayer ) )
+            continue;
+
+        PAD*     pad = nullptr;
+        PCB_VIA* via = nullptr;
+        bool     isCircular = false;
+        int      thermalGap = 0;
+        int      spokeWidth = 0;
+        VECTOR2I position;
+        int      padRadius = 0;
+
+        if( item->Type() == PCB_PAD_T )
+        {
+            pad = static_cast<PAD*>( item );
+            VECTOR2I padSize = pad->GetSize( aLayer );
+            position = pad->ShapePos( aLayer );
+
+            isCircular = ( pad->GetShape( aLayer ) == PAD_SHAPE::CIRCLE
+                           || ( pad->GetShape( aLayer ) == PAD_SHAPE::OVAL && padSize.x == padSize.y ) );
+
+            if( isCircular )
+                padRadius = std::max( padSize.x, padSize.y ) / 2;
+
+            constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, pad, aZone, aLayer );
+            thermalGap = constraint.GetValue().Min();
+
+            constraint = bds.m_DRCEngine->EvalRules( THERMAL_SPOKE_WIDTH_CONSTRAINT, pad, aZone, aLayer );
+            spokeWidth = constraint.GetValue().Opt();
+
+            // Clamp spoke width to pad size
+            int spokeMaxWidth = std::min( padSize.x, padSize.y );
+            spokeWidth = std::min( spokeWidth, spokeMaxWidth );
+        }
+        else if( item->Type() == PCB_VIA_T )
+        {
+            via = static_cast<PCB_VIA*>( item );
+            position = via->GetPosition();
+            isCircular = true;
+            padRadius = via->GetWidth( aLayer ) / 2;
+
+            constraint = bds.m_DRCEngine->EvalRules( THERMAL_RELIEF_GAP_CONSTRAINT, via, aZone, aLayer );
+            thermalGap = constraint.GetValue().Min();
+
+            constraint = bds.m_DRCEngine->EvalRules( THERMAL_SPOKE_WIDTH_CONSTRAINT, via, aZone, aLayer );
+            spokeWidth = constraint.GetValue().Opt();
+
+            // Clamp spoke width to via diameter
+            spokeWidth = std::min( spokeWidth, padRadius * 2 );
+        }
+        else
+        {
+            continue;
+        }
+
+        // Don't create a ring if spoke width is too small
+        if( spokeWidth < aZone->GetMinThickness() )
+            continue;
+
+        SHAPE_POLY_SET thermalRing;
+
+        if( isCircular )
+        {
+            // For circular pads/vias: create an arc ring
+            // Ring inner radius = pad radius + thermal gap
+            // Ring width = spoke width
+            int ringInnerRadius = padRadius + thermalGap;
+            int ringWidth = spokeWidth;
+
+            TransformRingToPolygon( thermalRing, position, ringInnerRadius + ringWidth / 2,
+                                    ringWidth, m_maxError, ERROR_OUTSIDE );
+        }
+        else
+        {
+            // For non-circular pads: create ring by inflating pad to outer radius,
+            // then subtracting pad inflated to inner radius
+            SHAPE_POLY_SET outerShape;
+            SHAPE_POLY_SET innerShape;
+
+            // Outer ring edge = pad + thermal gap + spoke width
+            pad->TransformShapeToPolygon( outerShape, aLayer, thermalGap + spokeWidth,
+                                          m_maxError, ERROR_OUTSIDE );
+
+            // Inner ring edge = pad + thermal gap (this is already knocked out)
+            pad->TransformShapeToPolygon( innerShape, aLayer, thermalGap,
+                                          m_maxError, ERROR_OUTSIDE );
+
+            thermalRing = outerShape;
+            thermalRing.BooleanSubtract( innerShape );
+        }
+
+        // Clip the thermal ring to the zone boundary so it doesn't overflow
+        thermalRing.BooleanIntersection( aSmoothedOutline );
+
+        // Add the thermal ring to the fill
+        aFillPolys.BooleanAdd( thermalRing );
+
+        // Also collect thermal rings for hatch hole notching to ensure connectivity
+        aThermalRings.BooleanAdd( thermalRing );
+    }
+}
+
+
+bool ZONE_FILLER::addHatchFillTypeOnZone( const ZONE* aZone, PCB_LAYER_ID aLayer,
+                                          PCB_LAYER_ID aDebugLayer, SHAPE_POLY_SET& aFillPolys,
+                                          const SHAPE_POLY_SET& aThermalRings )
+{
+    // Build grid:
+
+    // obviously line thickness must be > zone min thickness.
+    // It can happens if a board file was edited by hand by a python script
+    // Use 1 micron margin to be *sure* there is no issue in Gerber files
+    // (Gbr file unit = 1 or 10 nm) due to some truncation in coordinates or calculations
+    // This margin also avoid problems due to rounding coordinates in next calculations
+    // that can create incorrect polygons
+    int thickness = std::max( aZone->GetHatchThickness(),
+                              aZone->GetMinThickness() + pcbIUScale.mmToIU( 0.001 ) );
+
+    int gridsize = thickness + aZone->GetHatchGap();
+    int maxError = m_board->GetDesignSettings().m_MaxError;
+
+    SHAPE_POLY_SET filledPolys = aFillPolys.CloneDropTriangulation();
+    // Use a area that contains the rotated bbox by orientation, and after rotate the result
+    // by -orientation.
+    if( !aZone->GetHatchOrientation().IsZero() )
+        filledPolys.Rotate( - aZone->GetHatchOrientation() );
+
+    BOX2I bbox = filledPolys.BBox( 0 );
+
+    // Build hole shape
+    // the hole size is aZone->GetHatchGap(), but because the outline thickness
+    // is aZone->GetMinThickness(), the hole shape size must be larger
+    SHAPE_LINE_CHAIN hole_base;
+    int hole_size = aZone->GetHatchGap() + aZone->GetMinThickness();
+    VECTOR2I corner( 0, 0 );;
+    hole_base.Append( corner );
+    corner.x += hole_size;
+    hole_base.Append( corner );
+    corner.y += hole_size;
+    hole_base.Append( corner );
+    corner.x = 0;
+    hole_base.Append( corner );
+    hole_base.SetClosed( true );
+
+    // Calculate minimal area of a grid hole.
+    // All holes smaller than a threshold will be removed
+    double minimal_hole_area = hole_base.Area() * aZone->GetHatchHoleMinArea();
+
+    // Now convert this hole to a smoothed shape:
+    if( aZone->GetHatchSmoothingLevel() > 0 )
+    {
+        // the actual size of chamfer, or rounded corner radius is the half size
+        // of the HatchFillTypeGap scaled by aZone->GetHatchSmoothingValue()
+        // aZone->GetHatchSmoothingValue() = 1.0 is the max value for the chamfer or the
+        // radius of corner (radius = half size of the hole)
+        int smooth_value = KiROUND( aZone->GetHatchGap()
+                                    * aZone->GetHatchSmoothingValue() / 2 );
+
+        // Minimal optimization:
+        // make smoothing only for reasonable smooth values, to avoid a lot of useless segments
+        // and if the smooth value is small, use chamfer even if fillet is requested
+        #define SMOOTH_MIN_VAL_MM 0.02
+        #define SMOOTH_SMALL_VAL_MM 0.04
+
+        if( smooth_value > pcbIUScale.mmToIU( SMOOTH_MIN_VAL_MM ) )
+        {
+            SHAPE_POLY_SET smooth_hole;
+            smooth_hole.AddOutline( hole_base );
+            int smooth_level = aZone->GetHatchSmoothingLevel();
+
+            if( smooth_value < pcbIUScale.mmToIU( SMOOTH_SMALL_VAL_MM ) && smooth_level > 1 )
+                smooth_level = 1;
+
+            // Use a larger smooth_value to compensate the outline tickness
+            // (chamfer is not visible is smooth value < outline thickess)
+            smooth_value += aZone->GetMinThickness() / 2;
+
+            // smooth_value cannot be bigger than the half size oh the hole:
+            smooth_value = std::min( smooth_value, aZone->GetHatchGap() / 2 );
+
+            // the error to approximate a circle by segments when smoothing corners by a arc
+            maxError = std::max( maxError * 2, smooth_value / 20 );
+
+            switch( smooth_level )
+            {
+            case 1:
+                // Chamfer() uses the distance from a corner to create a end point
+                // for the chamfer.
+                hole_base = smooth_hole.Chamfer( smooth_value ).Outline( 0 );
+                break;
+
+            default:
+                if( aZone->GetHatchSmoothingLevel() > 2 )
+                    maxError /= 2;    // Force better smoothing
+
+                hole_base = smooth_hole.Fillet( smooth_value, maxError ).Outline( 0 );
+                break;
+
+            case 0:
+                break;
+            };
+        }
+    }
+
+    // Build holes
+    SHAPE_POLY_SET holes;
+
+    auto& defaultOffsets = m_board->GetDesignSettings().m_ZoneLayerProperties;
+    auto& localOffsets = aZone->LayerProperties();
+
+    VECTOR2I offset = defaultOffsets[aLayer].hatching_offset.value_or( VECTOR2I() );
+
+    if( localOffsets.contains( aLayer ) && localOffsets.at( aLayer ).hatching_offset.has_value() )
+        offset = localOffsets.at( aLayer ).hatching_offset.value();
+
+    int x_offset = bbox.GetX() - ( bbox.GetX() ) % gridsize - gridsize;
+    int y_offset = bbox.GetY() - ( bbox.GetY() ) % gridsize - gridsize;
+
+
+    for( int xx = x_offset; xx <= bbox.GetRight(); xx += gridsize )
+    {
+        for( int yy = y_offset; yy <= bbox.GetBottom(); yy += gridsize )
+        {
+            // Generate hole
+            SHAPE_LINE_CHAIN hole( hole_base );
+            hole.Move( VECTOR2I( xx, yy ) );
+
+            if( !aZone->GetHatchOrientation().IsZero() )
+            {
+                hole.Rotate( aZone->GetHatchOrientation() );
+            }
+
+            hole.Move( VECTOR2I( offset.x % gridsize, offset.y % gridsize ) );
+
+            holes.AddOutline( hole );
+        }
+    }
+
+    holes.ClearArcs();
+
+    DUMP_POLYS_TO_COPPER_LAYER( holes, In10_Cu, wxT( "hatch-holes" ) );
+
+    int deflated_thickness = aZone->GetHatchThickness() - aZone->GetMinThickness();
+
+    // Don't let thickness drop below maxError * 2 or it might not get reinflated.
+    deflated_thickness = std::max( deflated_thickness, maxError * 2 );
+
+    // The fill has already been deflated to ensure GetMinThickness() so we just have to
+    // account for anything beyond that.
+    SHAPE_POLY_SET deflatedFilledPolys = aFillPolys.CloneDropTriangulation();
+    deflatedFilledPolys.ClearArcs();
+    deflatedFilledPolys.Deflate( deflated_thickness, CORNER_STRATEGY::CHAMFER_ALL_CORNERS, maxError );
+    holes.BooleanIntersection( deflatedFilledPolys );
+    DUMP_POLYS_TO_COPPER_LAYER( holes, In11_Cu, wxT( "fill-clipped-hatch-holes" ) );
+
+    SHAPE_POLY_SET deflatedOutline = aZone->Outline()->CloneDropTriangulation();
+    deflatedOutline.ClearArcs();
+    deflatedOutline.Deflate( aZone->GetMinThickness(), CORNER_STRATEGY::CHAMFER_ALL_CORNERS, maxError );
+    holes.BooleanIntersection( deflatedOutline );
+    DUMP_POLYS_TO_COPPER_LAYER( holes, In12_Cu, wxT( "outline-clipped-hatch-holes" ) );
+
+    // Now filter truncated holes to avoid small holes in pattern
+    // It happens for holes near the zone outline
+    for( int ii = 0; ii < holes.OutlineCount(); )
+    {
+        double area = holes.Outline( ii ).Area();
+
+        if( area < minimal_hole_area ) // The current hole is too small: remove it
+            holes.DeletePolygon( ii );
+        else
+            ++ii;
+    }
+
+    // Drop any holes that completely enclose a thermal ring to ensure thermal reliefs
+    // stay connected to the hatch webbing. Only drop holes where the thermal ring is
+    // entirely inside the hole; partial overlaps are kept to preserve the hatch pattern.
+    if( aThermalRings.OutlineCount() > 0 )
+    {
+        BOX2I thermalBBox = aThermalRings.BBox();
+
+        // Iterate through holes (backwards since we may delete)
+        for( int holeIdx = holes.OutlineCount() - 1; holeIdx >= 0; holeIdx-- )
+        {
+            const SHAPE_LINE_CHAIN& hole = holes.Outline( holeIdx );
+            BOX2I                   holeBBox = hole.BBox();
+
+            // Quick rejection: skip if hole bbox doesn't intersect thermal rings bbox
+            if( !holeBBox.Intersects( thermalBBox ) )
+                continue;
+
+            // Check if ANY thermal ring is completely enclosed by this hole
+            for( int ringIdx = 0; ringIdx < aThermalRings.OutlineCount(); ringIdx++ )
+            {
+                const SHAPE_LINE_CHAIN& ring = aThermalRings.Outline( ringIdx );
+                BOX2I                   ringBBox = ring.BBox();
+                VECTOR2I                ringCenter = ringBBox.Centre();
+
+                // Quick rejection: hole bbox must contain ring bbox
+                if( !holeBBox.Contains( ringBBox ) )
+                    continue;
+
+                // Check 1: Is the ring center inside the hole?
+                if( !hole.PointInside( ringCenter ) )
+                    continue;
+
+                // Check 2: Is at least one point on the ring inside the hole?
+                if( ring.PointCount() == 0 || !hole.PointInside( ring.CPoint( 0 ) ) )
+                    continue;
+
+                // Check 3: Does the ring outline NOT intersect the hole outline?
+                // If there's no intersection, the ring is fully enclosed (not touching edges)
+                SHAPE_LINE_CHAIN::INTERSECTIONS intersections;
+                ring.Intersect( hole, intersections );
+
+                if( intersections.empty() )
+                {
+                    // This hole completely encloses a ring - drop it
+                    holes.DeletePolygon( holeIdx );
+                    break;  // Move to next hole
+                }
+            }
+        }
+    }
+
+    // create grid. Useto
+    // generate strictly simple polygons needed by Gerber files and Fracture()
+    aFillPolys.BooleanSubtract( aFillPolys, holes );
+    DUMP_POLYS_TO_COPPER_LAYER( aFillPolys, In14_Cu, wxT( "after-hatching" ) );
+
+    return true;
+}
+
+
+bool ZONE_FILLER::refillZoneFromCache( ZONE* aZone, PCB_LAYER_ID aLayer, SHAPE_POLY_SET& aFillPolys,
+                                       const FillSnapshot* aSnapshot )
+{
+    auto cacheKey = std::make_pair( static_cast<const ZONE*>( aZone ), aLayer );
+
+    {
+        std::lock_guard<std::mutex> lock( m_cacheMutex );
+        auto it = m_preKnockoutFillCache.find( cacheKey );
+
+        if( it == m_preKnockoutFillCache.end() )
+            return false;
+
+        // Restore the cached pre-knockout fill
+        aFillPolys = it->second;
+    }
+
+    // Subtract the FILLED area of higher-priority zones (with clearance for different nets).
+    // For same-net zones: subtract the filled area directly.
+    // For different-net zones: subtract the filled area with DRC-evaluated clearance plus
+    // extra_margin and m_maxError to match the margins used in the initial fill. Without these
+    // margins, polygon approximation error can produce fills that violate clearance (issue 23053).
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+    int   extra_margin = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_ExtraClearance );
+    BOX2I zoneBBox = aZone->GetBoundingBox();
+    zoneBBox.Inflate( m_worstClearance + extra_margin );
+
+    auto evalRulesForItems =
+            [&bds]( DRC_CONSTRAINT_T aConstraint, const BOARD_ITEM* a, const BOARD_ITEM* b,
+                    PCB_LAYER_ID aEvalLayer ) -> int
+            {
+                DRC_CONSTRAINT c = bds.m_DRCEngine->EvalRules( aConstraint, a, b, aEvalLayer );
+
+                if( c.IsNull() )
+                    return -1;
+                else
+                    return c.GetValue().Min();
+            };
+
+    bool           knockoutsApplied = false;
+    SHAPE_POLY_SET diffNetKnockouts;
+    SHAPE_POLY_SET sameNetKnockouts;
+
+    auto collectZoneKnockout =
+            [&]( ZONE* otherZone )
+            {
+                if( otherZone == aZone )
+                    return;
+
+                if( !otherZone->GetLayerSet().test( aLayer ) )
+                    return;
+
+                if( otherZone->IsTeardropArea() && otherZone->SameNet( aZone ) )
+                    return;
+
+                if( !otherZone->HigherPriority( aZone ) )
+                    return;
+
+                // Same gate as the initial fill so the refill's knockout set matches; same-net
+                // fills are subtracted un-inflated, so a plain bbox test suffices.
+                if( otherZone->SameNet( aZone ) )
+                {
+                    if( !otherZone->GetBoundingBox().Intersects( zoneBBox ) )
+                        return;
+                }
+                else if( !zoneKnockoutMayInteract( aZone, otherZone ) )
+                {
+                    return;
+                }
+
+                // Resolve the fill to use: from the snapshot when provided, otherwise the live fill.
+                // The snapshot ensures all parallel tasks in a wave read a consistent pre-wave state
+                // so no task can block another by writing a larger fill first.
+                const SHAPE_POLY_SET*           fillPtr = nullptr;
+                std::shared_ptr<SHAPE_POLY_SET> fillShared; // keeps live fill shared_ptr alive
+
+                if( aSnapshot )
+                {
+                    auto it = aSnapshot->find( { static_cast<const ZONE*>( otherZone ), aLayer } );
+
+                    if( it == aSnapshot->end() )
+                        return; // not filled at snapshot time; skip
+
+                    fillPtr = &it->second;
+                }
+                else
+                {
+                    if( !otherZone->HasFilledPolysForLayer( aLayer ) )
+                        return;
+
+                    fillShared = otherZone->GetFilledPolysList( aLayer );
+
+                    if( !fillShared )
+                        return;
+
+                    fillPtr = fillShared.get();
+                }
+
+                if( fillPtr->OutlineCount() == 0 )
+                    return;
+
+                if( otherZone->SameNet( aZone ) )
+                {
+                    if( otherZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+                    {
+                        // A hatched fill leaves intentional windows, knock out the pre-hatch
+                        // solid extent so the lower zone cannot pour through them (issue 24935).
+                        SHAPE_POLY_SET solidExtent;
+
+                        {
+                            std::lock_guard<std::mutex> lock( m_cacheMutex );
+                            auto                        sit = m_preHatchSolidFillCache.find( { otherZone, aLayer } );
+
+                            if( sit != m_preHatchSolidFillCache.end() )
+                                solidExtent = sit->second;
+                        }
+
+                        if( solidExtent.OutlineCount() > 0 )
+                            sameNetKnockouts.Append( solidExtent );
+                        else
+                            appendZoneOutlineWithoutArcs( otherZone, sameNetKnockouts );
+                    }
+                    else
+                    {
+                        sameNetKnockouts.Append( *fillPtr );
+                    }
+                }
+                else
+                {
+                    int gap = std::max( 0, evalRulesForItems( PHYSICAL_CLEARANCE_CONSTRAINT,
+                                                              aZone, otherZone, aLayer ) );
+
+                    gap = std::max( gap, evalRulesForItems( CLEARANCE_CONSTRAINT, aZone,
+                                                            otherZone, aLayer ) );
+
+                    if( gap < 0 )
+                        return;
+
+                    SHAPE_POLY_SET inflatedFill = *fillPtr;
+                    inflatedFill.Inflate( gap + extra_margin + m_maxError,
+                                          CORNER_STRATEGY::ROUND_ALL_CORNERS, m_maxError );
+                    diffNetKnockouts.Append( inflatedFill );
+                    knockoutsApplied = true;
+                }
+            };
+
+    forEachBoardAndFootprintZone( m_board, collectZoneKnockout );
+
+    // Refill output is a pure function of the (fill-constant) pre-knockout fill and these
+    // knockouts; hash them and skip the subtract + min-width prune below on a cache hit.
+    // Order-preserving combine, not XOR: diff-net (inflated/pruned) and same-net knockouts must
+    // stay distinct in the key.
+    HASH_128  diffNetHash = diffNetKnockouts.GetHash();
+    HASH_128  sameNetHash = sameNetKnockouts.GetHash();
+    MMH3_HASH refillHash( 0xA9917E5D );
+    refillHash.addData( reinterpret_cast<const uint8_t*>( diffNetHash.Value64 ),
+                        sizeof( diffNetHash.Value64 ) );
+    refillHash.addData( reinterpret_cast<const uint8_t*>( sameNetHash.Value64 ),
+                        sizeof( sameNetHash.Value64 ) );
+    HASH_128 knockoutHash = refillHash.digest();
+
+    {
+        std::lock_guard<std::mutex> lock( m_cacheMutex );
+        auto                        it = m_refillResultCache.find( cacheKey );
+
+        if( it != m_refillResultCache.end() && it->second.first == knockoutHash )
+        {
+            aFillPolys = it->second.second;
+            return true;
+        }
+    }
+
+    // Keepout zones are not collected here because they are already baked into the cached
+    // pre-knockout fill.  They were subtracted before the initial deflate/inflate min-width
+    // cycle so the cached fill already reflects keepout boundaries (issue 23515).
+
+    // Subtract different-net knockouts first, then re-prune min-width violations BEFORE
+    // subtracting same-net knockouts.  The cached fill was already trimmed to the zone outline,
+    // so the prune needs the cached apron to stand in for the overlap with abutting same-net
+    // zones and keep the deflate/inflate cycle from carving divots at their shared boundaries.
+    if( diffNetKnockouts.OutlineCount() > 0 )
+        aFillPolys.BooleanSubtract( diffNetKnockouts );
+
+    if( knockoutsApplied )
+    {
+        SHAPE_POLY_SET sameNetApron;
+
+        {
+            std::lock_guard<std::mutex> lock( m_cacheMutex );
+            auto                        ait = m_sameNetApronCache.find( cacheKey );
+
+            if( ait != m_sameNetApronCache.end() )
+                sameNetApron = ait->second;
+        }
+
+        // The apron may only buffer where copper can still go, so it takes the same knockouts
+        if( sameNetApron.OutlineCount() > 0 && diffNetKnockouts.OutlineCount() > 0 )
+            sameNetApron.BooleanSubtract( diffNetKnockouts );
+
+        postKnockoutMinWidthPrune( aZone, aFillPolys, sameNetApron );
+    }
+
+    if( sameNetKnockouts.OutlineCount() > 0 )
+        aFillPolys.BooleanSubtract( sameNetKnockouts );
+
+    // The cache was hatched before these knockouts, so restore the border the carve cut through
+    // with a min-width ring, bounded by the un-hatched extent to stay clearance-safe (issue 24758).
+    if( aZone->GetFillMode() == ZONE_FILL_MODE::HATCH_PATTERN )
+    {
+        SHAPE_POLY_SET solidExtent;
+
+        {
+            std::lock_guard<std::mutex> lock( m_cacheMutex );
+            auto                        sit = m_preHatchSolidFillCache.find( cacheKey );
+
+            if( sit != m_preHatchSolidFillCache.end() )
+                solidExtent = sit->second;
+        }
+
+        SHAPE_POLY_SET knockouts = diffNetKnockouts;
+        knockouts.Append( sameNetKnockouts );
+
+        if( solidExtent.OutlineCount() > 0 && knockouts.OutlineCount() > 0 )
+        {
+            SHAPE_POLY_SET border = knockouts;
+            border.Inflate( aZone->GetMinThickness(), CORNER_STRATEGY::ROUND_ALL_CORNERS, m_maxError );
+            border.BooleanSubtract( knockouts );
+            border.BooleanIntersection( solidExtent );
+
+            aFillPolys.BooleanAdd( border );
+        }
+    }
+
+    dropSubResolutionOutlines( aFillPolys, m_maxError );
+
+    aFillPolys.Fracture();
+
+    {
+        std::lock_guard<std::mutex> lock( m_cacheMutex );
+        m_refillResultCache[cacheKey] = { knockoutHash, aFillPolys };
+    }
+
+    return true;
+}

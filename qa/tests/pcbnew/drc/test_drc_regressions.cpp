@@ -1,0 +1,415 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you may find one here:
+ * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ * or you may search the http://www.gnu.org website for the version 2 license,
+ * or you may write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ */
+
+#include <qa_utils/wx_utils/unit_test_utils.h>
+#include <pcbnew_utils/board_test_utils.h>
+#include <board.h>
+#include <board_design_settings.h>
+#include <drc/drc_engine.h>
+#include <pad.h>
+#include <pcb_track.h>
+#include <pcb_marker.h>
+#include <footprint.h>
+#include <drc/drc_engine.h>
+#include <drc/drc_item.h>
+#include <settings/settings_manager.h>
+#include <widgets/report_severity.h>
+
+
+struct DRC_REGRESSION_TEST_FIXTURE
+{
+    DRC_REGRESSION_TEST_FIXTURE()
+    { }
+
+    SETTINGS_MANAGER       m_settingsManager;
+    std::unique_ptr<BOARD> m_board;
+};
+
+
+BOOST_FIXTURE_TEST_CASE( DRCFalsePositiveRegressions, DRC_REGRESSION_TEST_FIXTURE )
+{
+    // These documents at one time flagged DRC errors that they shouldn't have.
+
+    std::vector<wxString> tests = {
+        "issue4139",             // DRC fails wrongly with minimally-spaced pads at 45 degree
+        "issue4774",             // Shape collisions missing SH_POLY_SET
+        "issue5978",             // Hole clearance violation with non-copper pad
+        "issue5990",             // DRC flags a board edge clearance violation although the clearance is respected
+        "issue6443",             // Wrong DRC and rendering of THT pads with selective inner copper layers
+        "issue7567",             // DRC constraint to disallow holes gets SMD pads also
+        "issue7975",             // Differential pair gap out of range fault by DRC
+        "issue8407",             // PCBNEW: Arc for diff pair has clearance DRC error
+        "issue10906",            // Soldermask bridge for only one object
+        "issue12609",            // Arc collison edge case
+        "issue14412",            // Solder mask bridge between pads in a net-tie pad group
+        "issue15280",            // Very wide spokes mis-counted as being single spoke
+        "issue14008",            // Net-tie clearance error
+        "issue17967/issue17967", // Arc dp coupling
+        "issue18203",            // DRC error due to colliding arc and circle
+        "issue18839",            // False positive board edge clearance between concentric arcs
+        "unconnected-netnames/unconnected-netnames", // Raised false schematic partity error
+        "net_tie_drc",                               // Net tie bridging soldermask DRC test
+        "issue24974",                    // Net-tie graphic copper on last pad, UUID-order-independent exemption
+        "diff_pair_uncoupled_tuning_drc" // Tuning pattern length wrongly counted as uncoupled
+    };
+
+    for( const wxString& relPath : tests )
+    {
+        KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
+        // Do not refill zones here because this is testing the DRC engine, not the zone filler
+
+        std::vector<DRC_ITEM>  violations;
+        BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+        // Disable DRC tests not useful or not handled in this testcase
+        bds.m_DRCSeverities[ DRCE_INVALID_OUTLINE ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_UNCONNECTED_ITEMS ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_COPPER_SLIVER ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_STARVED_THERMAL ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        // These DRC tests are not useful and do not work because they need a footprint library
+        // associated to the board
+        bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_ISSUES ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_MISMATCH ] = SEVERITY::RPT_SEVERITY_IGNORE;
+
+        bds.m_DRCEngine->SetViolationHandler(
+                [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos, int aLayer,
+                     const std::function<void( PCB_MARKER* )>& aPathGenerator )
+                {
+                    if( bds.GetSeverity( aItem->GetErrorCode() ) == SEVERITY::RPT_SEVERITY_ERROR )
+                        violations.push_back( *aItem );
+                } );
+
+        bds.m_DRCEngine->RunTests( EDA_UNITS::MM, true, false );
+
+        if( violations.empty() )
+        {
+            BOOST_CHECK_EQUAL( 1, 1 );  // quiet "did not check any assertions" warning
+            BOOST_TEST_MESSAGE( wxString::Format( "DRC regression: %s, passed", relPath ) );
+        }
+        else
+        {
+            UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::INCH );
+
+            wxString report;
+            std::map<KIID, EDA_ITEM*> itemMap;
+            m_board->FillItemMap( itemMap );
+
+            for( const DRC_ITEM& item : violations )
+                report += item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR, itemMap );
+
+            BOOST_ERROR( wxString::Format( "DRC regression: %s\n"
+                                           "%d violations found (expected 0)\n"
+                                           "%s",
+                                           relPath,
+                                           (int) violations.size(),
+                                           report ) );
+        }
+    }
+}
+
+
+BOOST_FIXTURE_TEST_CASE( DRCFalseNegativeRegressions, DRC_REGRESSION_TEST_FIXTURE )
+{
+    // These documents at one time failed to catch DRC errors that they should have
+
+    std::map<int, SEVERITY> issue19325_ignore, issue22102_ignore;
+    issue19325_ignore[DRCE_DRILLED_HOLES_TOO_CLOSE] = SEVERITY::RPT_SEVERITY_IGNORE;
+    issue22102_ignore[DRCE_UNCONNECTED_ITEMS] = SEVERITY::RPT_SEVERITY_IGNORE;
+    issue22102_ignore[DRCE_DANGLING_TRACK] = SEVERITY::RPT_SEVERITY_IGNORE;
+
+    std::vector<std::tuple<wxString, int, decltype(BOARD_DESIGN_SETTINGS::m_DRCSeverities)>> tests =
+    {
+        { "issue1358",  2, {} },
+        { "issue2512",  5, {} },
+        { "issue2528",  1, {} },
+        { "issue5750",  4, {} },   // Shorting zone fills pass DRC in some cases
+        { "issue5854",  3, {} },
+        { "issue6879",  6, {} },
+        { "issue6945",  2, {} },
+        { "issue7241",  1, {} },
+        { "issue7267",  5, {} },
+        { "issue7325",  2, {} },
+        { "issue8003",  2, {} },
+        { "issue9081",  2, {} },
+        { "issue12109", 8, {} },        // Pads fail annular width test
+        { "issue14334", 2, {} },        // Thermal spoke to otherwise unconnected island
+        { "issue16566", 6, {} },        // Pad_Shape vs Shape property
+        { "issue18142", 1, {} },        // blind/buried via to micro-via hole-to-hole
+        { "reverse_via", 3, {} },       // Via/track ordering
+        { "intersectingzones", 1, {} }, // zones are too close to each other
+        { "fill_bad",   1, {} },        // zone max BBox was too small
+        { "issue18878", 12, {} },       // Updated: fix reports all cross-net mask bridge pairs
+        { "issue19325/issue19325", 4, issue19325_ignore }, // Overlapping pad annular ring calculation
+        { "issue22102", 2, issue22102_ignore },        // arc-to-rect collision; colocated arcs collision
+        { "issue11814", 2, {} },        // Teardrop clearance to pad
+    };
+
+    for( const auto& [testName, expectedErrors, customSeverities] : tests )
+    {
+        KI_TEST::LoadBoard( m_settingsManager, testName, m_board );
+        // Do not refill zones here because this is testing the DRC engine, not the zone filler
+
+        std::vector<PCB_MARKER> markers;
+        std::vector<DRC_ITEM>   violations;
+        BOARD_DESIGN_SETTINGS&  bds = m_board->GetDesignSettings();
+
+        // Disable DRC tests not useful in this testcase
+        bds.m_DRCSeverities[DRCE_COPPER_SLIVER] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[DRCE_LIB_FOOTPRINT_ISSUES] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[DRCE_LIB_FOOTPRINT_MISMATCH] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[DRCE_TRACK_NOT_CENTERED_ON_VIA] = SEVERITY::RPT_SEVERITY_IGNORE;
+
+        for(const auto [test, severity] : customSeverities)
+            bds.m_DRCSeverities[test] = severity;
+
+        bds.m_DRCEngine->SetViolationHandler(
+                [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos, int aLayer,
+                     const std::function<void( PCB_MARKER* )>& aPathGenerator )
+                {
+                    markers.emplace_back( PCB_MARKER( aItem, aPos ) );
+
+                    if( bds.m_DrcExclusions.find( markers.back().SerializeToString() )
+                        == bds.m_DrcExclusions.end() )
+                    {
+                        violations.push_back( *aItem );
+                    }
+                } );
+
+        bds.m_DRCEngine->RunTests( EDA_UNITS::MM, true, false );
+
+        if( violations.size() == expectedErrors )
+        {
+            BOOST_CHECK_EQUAL( 1, 1 ); // quiet "did not check any assertions" warning
+            BOOST_TEST_MESSAGE( wxString::Format( "DRC regression: %s, passed", testName ) );
+        }
+        else
+        {
+            UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::INCH );
+
+            wxString report;
+            std::map<KIID, EDA_ITEM*> itemMap;
+            m_board->FillItemMap( itemMap );
+
+            for( const DRC_ITEM& item : violations )
+                report += item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR, itemMap );
+
+            BOOST_ERROR( wxString::Format( "DRC regression: %s\n"
+                                           "%d violations found (expected %d)\n"
+                                           "%s",
+                                           testName,
+                                           (int) violations.size(),
+                                           expectedErrors,
+                                           report ) );
+        }
+    }
+}
+
+
+BOOST_FIXTURE_TEST_CASE( DRCZoneFalsePositiveRegressions, DRC_REGRESSION_TEST_FIXTURE )
+{
+    // These documents at one time flagged DRC errors that they shouldn't have.
+    // These tests require zone filling to properly test the DRC checks.
+
+    std::vector<wxString> tests =
+    {
+        "issue19090/issue19090",  // Copper graphic shapes count as thermal spoke connections
+        "issue23467/issue23467",  // Zones must respect clearance from NPTH pads with no copper layers
+    };
+
+    for( const wxString& relPath : tests )
+    {
+        KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
+        KI_TEST::FillZones( m_board.get() );
+
+        std::vector<DRC_ITEM>  violations;
+        BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+        // Disable DRC tests not useful or not handled in this testcase
+        bds.m_DRCSeverities[ DRCE_INVALID_OUTLINE ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_UNCONNECTED_ITEMS ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_COPPER_SLIVER ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_ISSUES ] = SEVERITY::RPT_SEVERITY_IGNORE;
+        bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_MISMATCH ] = SEVERITY::RPT_SEVERITY_IGNORE;
+
+        // Ensure starved thermal is enabled for this test
+        bds.m_DRCSeverities[ DRCE_STARVED_THERMAL ] = SEVERITY::RPT_SEVERITY_ERROR;
+
+        bds.m_DRCEngine->SetViolationHandler(
+                [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos, int aLayer,
+                     const std::function<void( PCB_MARKER* )>& aPathGenerator )
+                {
+                    if( bds.GetSeverity( aItem->GetErrorCode() ) == SEVERITY::RPT_SEVERITY_ERROR )
+                        violations.push_back( *aItem );
+                } );
+
+        bds.m_DRCEngine->RunTests( EDA_UNITS::MM, true, false );
+
+        if( violations.empty() )
+        {
+            BOOST_CHECK_EQUAL( 1, 1 );  // quiet "did not check any assertions" warning
+            BOOST_TEST_MESSAGE( wxString::Format( "DRC zone regression: %s, passed", relPath ) );
+        }
+        else
+        {
+            UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::INCH );
+
+            wxString report;
+            std::map<KIID, EDA_ITEM*> itemMap;
+            m_board->FillItemMap( itemMap );
+
+            for( const DRC_ITEM& item : violations )
+                report += item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR, itemMap );
+
+            BOOST_ERROR( wxString::Format( "DRC zone regression: %s\n"
+                                           "%d violations found (expected 0)\n"
+                                           "%s",
+                                           relPath,
+                                           (int) violations.size(),
+                                           report ) );
+        }
+    }
+}
+
+
+BOOST_FIXTURE_TEST_CASE( DRCTeardropOverCopperField, DRC_REGRESSION_TEST_FIXTURE )
+{
+    // A knockout footprint reference designator on a copper layer fills as real copper, so a
+    // teardrop zone of another net overlapping it bridges the two nets.  Footprint fields live in
+    // their own list rather than the graphical-items list, so the copper clearance test must reach
+    // them.  The board also carries a hidden knockout field bridging the same two zones; hidden
+    // fields render no copper and must not produce a short.
+    // See https://gitlab.com/kicad/code/kicad/-/issues/24649
+
+    KI_TEST::LoadBoard( m_settingsManager, "issue24649", m_board );
+    KI_TEST::FillZones( m_board.get() );
+
+    std::vector<DRC_ITEM>  violations;
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+    // The bare test board has unconnected fills by design; suppress checks unrelated to the
+    // short under test.
+    bds.m_DRCSeverities[ DRCE_UNCONNECTED_ITEMS ] = SEVERITY::RPT_SEVERITY_IGNORE;
+    bds.m_DRCSeverities[ DRCE_ISOLATED_COPPER ] = SEVERITY::RPT_SEVERITY_IGNORE;
+    bds.m_DRCSeverities[ DRCE_COPPER_SLIVER ] = SEVERITY::RPT_SEVERITY_IGNORE;
+    bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_ISSUES ] = SEVERITY::RPT_SEVERITY_IGNORE;
+    bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_MISMATCH ] = SEVERITY::RPT_SEVERITY_IGNORE;
+
+    bds.m_DRCEngine->SetViolationHandler(
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I&, int,
+                 const std::function<void( PCB_MARKER* )>& )
+            {
+                violations.push_back( *aItem );
+            } );
+
+    bds.m_DRCEngine->RunTests( EDA_UNITS::MM, true, false );
+
+    std::map<KIID, EDA_ITEM*> itemMap;
+    m_board->FillItemMap( itemMap );
+
+    auto involvesCopperField =
+            [&]( const DRC_ITEM& aItem )
+            {
+                for( const KIID& id : { aItem.GetMainItemID(), aItem.GetAuxItemID() } )
+                {
+                    auto it = itemMap.find( id );
+
+                    if( it != itemMap.end() && it->second->Type() == PCB_FIELD_T )
+                        return true;
+                }
+
+                return false;
+            };
+
+    int fieldShorts = 0;
+
+    for( const DRC_ITEM& item : violations )
+    {
+        if( item.GetErrorCode() == DRCE_SHORTING_ITEMS && involvesCopperField( item ) )
+            fieldShorts++;
+    }
+
+    if( fieldShorts != 1 )
+    {
+        UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::MM );
+
+        for( const DRC_ITEM& item : violations )
+            BOOST_TEST_MESSAGE( item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR, itemMap ) );
+    }
+
+    // Exactly one short: the visible field bridges the two nets; the hidden field does not.
+    BOOST_CHECK_MESSAGE( fieldShorts == 1,
+                         "Expected exactly one shorting-items violation involving a visible "
+                         "knockout copper reference field; found "
+                                 << fieldShorts );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( DRCHoleToHoleReportsRuleValue, DRC_REGRESSION_TEST_FIXTURE )
+{
+    // The hole-to-hole test relaxes its comparison by the DRC epsilon, but it also reported that
+    // relaxed value as the rule minimum, so the violation quoted a different number than the one
+    // entered in Board Setup.
+    // See https://gitlab.com/kicad/code/kicad/-/issues/22267
+
+    KI_TEST::LoadBoard( m_settingsManager, "issue22267", m_board );
+
+    std::vector<DRC_ITEM>  violations;
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+    bds.m_DRCSeverities[ DRCE_UNCONNECTED_ITEMS ] = SEVERITY::RPT_SEVERITY_IGNORE;
+    bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_ISSUES ] = SEVERITY::RPT_SEVERITY_IGNORE;
+    bds.m_DRCSeverities[ DRCE_LIB_FOOTPRINT_MISMATCH ] = SEVERITY::RPT_SEVERITY_IGNORE;
+
+    bds.m_DRCEngine->SetViolationHandler(
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I&, int,
+                 const std::function<void( PCB_MARKER* )>& )
+            {
+                if( aItem->GetErrorCode() == DRCE_DRILLED_HOLES_TOO_CLOSE )
+                    violations.push_back( *aItem );
+            } );
+
+    bds.m_DRCEngine->RunTests( EDA_UNITS::MM, true, false );
+
+    BOOST_REQUIRE_MESSAGE( !violations.empty(), "Expected at least one hole-to-hole violation" );
+
+    UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::MM );
+    wxString       ruleValue = unitsProvider.MessageTextFromValue( bds.m_HoleToHoleMin );
+    wxString       relaxedValue = unitsProvider.MessageTextFromValue( bds.m_HoleToHoleMin
+                                                                     - bds.GetDRCEpsilon() );
+
+    BOOST_REQUIRE( ruleValue != relaxedValue );
+
+    // Match on the values alone; the surrounding detail text is translated at format time
+    for( const DRC_ITEM& item : violations )
+    {
+        wxString msg = item.GetErrorMessage( false );
+
+        BOOST_CHECK_MESSAGE( msg.Contains( ruleValue ),
+                             wxString::Format( "Expected the configured minimum '%s' but got: %s",
+                                               ruleValue, msg ) );
+
+        BOOST_CHECK_MESSAGE( !msg.Contains( relaxedValue ),
+                             wxString::Format( "Reported the epsilon-relaxed minimum '%s': %s",
+                                               relaxedValue, msg ) );
+    }
+}

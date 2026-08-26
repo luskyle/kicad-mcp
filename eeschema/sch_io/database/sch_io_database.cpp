@@ -1,0 +1,843 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright (C) 2022 Jon Evans <jon@craftyjon.com>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <iostream>
+#include <string_view>
+#include <unordered_set>
+#include <utility>
+#include <wx/datetime.h>
+#include <wx/log.h>
+#include <wx/tokenzr.h>
+
+#include <boost/algorithm/string.hpp>
+
+#include <libraries/symbol_library_adapter.h>
+#include <database/database_connection.h>
+#include <database/database_lib_settings.h>
+#include <fmt.h>
+#include <hash.h>
+#include <ki_exception.h>
+#include <lib_symbol.h>
+
+#include "sch_io_database.h"
+
+#include <dialog_database_lib_settings.h>
+
+
+SCH_IO_DATABASE::SCH_IO_DATABASE() :
+        SCH_IO( wxS( "Database library" ) ),
+        m_adapter( nullptr ),
+        m_settings(),
+        m_conn()
+{
+    m_cacheTimestamp = 0;
+    m_cachePopulated = false;
+    m_cacheSignature = 0;
+}
+
+
+SCH_IO_DATABASE::~SCH_IO_DATABASE()
+{
+}
+
+
+void SCH_IO_DATABASE::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
+                                          const wxString&   aLibraryPath,
+                                          const std::map<std::string, UTF8>* aProperties )
+{
+    std::vector<LIB_SYMBOL*> symbols;
+    EnumerateSymbolLib( symbols, aLibraryPath, aProperties );
+
+    for( LIB_SYMBOL* symbol : symbols )
+        aSymbolNameList.Add( symbol->GetName() );
+}
+
+
+void SCH_IO_DATABASE::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
+                                          const wxString&           aLibraryPath,
+                                          const std::map<std::string, UTF8>*         aProperties )
+{
+    wxCHECK_RET( m_adapter, "Database plugin missing library manager adapter handle!" );
+    ensureSettings( aLibraryPath );
+    ensureConnection();
+    cacheLib();
+
+    if( !m_conn )
+        THROW_IO_ERROR( m_lastError );
+
+    bool powerSymbolsOnly = ( aProperties && aProperties->contains( SYMBOL_LIBRARY_ADAPTER::PropPowerSymsOnly ) );
+
+    for( auto const& pair : m_nameToSymbolcache )
+    {
+        LIB_SYMBOL* symbol = pair.second.get();
+
+        if( !powerSymbolsOnly || symbol->IsPower() )
+            aSymbolList.emplace_back( symbol );
+    }
+}
+
+
+LIB_SYMBOL* SCH_IO_DATABASE::LoadSymbol( const wxString&   aLibraryPath,
+                                         const wxString&   aAliasName,
+                                         const std::map<std::string, UTF8>* aProperties )
+{
+    wxCHECK_MSG( m_adapter, nullptr, "Database plugin missing library manager adapter handle!" );
+    ensureSettings( aLibraryPath );
+    ensureConnection();
+
+    if( !m_conn )
+        THROW_IO_ERROR( m_lastError );
+
+    cacheLib();
+
+    /*
+     * Table names are tricky, in order to allow maximum flexibility to the user.
+     * The slash character is used as a separator between a table name and symbol name, but symbol
+     * names may also contain slashes and table names may now also be empty (which results in the
+     * slash being dropped in the symbol name when placing a new symbol).  So, if a slash is found,
+     * we check if the string before the slash is a valid table name.  If not, we assume the table
+     * name is blank if our config has an entry for the null table.
+     */
+
+    std::string tableName;
+    std::string symbolName( aAliasName.ToUTF8() );
+
+    auto sanitizedIt = m_sanitizedNameMap.find( aAliasName );
+
+    if( sanitizedIt != m_sanitizedNameMap.end() )
+    {
+        tableName = sanitizedIt->second.first;
+        symbolName = sanitizedIt->second.second;
+    }
+    else
+    {
+        tableName.clear();
+
+        if( aAliasName.Contains( '/' ) )
+        {
+            tableName = std::string( aAliasName.BeforeFirst( '/' ).ToUTF8() );
+            symbolName = std::string( aAliasName.AfterFirst( '/' ).ToUTF8() );
+        }
+    }
+
+    std::vector<const DATABASE_LIB_TABLE*> tablesToTry;
+
+    for( const DATABASE_LIB_TABLE& tableIter : m_settings->m_Tables )
+    {
+        // no table means globally unique keys, try all tables
+        if( tableName.empty() || tableIter.name == tableName )
+            tablesToTry.emplace_back( &tableIter );
+    }
+
+    if( tablesToTry.empty() )
+    {
+        wxLogTrace( traceDatabase, wxT( "LoadSymbol: table '%s' not found in config" ), tableName );
+        return nullptr;
+    }
+
+    const DATABASE_LIB_TABLE* foundTable = nullptr;
+    DATABASE_CONNECTION::ROW result;
+
+    for( const DATABASE_LIB_TABLE* table : tablesToTry )
+    {
+        if( m_conn->SelectOne( table->table, std::make_pair( table->key_col, symbolName ),
+                               result ) )
+        {
+            foundTable = table;
+            wxLogTrace( traceDatabase, wxT( "LoadSymbol: SelectOne (%s, %s) found in %s" ),
+                        table->key_col, symbolName, table->table );
+        }
+        else
+        {
+            wxLogTrace( traceDatabase, wxT( "LoadSymbol: SelectOne (%s, %s) failed for table %s" ),
+                        table->key_col, symbolName, table->table );
+        }
+    }
+
+    if( !foundTable )
+        return nullptr;
+
+    return loadSymbolFromRow( aAliasName, *foundTable, result ).release();
+}
+
+
+void SCH_IO_DATABASE::GetSubLibraryNames( std::vector<wxString>& aNames )
+{
+    ensureSettings( wxEmptyString );
+
+    aNames.clear();
+
+    std::set<wxString> tableNames;
+
+    for( const DATABASE_LIB_TABLE& tableIter : m_settings->m_Tables )
+    {
+        if( tableNames.count( tableIter.name ) )
+            continue;
+
+        aNames.emplace_back( tableIter.name );
+        tableNames.insert( tableIter.name );
+    }
+}
+
+
+void SCH_IO_DATABASE::GetAvailableSymbolFields( std::vector<wxString>& aNames )
+{
+    std::copy( m_customFields.begin(), m_customFields.end(), std::back_inserter( aNames ) );
+}
+
+
+void SCH_IO_DATABASE::GetDefaultSymbolFields( std::vector<wxString>& aNames )
+{
+    std::copy( m_defaultShownFields.begin(), m_defaultShownFields.end(),
+               std::back_inserter( aNames ) );
+}
+
+
+bool SCH_IO_DATABASE::TestConnection( wxString* aErrorMsg )
+{
+    if( m_conn && m_conn->IsConnected() )
+        return true;
+
+    connect();
+
+    if( aErrorMsg && ( !m_conn || !m_conn->IsConnected() ) )
+        *aErrorMsg = m_lastError;
+
+    return m_conn && m_conn->IsConnected();
+}
+
+
+void SCH_IO_DATABASE::cacheLib()
+{
+    // Guard against re-entrant cacheLib() calls. A self-referential symbol row (issue #24249)
+    // causes m_adapter->LoadSymbol to route back into SCH_IO_DATABASE::LoadSymbol, which would
+    // otherwise call cacheLib() again while it is in the middle of populating its caches.
+    if( m_inCacheLib )
+        return;
+
+    long long currentTimestampSeconds = wxDateTime::Now().GetValue().GetValue() / 1000;
+
+    // The materialized LIB_SYMBOL cache is expensive to rebuild for large databases because every
+    // row is duplicated from its source library and has all of its fields processed. Re-check the
+    // database only after max_age has elapsed, and even then rebuild the symbols only if the
+    // underlying row data has actually changed. The global library modify hash must not gate this:
+    // the async library loader bumps it whenever any unrelated library finishes loading, which
+    // would otherwise freeze the symbol chooser for seconds at a time.
+    if( m_cachePopulated
+        && ( currentTimestampSeconds - m_cacheTimestamp ) < m_settings->m_Cache.max_age )
+    {
+        return;
+    }
+
+    m_inCacheLib = true;
+
+    struct CACHE_LIB_GUARD
+    {
+        bool* flag;
+        ~CACHE_LIB_GUARD() { *flag = false; }
+    } cacheLibGuard{ &m_inCacheLib };
+
+    // Re-query the database (the connection layer caches results subject to its own max_age) and
+    // compute a lightweight signature of the raw rows so we can skip the costly materialization
+    // when nothing relevant has changed.
+    std::vector<std::pair<const DATABASE_LIB_TABLE*, std::vector<DATABASE_CONNECTION::ROW>>> tableResults;
+    size_t signature = 0;
+
+    for( const DATABASE_LIB_TABLE& table : m_settings->m_Tables )
+    {
+        std::vector<DATABASE_CONNECTION::ROW> results;
+
+        if( !m_conn->SelectAll( table.table, table.key_col, results ) )
+        {
+            if( !m_conn->GetLastError().empty() )
+            {
+                wxString msg = wxString::Format( _( "Error reading database table %s: %s" ),
+                                                 table.table, m_conn->GetLastError() );
+                THROW_IO_ERROR( msg );
+            }
+
+            continue;
+        }
+
+        hash_combine( signature, std::string_view( table.table ) );
+
+        for( const DATABASE_CONNECTION::ROW& result : results )
+        {
+            for( const auto& [column, value] : result )
+            {
+                hash_combine( signature, std::string_view( column ) );
+
+                if( const std::string* str = std::any_cast<std::string>( &value ) )
+                    hash_combine( signature, std::string_view( *str ) );
+            }
+
+            // The materialized symbols are duplicated from their source libraries, so fold the
+            // modify hash of each referenced (and loaded) source library into the signature. This
+            // rebuilds the cache when a dependency actually changes - for example when an
+            // asynchronously loaded source library finishes loading and a previously empty
+            // placeholder can now be resolved - without being disturbed by unrelated libraries.
+            if( auto it = result.find( table.symbols_col ); it != result.end() )
+            {
+                if( const std::string* str = std::any_cast<std::string>( &it->second ) )
+                {
+                    LIB_ID symbolId;
+                    symbolId.Parse( *str );
+
+                    if( symbolId.IsValid() )
+                    {
+                        const UTF8& nickname = symbolId.GetLibNickname();
+                        hash_combine( signature, std::string_view( nickname.c_str() ) );
+
+                        if( std::optional<int> libHash = m_adapter->GetLibraryModifyHash( nickname ) )
+                            hash_combine( signature, *libHash );
+                    }
+                }
+            }
+        }
+
+        tableResults.emplace_back( &table, std::move( results ) );
+    }
+
+    if( m_cachePopulated && signature == m_cacheSignature )
+    {
+        // Data is unchanged; just reset the timer so we throttle the next re-check.
+        m_cacheTimestamp = currentTimestampSeconds;
+        return;
+    }
+
+    std::map<wxString, std::unique_ptr<LIB_SYMBOL>> newSymbolCache;
+    std::map<wxString, std::pair<std::string, std::string>> newSanitizedNameMap;
+
+    for( const auto& [table, results] : tableResults )
+    {
+        for( const DATABASE_CONNECTION::ROW& result : results )
+        {
+            if( !result.count( table->key_col ) )
+                continue;
+
+            std::string rawName = std::any_cast<std::string>( result.at( table->key_col ) );
+            UTF8        sanitizedName = LIB_ID::FixIllegalChars( rawName, false );
+            std::string sanitizedKey = sanitizedName.c_str();
+            std::string prefix =
+                    ( m_settings->m_GloballyUniqueKeys || table->name.empty() ) ? "" : fmt::format( "{}/", table->name );
+            std::string sanitizedDisplayName = fmt::format( "{}{}", prefix, sanitizedKey );
+            wxString    name( sanitizedDisplayName );
+
+            newSanitizedNameMap[name] = std::make_pair( table->name, rawName );
+
+            std::unique_ptr<LIB_SYMBOL> symbol = loadSymbolFromRow( name, *table, result );
+
+            if( symbol )
+                newSymbolCache[symbol->GetName()] = std::move( symbol );
+        }
+    }
+
+    m_nameToSymbolcache = std::move( newSymbolCache );
+    m_sanitizedNameMap = std::move( newSanitizedNameMap );
+
+    m_cacheTimestamp = currentTimestampSeconds;
+    m_cacheSignature = signature;
+    m_cachePopulated = true;
+}
+
+void SCH_IO_DATABASE::ensureSettings( const wxString& aSettingsPath )
+{
+    auto tryLoad =
+            [&]()
+            {
+                if( !m_settings->LoadFromFile() )
+                {
+                    wxString msg = wxString::Format(
+                        _( "Could not load database library: settings file %s missing or invalid" ),
+                        aSettingsPath );
+
+                    THROW_IO_ERROR( msg );
+                }
+            };
+
+    if( !m_settings && !aSettingsPath.IsEmpty() )
+    {
+        std::string path( aSettingsPath.ToUTF8() );
+        m_settings = std::make_unique<DATABASE_LIB_SETTINGS>( path );
+        m_settings->SetReadOnly( true );
+
+        tryLoad();
+    }
+    else if( !m_conn && m_settings )
+    {
+        // If we have valid settings but no connection yet; reload settings in case user is editing
+        tryLoad();
+    }
+    else if( m_conn && m_settings && !aSettingsPath.IsEmpty() )
+    {
+        wxASSERT_MSG( aSettingsPath == m_settings->GetFilename(),
+                      "Path changed for database library without re-initializing plugin!" );
+    }
+    else if( !m_settings )
+    {
+        wxLogTrace( traceDatabase, wxT( "ensureSettings: no settings but no valid path!" ) );
+    }
+}
+
+
+void SCH_IO_DATABASE::ensureConnection()
+{
+    wxCHECK_RET( m_settings, "Call ensureSettings before ensureConnection!" );
+
+    connect();
+
+    if( !m_conn || !m_conn->IsConnected() )
+    {
+        wxString msg = wxString::Format(
+                    _( "Could not load database library: could not connect to database %s (%s)" ),
+                    m_settings->m_Source.dsn, m_lastError );
+
+        THROW_IO_ERROR( msg );
+    }
+}
+
+
+void SCH_IO_DATABASE::connect()
+{
+    wxCHECK_RET( m_settings, "Call ensureSettings before connect()!" );
+
+    if( m_conn && !m_conn->IsConnected() )
+        m_conn.reset();
+
+    if( !m_conn )
+    {
+        if( m_settings->m_Source.connection_string.empty() )
+        {
+            m_conn = std::make_unique<DATABASE_CONNECTION>( m_settings->m_Source.dsn,
+                                                            m_settings->m_Source.username,
+                                                            m_settings->m_Source.password,
+                                                            m_settings->m_Source.timeout );
+        }
+        else
+        {
+            std::string cs = m_settings->m_Source.connection_string;
+            std::string basePath( wxFileName( m_settings->GetFilename() ).GetPath().ToUTF8() );
+
+            // Database drivers that use files operate on absolute paths, so provide a mechanism
+            // for specifying on-disk databases that live next to the kicad_dbl file
+            boost::replace_all( cs, "${CWD}", basePath );
+
+            m_conn = std::make_unique<DATABASE_CONNECTION>( cs, m_settings->m_Source.timeout );
+        }
+
+        if( !m_conn->IsConnected() )
+        {
+            m_lastError = m_conn->GetLastError();
+            m_conn.reset();
+            return;
+        }
+
+        for( const DATABASE_LIB_TABLE& tableIter : m_settings->m_Tables )
+        {
+            // Trusted even if unreported by the driver, to support generated columns (#16952)
+            std::set<std::string> requiredColumns{ tableIter.key_col,
+                                                   tableIter.footprints_col,
+                                                   tableIter.symbols_col };
+
+            for( const DATABASE_FIELD_MAPPING& field : tableIter.fields )
+                requiredColumns.insert( field.column );
+
+            // Only used if confirmed present, so a misconfigured mapping can't break the table (#23532)
+            std::set<std::string> optionalColumns{ tableIter.properties.description,
+                                                   tableIter.properties.footprint_filters,
+                                                   tableIter.properties.keywords,
+                                                   tableIter.properties.exclude_from_sim,
+                                                   tableIter.properties.exclude_from_bom,
+                                                   tableIter.properties.exclude_from_board };
+
+            m_conn->CacheTableInfo( tableIter.table, requiredColumns, optionalColumns );
+        }
+
+        m_conn->SetCacheParams( m_settings->m_Cache.max_size, m_settings->m_Cache.max_age );
+    }
+}
+
+
+std::optional<bool> SCH_IO_DATABASE::boolFromAny( const std::any& aVal )
+{
+    try
+    {
+        bool val = std::any_cast<bool>( aVal );
+        return val;
+    }
+    catch( const std::bad_any_cast& )
+    {
+    }
+
+    try
+    {
+        int val = std::any_cast<int>( aVal );
+        return static_cast<bool>( val );
+    }
+    catch( const std::bad_any_cast& )
+    {
+    }
+
+    try
+    {
+        wxString strval( std::any_cast<std::string>( aVal ).c_str(), wxConvUTF8 );
+
+        if( strval.IsEmpty() )
+            return std::nullopt;
+
+        strval.MakeLower();
+
+        for( const auto& trueVal : { wxS( "true" ), wxS( "yes" ), wxS( "y" ), wxS( "1" ) } )
+        {
+            if( strval.Matches( trueVal ) )
+                return true;
+        }
+
+        for( const auto& falseVal : { wxS( "false" ), wxS( "no" ), wxS( "n" ), wxS( "0" ) } )
+        {
+            if( strval.Matches( falseVal ) )
+                return false;
+        }
+    }
+    catch( const std::bad_any_cast& )
+    {
+    }
+
+    return std::nullopt;
+}
+
+
+std::unique_ptr<LIB_SYMBOL>  SCH_IO_DATABASE::loadSymbolFromRow( const wxString& aSymbolName,
+                                                const DATABASE_LIB_TABLE& aTable,
+                                                const DATABASE_CONNECTION::ROW& aRow )
+{
+    std::unique_ptr<LIB_SYMBOL> symbol = nullptr;
+
+    if( aRow.count( aTable.symbols_col ) )
+    {
+        LIB_SYMBOL* originalSymbol = nullptr;
+
+        // TODO: Support multiple options for symbol
+        std::string symbolIdStr = std::any_cast<std::string>( aRow.at( aTable.symbols_col ) );
+        LIB_ID symbolId;
+        symbolId.Parse( std::any_cast<std::string>( aRow.at( aTable.symbols_col ) ) );
+
+        // A row's Symbols column may resolve back into the same database library (issue #24249,
+        // e.g. a mistyped library nickname). The adapter would route that lookup back into
+        // SCH_IO_DATABASE::LoadSymbol and re-enter loadSymbolFromRow on the same row until the
+        // stack overflows. Track in-flight LIB_IDs and skip the recursive load on re-entry.
+        struct CYCLE_GUARD
+        {
+            std::unordered_set<wxString>* set;
+            wxString                      key;
+            bool                          owns = false;
+
+            ~CYCLE_GUARD()
+            {
+                if( owns )
+                    set->erase( key );
+            }
+        } guard{ &m_inProgressLoads, {}, false };
+
+        bool cycle = false;
+
+        if( symbolId.IsValid() )
+        {
+            guard.key = symbolId.Format().wx_str();
+            guard.owns = m_inProgressLoads.insert( guard.key ).second;
+            cycle = !guard.owns;
+
+            if( cycle )
+            {
+                wxLogTrace( traceDatabase,
+                            wxT( "loadSymbolFromRow: cycle detected resolving '%s' "
+                                 "(row '%s' in table '%s'); skipping recursive load" ),
+                            symbolIdStr, aSymbolName, aTable.name );
+            }
+            else
+            {
+                originalSymbol = m_adapter->LoadSymbol( symbolId );
+            }
+        }
+
+        if( originalSymbol )
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymbolFromRow: found original symbol '%s'" ),
+                        symbolIdStr );
+            symbol.reset( originalSymbol->Duplicate() );
+            symbol->SetSourceLibId( symbolId );
+        }
+        else if( cycle )
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymbolFromRow: source symbol '%s' is a "
+                                            "self-reference, will create empty symbol" ),
+                        symbolIdStr );
+        }
+        else if( !symbolId.IsValid() )
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymboFromRow: source symbol id '%s' is invalid, "
+                                            "will create empty symbol" ), symbolIdStr );
+        }
+        else
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymboFromRow: source symbol '%s' not found, "
+                                            "will create empty symbol" ), symbolIdStr );
+        }
+    }
+
+    if( !symbol )
+    {
+        // Actual symbol not found: return metadata only; error will be indicated in the
+        // symbol chooser
+        symbol.reset( new LIB_SYMBOL( aSymbolName ) );
+    }
+    else
+    {
+        symbol->SetName( aSymbolName );
+    }
+
+    LIB_ID libId = symbol->GetLibId();
+    libId.SetSubLibraryName( aTable.name );;
+    symbol->SetLibId( libId );
+    wxArrayString footprintsList;
+
+    if( aRow.count( aTable.footprints_col ) )
+    {
+        std::string footprints = std::any_cast<std::string>( aRow.at( aTable.footprints_col ) );
+
+        wxString footprintsStr = wxString( footprints.c_str(), wxConvUTF8 );
+        wxStringTokenizer tokenizer( footprintsStr, ";\t\r\n", wxTOKEN_STRTOK );
+
+        while( tokenizer.HasMoreTokens() )
+            footprintsList.Add( tokenizer.GetNextToken() );
+
+        if( footprintsList.size() > 0 )
+            symbol->GetFootprintField().SetText( footprintsList[0] );
+    }
+    else
+    {
+        wxLogTrace( traceDatabase, wxT( "loadSymboFromRow: footprint field %s not found." ),
+                    aTable.footprints_col );
+    }
+
+    if( !aTable.properties.description.empty() && aRow.count( aTable.properties.description ) )
+    {
+        wxString value(
+                std::any_cast<std::string>( aRow.at( aTable.properties.description ) ).c_str(),
+                wxConvUTF8 );
+        symbol->SetDescription( value );
+    }
+
+    if( !aTable.properties.keywords.empty() && aRow.count( aTable.properties.keywords ) )
+    {
+        wxString value( std::any_cast<std::string>( aRow.at( aTable.properties.keywords ) ).c_str(),
+                        wxConvUTF8 );
+        symbol->SetKeyWords( value );
+    }
+
+    if( !aTable.properties.footprint_filters.empty()
+        && aRow.count( aTable.properties.footprint_filters ) )
+    {
+        wxString value( std::any_cast<std::string>( aRow.at( aTable.properties.footprint_filters ) )
+                                .c_str(),
+                        wxConvUTF8 );
+        footprintsList.push_back( value );
+    }
+
+    symbol->SetFPFilters( footprintsList );
+
+    if( !aTable.properties.exclude_from_sim.empty()
+        && aRow.count( aTable.properties.exclude_from_sim ) )
+    {
+        std::optional<bool> val = boolFromAny( aRow.at( aTable.properties.exclude_from_sim ) );
+
+        if( val )
+        {
+            symbol->SetExcludedFromSim( *val );
+        }
+        else
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymbolFromRow: exclude_from_sim value for %s "
+                                            "could not be cast to a boolean" ), aSymbolName );
+        }
+    }
+
+    if( !aTable.properties.exclude_from_board.empty()
+        && aRow.count( aTable.properties.exclude_from_board ) )
+    {
+        std::optional<bool> val = boolFromAny( aRow.at( aTable.properties.exclude_from_board ) );
+
+        if( val )
+        {
+            symbol->SetExcludedFromBoard( *val );
+        }
+        else
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymbolFromRow: exclude_from_board value for %s "
+                                            "could not be cast to a boolean" ), aSymbolName );
+        }
+    }
+
+    if( !aTable.properties.exclude_from_bom.empty()
+        && aRow.count( aTable.properties.exclude_from_bom ) )
+    {
+        std::optional<bool> val = boolFromAny( aRow.at( aTable.properties.exclude_from_bom ) );
+
+        if( val )
+        {
+            symbol->SetExcludedFromBOM( *val );
+        }
+        else
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymbolFromRow: exclude_from_bom value for %s "
+                                            "could not be cast to a boolean" ), aSymbolName );
+        }
+    }
+
+    std::vector<SCH_FIELD*> fields;
+    symbol->GetFields( fields );
+
+    std::unordered_map<wxString, SCH_FIELD*> fieldsMap;
+
+    for( SCH_FIELD* field : fields )
+        fieldsMap[field->GetName()] = field;
+
+    static const wxString c_valueFieldName( wxS( "Value" ) );
+    static const wxString c_datasheetFieldName( wxS( "Datasheet" ) );
+    static const wxString c_footprintFieldName( wxS( "Footprint" ) );
+
+    // User fields produced from the database mapping must appear in the order they are
+    // declared in the .kicad_dbl file, not in lexicographic order of their values. Start
+    // assigning ordinals above whatever the source LIB_SYMBOL already uses so that any
+    // pre-existing user fields keep their relative position before the database fields.
+    int dbFieldOrdinal = symbol->GetNextFieldOrdinal();
+
+    for( const DATABASE_FIELD_MAPPING& mapping : aTable.fields )
+    {
+        if( !aRow.count( mapping.column ) )
+        {
+            wxLogTrace( traceDatabase, wxT( "loadSymbolFromRow: field %s not found in result" ),
+                        mapping.column );
+            continue;
+        }
+
+        // Skip footprint field if it maps to the footprints column, since that column is
+        // already processed above with tokenization for semicolon-separated multiple footprints.
+        if( mapping.name_wx == c_footprintFieldName && mapping.column == aTable.footprints_col )
+            continue;
+
+        std::string strValue;
+
+        try
+        {
+            strValue = std::any_cast<std::string>( aRow.at( mapping.column ) );
+        }
+        catch( std::bad_any_cast& )
+        {
+        }
+
+        wxString value( strValue.c_str(), wxConvUTF8 );
+
+        if( mapping.name_wx == c_valueFieldName )
+        {
+            SCH_FIELD& field = symbol->GetValueField();
+            field.SetText( value );
+
+            if( !mapping.inherit_properties )
+            {
+                field.SetVisible( mapping.visible_on_add );
+                field.SetNameShown( mapping.show_name );
+            }
+            continue;
+        }
+        else if( mapping.name_wx == c_datasheetFieldName )
+        {
+            SCH_FIELD& field = symbol->GetDatasheetField();
+            field.SetText( value );
+
+            if( !mapping.inherit_properties )
+            {
+                field.SetVisible( mapping.visible_on_add );
+                field.SetNameShown( mapping.show_name );
+
+                if( mapping.visible_on_add )
+                    field.SetAutoAdded( true );
+            }
+
+            continue;
+        }
+
+        SCH_FIELD* field;
+        bool isNew = false;
+
+        if( fieldsMap.count( mapping.name_wx ) )
+        {
+            field = fieldsMap[mapping.name_wx];
+        }
+        else
+        {
+            field = new SCH_FIELD( nullptr, FIELD_T::USER );
+            field->SetName( mapping.name_wx );
+            isNew = true;
+            fieldsMap[mapping.name_wx] = field;
+        }
+
+        // Assign a sort-order ordinal so the property editor and BOM see the fields in the
+        // order declared in the .kicad_dbl file. Without this, all USER fields share the
+        // same FIELD_T::USER id and fall through to value-based comparison in operator<.
+        // SetOrdinal forces m_id to FIELD_T::USER, so only apply it to non-mandatory fields
+        // - a DB mapping that lands on a mandatory field by name (e.g. Reference or
+        // Description) must keep its FIELD_T identity for downstream lookups.
+        if( !field->IsMandatory() )
+            field->SetOrdinal( dbFieldOrdinal++ );
+
+        if( !mapping.inherit_properties || isNew )
+        {
+            field->SetVisible( mapping.visible_on_add );
+            field->SetAutoAdded( true );
+            field->SetNameShown( mapping.show_name );
+        }
+
+        field->SetText( value );
+
+        if( isNew )
+            symbol->AddDrawItem( field, false );
+
+        m_customFields.insert( mapping.name_wx );
+
+        if( mapping.visible_in_chooser )
+            m_defaultShownFields.insert( mapping.name_wx );
+    }
+
+    symbol->GetDrawItems().sort();
+
+    // Field mappings (including Description) are applied with SCH_FIELD::SetText, which does not
+    // refresh the cached values the library tree and chooser read. Without this the upper chooser
+    // panel keeps the source symbol's description while the details panel shows the database value.
+    symbol->RefreshLibraryTreeCaches();
+
+    return symbol;
+}
+
+
+DIALOG_SHIM* SCH_IO_DATABASE::CreateConfigurationDialog( wxWindow* aParent )
+{
+    return new DIALOG_DATABASE_LIB_SETTINGS( aParent, this );
+}

@@ -1,0 +1,360 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright (C) 2024 Mark Roszko <mark.roszko@gmail.com>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <common.h>
+#include <cli/exit_codes.h>
+#include <jobs_runner.h>
+#include <jobs/job_registry.h>
+#include <jobs/jobset.h>
+#include <jobs/job_special_copyfiles.h>
+#include <jobs/job_special_execute.h>
+#include <kiway.h>
+#include <kiway_mail.h>
+#include <reporter.h>
+#include <optional>
+#include <wx/process.h>
+#include <wx/txtstrm.h>
+#include <wx/sstream.h>
+#include <wx/wfstream.h>
+#include <wx/mstream.h>
+#include <wx/tokenzr.h>
+#include <gestfich.h>
+
+JOBS_RUNNER::JOBS_RUNNER( KIWAY* aKiway, JOBSET* aJobsFile, PROJECT* aProject,
+                          REPORTER& aReporter, JOBS_PROGRESS_REPORTER* aProgressReporter ) :
+        m_kiway( aKiway ),
+        m_jobsFile( aJobsFile ),
+        m_reporter( aReporter ),
+        m_progressReporter( aProgressReporter ),
+        m_project( aProject )
+{
+}
+
+
+bool JOBS_RUNNER::RunJobsAllDestinations( bool aBail )
+{
+    bool success = true;
+
+    for( JOBSET_DESTINATION& destination : m_jobsFile->GetDestinations() )
+        success &= RunJobsForDestination( &destination, aBail );
+
+    return success;
+}
+
+
+int JOBS_RUNNER::runSpecialExecute( const JOBSET_JOB* aJob, REPORTER* aReporter, PROJECT* aProject )
+{
+    JOB_SPECIAL_EXECUTE* specialJob = static_cast<JOB_SPECIAL_EXECUTE*>( aJob->m_job.get() );
+    wxString             cmd = ExpandEnvVarSubstitutions( specialJob->m_command, m_project );
+
+    aReporter->Report( cmd, RPT_SEVERITY_INFO );
+    aReporter->Report( wxEmptyString, RPT_SEVERITY_INFO );
+
+    wxProcess process;
+    process.Redirect();
+
+    int result = ExecuteCommandThroughShell( cmd, &process );
+
+    wxInputStream* inputStream = process.GetInputStream();
+    wxInputStream* errorStream = process.GetErrorStream();
+
+    // Reads wxInputStream into a wxMemoryBuffer
+    auto streamToBuf = []( wxInputStream& aIs )
+    {
+        wxMemoryOutputStream memOut;
+        aIs >> memOut;
+
+        wxMemoryBuffer buf;
+        buf.AppendData( memOut.GetOutputStreamBuffer()->GetBufferStart(),
+                        memOut.GetOutputStreamBuffer()->GetIntPosition() );
+
+        return buf;
+    };
+
+    if( inputStream && errorStream )
+    {
+        wxMemoryBuffer memInBuf = streamToBuf( *inputStream );
+        wxMemoryBuffer memErrBuf = streamToBuf( *errorStream );
+
+        if( !memInBuf.IsEmpty() )
+        {
+            wxString          str = wxString::FromUTF8( memInBuf, memInBuf.GetDataLen() );
+            wxStringTokenizer tokenizer( str, "\r\n" );
+
+            while( tokenizer.HasMoreTokens() )
+                aReporter->Report( tokenizer.GetNextToken(), RPT_SEVERITY_INFO );
+        }
+
+        if( !memErrBuf.IsEmpty() )
+        {
+            wxString          str = wxString::FromUTF8( memErrBuf, memErrBuf.GetDataLen() );
+            wxStringTokenizer tokenizer( str, "\r\n" );
+
+            while( tokenizer.HasMoreTokens() )
+                aReporter->Report( tokenizer.GetNextToken(), RPT_SEVERITY_ERROR );
+        }
+
+        if( specialJob->m_recordOutput )
+        {
+            if( specialJob->GetConfiguredOutputPath().IsEmpty() )
+            {
+                wxFileName fn( aJob->m_id );
+                fn.SetExt( wxT( "log" ) );
+                specialJob->SetConfiguredOutputPath( fn.GetFullPath() );
+            }
+
+            wxFFileOutputStream procOutput( specialJob->GetFullOutputPath( aProject ) );
+
+            if( !procOutput.IsOk() )
+                return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+
+            procOutput.WriteAll( memInBuf, memInBuf.GetDataLen() );
+        }
+    }
+
+    if( specialJob->m_ignoreExitcode )
+        return CLI::EXIT_CODES::OK;
+
+    return result;
+}
+
+
+int JOBS_RUNNER::runSpecialCopyFiles( const JOB_SPECIAL_COPYFILES* aJob, PROJECT* aProject,
+                                      std::vector<wxString>& aPathsWritten )
+{
+    wxString source = ExpandEnvVarSubstitutions( aJob->m_source, aProject );
+
+    if( source.IsEmpty() )
+        return CLI::EXIT_CODES::ERR_ARGS;
+
+    wxString   projectPath = aProject->GetProjectPath();
+    wxFileName sourceFn( source );
+    sourceFn.MakeAbsolute( projectPath );
+
+    wxFileName destFn( aJob->GetFullOutputPath( aProject ) );
+
+    if( !aJob->m_dest.IsEmpty() )
+        destFn.AppendDir( ExpandEnvVarSubstitutions( aJob->m_dest, aProject ) );
+
+    wxString errors;
+    bool     success = CopyFilesOrDirectory( sourceFn.GetFullPath(), destFn.GetFullPath(), aJob->m_overwriteDest,
+                                             errors, aPathsWritten );
+
+    if( !success )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    if( aJob->m_generateErrorOnNoCopy && aPathsWritten.empty() )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    return CLI::EXIT_CODES::OK;
+}
+
+
+bool JOBS_RUNNER::RunJobsForDestination( JOBSET_DESTINATION* aDestination, bool aBail )
+{
+    bool                    genOutputs = true;
+    bool                    success = true;
+    std::vector<JOBSET_JOB> jobsForDestination = m_jobsFile->GetJobsForDestination( aDestination );
+    wxString msg;
+
+    wxFileName tmp;
+    tmp.AssignDir( wxFileName::GetTempDir() );
+    tmp.AppendDir( KIID().AsString() );
+
+    aDestination->m_lastRunSuccessMap.clear();
+    aDestination->m_lastRunReporters.clear();
+    aDestination->m_lastResolvedOutputPath.reset();
+
+    wxString tempDirPath = tmp.GetFullPath();
+
+    if( !wxFileName::Mkdir( tempDirPath, wxS_DIR_DEFAULT ) )
+    {
+        msg = wxString::Format( wxT( "Failed to create temporary directory %s" ), tempDirPath );
+        m_reporter.Report( msg, RPT_SEVERITY_ERROR );
+
+        aDestination->m_lastRunSuccess = false;
+
+		return false;
+    }
+
+    bool continueOuput = aDestination->m_outputHandler->OutputPrecheck();
+
+    if( !continueOuput )
+    {
+        msg = wxString::Format( wxT( "Destination precheck failed for destination %s" ),
+                                aDestination->m_id );
+        m_reporter.Report( msg, RPT_SEVERITY_ERROR );
+
+        aDestination->m_lastRunSuccess = false;
+        return false;
+    }
+
+    msg += wxT( "|--------------------------------\n" );
+    msg += wxT( "| " );
+    msg += wxString::Format( wxT( "Running jobs for destination %s" ), aDestination->m_id );
+    msg += wxT( "\n" );
+    msg += wxT( "|--------------------------------\n" );
+
+    msg += wxString::Format( wxT( "|%-5s | %-50s\n" ), wxT( "No." ), wxT( "Description" ) );
+
+    int jobNum = 1;
+
+    for( const JOBSET_JOB& job : jobsForDestination )
+    {
+        msg += wxString::Format( wxT( "|%-5d | %-50s\n" ), jobNum, job.GetDescription() );
+        jobNum++;
+    }
+
+    msg += wxT( "|--------------------------------\n" );
+    msg += wxT( "\n" );
+    msg += wxT( "\n" );
+
+    m_reporter.Report( msg, RPT_SEVERITY_INFO );
+
+    std::vector<wxString>   pathsWithOverwriteDisallowed;
+    std::vector<JOB_OUTPUT> outputs;
+
+    jobNum = 1;
+    int failCount = 0;
+    int successCount = 0;
+
+    wxSetEnv( OUTPUT_TMP_PATH_VAR_NAME, tempDirPath );
+
+    for( const JOBSET_JOB& job : jobsForDestination )
+    {
+        msg = wxT( "|--------------------------------\n" );
+
+        msg += wxString::Format( wxT( "| Running job %d: %s" ), jobNum, job.GetDescription() );
+
+        msg += wxT( "\n" );
+        msg += wxT( "|--------------------------------\n" );
+
+        m_reporter.Report( msg, RPT_SEVERITY_INFO );
+
+        if( m_progressReporter )
+        {
+            msg.Printf( _( "Running job %d: %s" ), jobNum, job.GetDescription() );
+            m_progressReporter->AdvanceJob( msg );
+            m_progressReporter->KeepRefreshing();
+        }
+
+        jobNum++;
+
+        KIWAY::FACE_T iface = JOB_REGISTRY::GetKifaceType( job.m_type );
+
+        job.m_job->SetTempOutputDirectory( tempDirPath );
+
+        REPORTER* targetReporter = &m_reporter;
+
+        if( targetReporter == &NULL_REPORTER::GetInstance() )
+        {
+            aDestination->m_lastRunReporters[job.m_id] =
+                    std::make_shared<JOBSET_OUTPUT_REPORTER>( tempDirPath, m_progressReporter );
+
+            targetReporter = aDestination->m_lastRunReporters[job.m_id].get();
+        }
+
+        // Use a redirect reporter so we don't have error flags set after running previous jobs
+        REDIRECT_REPORTER isolatedReporter( targetReporter );
+        int               result = CLI::EXIT_CODES::SUCCESS;
+
+        if( iface < KIWAY::KIWAY_FACE_COUNT )
+        {
+            result = m_kiway->ProcessJob( iface, job.m_job.get(), &isolatedReporter, m_progressReporter );
+        }
+        else
+        {
+            // special jobs
+            if( job.m_job->GetType() == "special_execute" )
+            {
+                result = runSpecialExecute( &job, &isolatedReporter, m_project );
+            }
+            else if( job.m_job->GetType() == "special_copyfiles" )
+            {
+                JOB_SPECIAL_COPYFILES* copyJob = static_cast<JOB_SPECIAL_COPYFILES*>( job.m_job.get() );
+                std::vector<wxString>  pathsWritten;
+
+                result = runSpecialCopyFiles( copyJob, m_project, pathsWritten );
+
+                if( !copyJob->m_overwriteDest )
+                {
+                    pathsWithOverwriteDisallowed.insert( pathsWithOverwriteDisallowed.end(), pathsWritten.begin(),
+                                                         pathsWritten.end() );
+                }
+            }
+        }
+
+        aDestination->m_lastRunSuccessMap[job.m_id] = ( result == CLI::EXIT_CODES::SUCCESS );
+
+        if( result == CLI::EXIT_CODES::SUCCESS )
+        {
+            wxString msg_fmt = wxT( "\033[32;1m%s\033[0m\n" );
+            msg = wxString::Format( msg_fmt, _( "Job successful" ) );
+
+            successCount++;
+        }
+        else
+        {
+            wxString msg_fmt = wxT( "\033[31;1m%s\033[0m\n" );
+            msg = wxString::Format( msg_fmt, _( "Job failed" ) );
+
+            failCount++;
+        }
+
+        msg += wxT( "\n\n" );
+        m_reporter.Report( msg, RPT_SEVERITY_INFO );
+
+        if( result == CLI::EXIT_CODES::ERR_RC_VIOLATIONS )
+        {
+            success = false;
+
+            if( aBail )
+                break;
+        }
+        else if( result != CLI::EXIT_CODES::SUCCESS )
+        {
+            genOutputs = false;
+            success = false;
+
+            if( aBail )
+                break;
+        }
+    }
+
+    wxUnsetEnv( OUTPUT_TMP_PATH_VAR_NAME );
+
+    if( genOutputs )
+    {
+        success &= aDestination->m_outputHandler->HandleOutputs( tempDirPath, m_project, pathsWithOverwriteDisallowed,
+                                                                 outputs, aDestination->m_lastResolvedOutputPath );
+    }
+
+    aDestination->m_lastRunSuccess = success;
+
+    msg = wxString::Format( wxT( "\n\n\033[33;1m%d %s, %d %s\033[0m\n" ),
+                            successCount,
+                            wxT( "jobs succeeded" ),
+                            failCount,
+                            wxT( "job failed" ) );
+
+    m_reporter.Report( msg, RPT_SEVERITY_INFO );
+
+	return success;
+}

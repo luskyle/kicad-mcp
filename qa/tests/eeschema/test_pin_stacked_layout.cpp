@@ -1,0 +1,817 @@
+/*
+ * This program source code file is part of KiCad, a free EDA CAD application.
+ *
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you may find one at
+ * http://www.gnu.org/licenses/
+ */
+
+/**
+ * @file test_pin_stacked_layout.cpp
+ * Test pin number layout for stacked multi-line numbers across all rotations
+ */
+
+#include <qa_utils/wx_utils/unit_test_utils.h>
+
+#include <sch_pin.h>
+#include <lib_symbol.h>
+#include <pin_layout_cache.h>
+#include <transform.h>
+#include <sch_io/sch_io_mgr.h>
+
+#include <wx/log.h>
+#include <boost/test/unit_test.hpp>
+
+BOOST_AUTO_TEST_SUITE( PinStackedLayout )
+
+/**
+ * Create a test symbol with stacked pin numbers for rotation testing
+ */
+static std::unique_ptr<LIB_SYMBOL> createTestResistorSymbol()
+{
+    auto symbol = std::make_unique<LIB_SYMBOL>( wxT( "TestResistor" ) );
+
+    // Set pin name offset to 0 so names are positioned outside (like numbers)
+    symbol->SetPinNameOffset( 0 );
+
+    // Create first pin with stacked numbers [1-5]
+    auto pin1 = std::make_unique<SCH_PIN>( symbol.get() );
+    pin1->SetPosition( VECTOR2I( 0, schIUScale.MilsToIU( 250 ) ) ); // top pin
+    pin1->SetOrientation( PIN_ORIENTATION::PIN_DOWN );
+    pin1->SetLength( schIUScale.MilsToIU( 50 ) );
+    pin1->SetNumber( wxT( "[1-5]" ) );
+    pin1->SetName( wxT( "A" ) ); // Short name
+    pin1->SetType( ELECTRICAL_PINTYPE::PT_PASSIVE );
+    pin1->SetUnit( 1 );
+
+    // Create second pin with stacked numbers [6,7,9-11]
+    auto pin2 = std::make_unique<SCH_PIN>( symbol.get() );
+    pin2->SetPosition( VECTOR2I( 0, schIUScale.MilsToIU( -340 ) ) ); // bottom pin
+    pin2->SetOrientation( PIN_ORIENTATION::PIN_UP );
+    pin2->SetLength( schIUScale.MilsToIU( 50 ) );
+    pin2->SetNumber( wxT( "[6,7,9-11]" ) );
+    pin2->SetName( wxT( "B" ) ); // Short name
+    pin2->SetType( ELECTRICAL_PINTYPE::PT_PASSIVE );
+    pin2->SetUnit( 1 );
+
+    // Add pins to symbol
+    symbol->AddDrawItem( pin1.release() );
+    symbol->AddDrawItem( pin2.release() );
+
+    return symbol;
+}
+
+/**
+ * Get pin geometry (line segment from connection point to pin end)
+ */
+static VECTOR2I getPinLineEnd( const SCH_PIN* pin, const TRANSFORM& transform )
+{
+    VECTOR2I start = pin->GetPosition();
+    VECTOR2I end = start;
+
+    int length = pin->GetLength();
+
+    switch( pin->PinDrawOrient( transform ) )
+    {
+    case PIN_ORIENTATION::PIN_UP:
+        end.y += length;
+        break;
+    case PIN_ORIENTATION::PIN_DOWN:
+        end.y -= length;
+        break;
+    case PIN_ORIENTATION::PIN_LEFT:
+        end.x -= length;
+        break;
+    case PIN_ORIENTATION::PIN_RIGHT:
+        end.x += length;
+        break;
+    case PIN_ORIENTATION::INHERIT:
+    default:
+        break;
+    }
+
+    return end;
+}
+
+/**
+ * Check if a box intersects with a line segment
+ */
+static bool boxIntersectsLine( const BOX2I& box, const VECTOR2I& lineStart, const VECTOR2I& lineEnd )
+{
+    // Simple bbox vs line segment intersection
+    // First check if line bbox intersects text bbox
+    BOX2I lineBbox;
+    lineBbox.SetOrigin( std::min( lineStart.x, lineEnd.x ), std::min( lineStart.y, lineEnd.y ) );
+    lineBbox.SetEnd( std::max( lineStart.x, lineEnd.x ), std::max( lineStart.y, lineEnd.y ) );
+
+    if( !lineBbox.Intersects( box ) )
+        return false;
+
+    // For vertical/horizontal lines, do precise check
+    if( lineStart.x == lineEnd.x ) // vertical line
+    {
+        int lineX = lineStart.x;
+        return ( lineX >= box.GetLeft() && lineX <= box.GetRight() &&
+                 box.GetTop() <= std::max( lineStart.y, lineEnd.y ) &&
+                 box.GetBottom() >= std::min( lineStart.y, lineEnd.y ) );
+    }
+    else if( lineStart.y == lineEnd.y ) // horizontal line
+    {
+        int lineY = lineStart.y;
+        return ( lineY >= box.GetBottom() && lineY <= box.GetTop() &&
+                 box.GetLeft() <= std::max( lineStart.x, lineEnd.x ) &&
+                 box.GetRight() >= std::min( lineStart.x, lineEnd.x ) );
+    }
+
+    // For diagonal lines, use the bbox intersection as approximation
+    return true;
+}
+
+/**
+ * Test that pin numbers don't overlap with pin geometry across all rotations
+ */
+BOOST_AUTO_TEST_CASE( PinNumbersNoOverlapAllRotations )
+{
+    // Create test symbol
+    std::unique_ptr<LIB_SYMBOL> symbol = createTestResistorSymbol();
+    BOOST_REQUIRE( symbol );
+
+    // Get the pins
+    std::vector<SCH_PIN*> pins;
+
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
+    {
+        if( item.Type() == SCH_PIN_T )
+            pins.push_back( static_cast<SCH_PIN*>( &item ) );
+    }
+
+    BOOST_REQUIRE_EQUAL( pins.size(), 2 );
+
+    // Test rotations: 0°, 90°, 180°, 270°
+    std::vector<TRANSFORM> rotations = {
+        TRANSFORM( 1, 0, 0, 1 ),   // 0° (identity)
+        TRANSFORM( 0, -1, 1, 0 ),  // 90° CCW
+        TRANSFORM( -1, 0, 0, -1 ), // 180°
+        TRANSFORM( 0, 1, -1, 0 )   // 270° CCW (90° CW)
+    };
+
+    std::vector<wxString> rotationNames = { wxT("0°"), wxT("90°"), wxT("180°"), wxT("270°") };
+
+    for( size_t r = 0; r < rotations.size(); r++ )
+    {
+        const TRANSFORM& transform = rotations[r];
+        const wxString& rotName = rotationNames[r];
+
+        // Set global transform for this test
+        TRANSFORM oldTransform = DefaultTransform;
+        DefaultTransform = transform;
+
+        for( size_t p = 0; p < pins.size(); p++ )
+        {
+            SCH_PIN* pin = pins[p];
+
+            // Create layout cache for this pin
+            PIN_LAYOUT_CACHE cache( *pin );
+
+            // Get pin number text info (shadow width 0 for testing)
+            std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> numberInfoOpt = cache.GetPinNumberInfo( 0 );
+
+            if( !numberInfoOpt.has_value() )
+                continue;
+
+            const PIN_LAYOUT_CACHE::TEXT_INFO& numberInfo = numberInfoOpt.value();
+
+            if( numberInfo.m_Text.IsEmpty() )
+                continue;
+
+            // Get pin line geometry
+            VECTOR2I pinStart = pin->GetPosition();
+            VECTOR2I pinEnd = getPinLineEnd( pin, transform );
+
+            // Get text bounding box - we need to estimate this since we don't have full font rendering
+            // For now, use a simple estimation based on text size and string length
+            int textHeight = numberInfo.m_TextSize;
+            int textWidth = numberInfo.m_Text.Length() * numberInfo.m_TextSize * 0.6; // rough char width
+
+            // Handle multi-line text
+            if( numberInfo.m_Text.Contains( '\n' ) )
+            {
+                wxArrayString lines;
+                wxStringSplit( numberInfo.m_Text, lines, '\n' );
+
+                if( numberInfo.m_Angle == ANGLE_VERTICAL )
+                {
+                    // For vertical text, lines are spaced horizontally
+                    int lineSpacing = textHeight * 1.3;
+                    textWidth = lines.size() * lineSpacing;
+                    // Find longest line for height
+                    size_t maxLen = 0;
+
+                    for( const wxString& line : lines )
+                        maxLen = std::max( maxLen, line.Length() );
+
+                    textHeight = maxLen * textHeight * 0.6;
+                }
+                else
+                {
+                    // For horizontal text, lines are spaced vertically
+                    int lineSpacing = textHeight * 1.3;
+                    textHeight = lines.size() * lineSpacing;
+                    // Find longest line for width
+                    size_t maxLen = 0;
+
+                    for( const wxString& line : lines )
+                        maxLen = std::max( maxLen, line.Length() );
+
+                    textWidth = maxLen * textHeight * 0.6;
+                }
+            }
+            else if( numberInfo.m_Angle == ANGLE_VERTICAL )
+            {
+                // Single line vertical number, perpendicular extent is its height.
+                std::swap( textWidth, textHeight );
+            }
+
+            // Create text bounding box around text position
+            BOX2I textBbox;
+            textBbox.SetOrigin( numberInfo.m_TextPosition.x - textWidth/2,
+                                numberInfo.m_TextPosition.y - textHeight/2 );
+            textBbox.SetSize( textWidth, textHeight );
+
+            // Check for intersection
+            bool overlaps = boxIntersectsLine( textBbox, pinStart, pinEnd );
+
+            // Log detailed info for debugging
+            wxLogTrace( "KICAD_PINS", wxT("Rotation %s, Pin %s: pos=(%d,%d) textPos=(%d,%d) pinLine=(%d,%d)-(%d,%d) textBox=(%d,%d,%dx%d) overlap=%s"),
+                          rotName, pin->GetNumber(),
+                          pinStart.x, pinStart.y,
+                          numberInfo.m_TextPosition.x, numberInfo.m_TextPosition.y,
+                          pinStart.x, pinStart.y, pinEnd.x, pinEnd.y,
+                          (int)textBbox.GetLeft(), (int)textBbox.GetTop(), (int)textBbox.GetWidth(), (int)textBbox.GetHeight(),
+                          overlaps ? wxT("YES") : wxT("NO") );
+
+            // Test assertion
+            BOOST_CHECK_MESSAGE( !overlaps,
+                                 "Pin number '" << pin->GetNumber() << "' overlaps with pin geometry at rotation " << rotName );
+        }
+
+        // Restore original transform
+        DefaultTransform = oldTransform;
+    }
+}
+
+/**
+ * Test that multiline and non-multiline pin numbers/names are positioned consistently
+ * with the name above (or left) and the number below (or right) for all rotations.
+ */
+BOOST_AUTO_TEST_CASE( PinTextConsistentSidePlacement )
+{
+    // Create test symbol with both types of pins
+    std::unique_ptr<LIB_SYMBOL> symbol = createTestResistorSymbol();
+    BOOST_REQUIRE( symbol );
+
+    // Get the pins - one will be multiline formatted, one will not
+    std::vector<SCH_PIN*> pins;
+
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
+    {
+        if( item.Type() == SCH_PIN_T )
+            pins.push_back( static_cast<SCH_PIN*>( &item ) );
+    }
+
+    BOOST_REQUIRE_EQUAL( pins.size(), 2 );
+
+    // Test rotations
+    std::vector<TRANSFORM> rotations = {
+        TRANSFORM( 1, 0, 0, 1 ),   // 0° (identity)
+        TRANSFORM( 0, -1, 1, 0 ),  // 90° CCW
+        TRANSFORM( -1, 0, 0, -1 ), // 180°
+        TRANSFORM( 0, 1, -1, 0 )   // 270° CCW (90° CW)
+    };
+
+    std::vector<wxString> rotationNames = { wxT("0°"), wxT("90°"), wxT("180°"), wxT("270°") };
+
+    for( size_t r = 0; r < rotations.size(); r++ )
+    {
+        const TRANSFORM& transform = rotations[r];
+        const wxString& rotName = rotationNames[r];
+
+        // Set global transform for this test
+        TRANSFORM oldTransform = DefaultTransform;
+        DefaultTransform = transform;
+
+        // For each rotation, collect pin number and name positions relative to pin center
+        struct PinTextInfo {
+            VECTOR2I pinPos;
+            VECTOR2I numberPos;
+            VECTOR2I namePos;
+            wxString pinNumber;
+            bool isMultiline;
+        };
+
+        std::vector<PinTextInfo> pinInfos;
+
+        for( SCH_PIN* pin : pins )
+        {
+            PinTextInfo info;
+            info.pinPos = pin->GetPosition();
+            info.pinNumber = pin->GetNumber();
+
+            // Create layout cache for this pin
+            PIN_LAYOUT_CACHE cache( *pin );
+
+            // Get number position (shadow width 0 for testing)
+            std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> numberInfoOpt = cache.GetPinNumberInfo( 0 );
+
+            if( numberInfoOpt.has_value() )
+            {
+                const PIN_LAYOUT_CACHE::TEXT_INFO& numberInfo = numberInfoOpt.value();
+                info.numberPos = numberInfo.m_TextPosition;
+                info.isMultiline = numberInfo.m_Text.Contains( '\n' );
+            }
+
+            // Get name position
+            std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> nameInfoOpt = cache.GetPinNameInfo( 0 );
+
+            if( nameInfoOpt.has_value() )
+            {
+                const PIN_LAYOUT_CACHE::TEXT_INFO& nameInfo = nameInfoOpt.value();
+                info.namePos = nameInfo.m_TextPosition;
+            }
+
+            pinInfos.push_back( info );
+
+            wxLogTrace( "KICAD_PINS", "Rotation %s, Pin %s: pos=(%d,%d) numberPos=(%d,%d) namePos=(%d,%d) multiline=%s",
+                        rotName, info.pinNumber,
+                        info.pinPos.x, info.pinPos.y,
+                        info.numberPos.x, info.numberPos.y,
+                        info.namePos.x, info.namePos.y,
+                        info.isMultiline ? wxT("YES") : wxT("NO") );
+        }
+
+        BOOST_REQUIRE_EQUAL( pinInfos.size(), 2 );
+
+        // New semantics:
+        //  * Vertical pins (UP/DOWN): numbers and names must be LEFT (x < pin.x)
+        //  * Horizontal pins (LEFT/RIGHT): numbers/names must be ABOVE (y < pin.y)
+        PIN_ORIENTATION orient = pins[0]->PinDrawOrient( DefaultTransform );
+
+        if( orient == PIN_ORIENTATION::PIN_UP || orient == PIN_ORIENTATION::PIN_DOWN )
+        {
+            for( const PinTextInfo& inf : pinInfos )
+            {
+                BOOST_CHECK_MESSAGE( inf.numberPos.x > inf.pinPos.x,
+                    "At rotation " << rotName << ", number for pin " << inf.pinNumber << " not right of vertical pin." );
+                BOOST_CHECK_MESSAGE( inf.namePos.x < inf.pinPos.x,
+                    "At rotation " << rotName << ", name for pin " << inf.pinNumber << " not left of vertical pin." );
+            }
+        }
+        else if( orient == PIN_ORIENTATION::PIN_LEFT || orient == PIN_ORIENTATION::PIN_RIGHT )
+        {
+            for( const PinTextInfo& inf : pinInfos )
+            {
+                BOOST_CHECK_MESSAGE( inf.numberPos.y > inf.pinPos.y,
+                    "At rotation " << rotName << ", number for pin " << inf.pinNumber << " not below horizontal pin." );
+                BOOST_CHECK_MESSAGE( inf.namePos.y < inf.pinPos.y,
+                    "At rotation " << rotName << ", name for pin " << inf.pinNumber << " not above horizontal pin." );
+            }
+        }
+
+        // Restore original transform
+        DefaultTransform = oldTransform;
+    }
+}
+
+// Distance from a pin to the near edge of a box, measured perpendicular to the pin.
+static int nearEdgeClearance( const SCH_PIN* aPin, const TRANSFORM& aTransform, const BOX2I& aBox )
+{
+    VECTOR2I        pinPos = aPin->GetPosition();
+    PIN_ORIENTATION orient = aPin->PinDrawOrient( aTransform );
+
+    if( orient == PIN_ORIENTATION::PIN_LEFT || orient == PIN_ORIENTATION::PIN_RIGHT )
+        return std::min( std::abs( aBox.GetTop() - pinPos.y ), std::abs( aBox.GetBottom() - pinPos.y ) );
+
+    return std::min( std::abs( aBox.GetLeft() - pinPos.x ), std::abs( aBox.GetRight() - pinPos.x ) );
+}
+
+// Number and name keep the same clearance from the pin for every pin and every
+// rotation, whatever the text height. Measured from the real text bounding boxes.
+BOOST_AUTO_TEST_CASE( PinTextSameBottomCoordinate )
+{
+    std::unique_ptr<LIB_SYMBOL> symbol = createTestResistorSymbol();
+    BOOST_REQUIRE( symbol );
+
+    std::vector<SCH_PIN*> pins;
+
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
+    {
+        if( item.Type() == SCH_PIN_T )
+            pins.push_back( static_cast<SCH_PIN*>( &item ) );
+    }
+
+    BOOST_REQUIRE_EQUAL( pins.size(), 2 );
+
+    const std::vector<TRANSFORM> rotations = {
+        TRANSFORM( 1, 0, 0, 1 ),   // 0
+        TRANSFORM( 0, -1, 1, 0 ),  // 90
+        TRANSFORM( -1, 0, 0, -1 ), // 180
+        TRANSFORM( 0, 1, -1, 0 )   // 270
+    };
+
+    const std::vector<wxString> rotationNames = { wxT( "0" ), wxT( "90" ), wxT( "180" ), wxT( "270" ) };
+
+    const int tolerance = 100;
+    int       numberRef = -1;
+    int       nameRef = -1;
+
+    for( size_t r = 0; r < rotations.size(); r++ )
+    {
+        TRANSFORM oldTransform = DefaultTransform;
+        DefaultTransform = rotations[r];
+
+        for( SCH_PIN* pin : pins )
+        {
+            PIN_LAYOUT_CACHE cache( *pin );
+
+            OPT_BOX2I numberBox = cache.GetPinNumberBBox();
+            OPT_BOX2I nameBox = cache.GetPinNameBBox();
+
+            BOOST_REQUIRE_MESSAGE( numberBox.has_value() && nameBox.has_value(),
+                                   "Missing text box for pin " << pin->GetNumber() << " at rotation "
+                                                               << rotationNames[r] );
+
+            int numberClearance = nearEdgeClearance( pin, rotations[r], *numberBox );
+            int nameClearance = nearEdgeClearance( pin, rotations[r], *nameBox );
+
+            if( numberRef < 0 )
+                numberRef = numberClearance;
+
+            if( nameRef < 0 )
+                nameRef = nameClearance;
+
+            BOOST_CHECK_MESSAGE( std::abs( numberClearance - numberRef ) <= tolerance,
+                                 "Pin " << pin->GetNumber() << " number clearance " << numberClearance
+                                        << " at rotation " << rotationNames[r] << " differs from " << numberRef
+                                        << " (tolerance " << tolerance << ")" );
+
+            BOOST_CHECK_MESSAGE( std::abs( nameClearance - nameRef ) <= tolerance,
+                                 "Pin " << pin->GetNumber() << " name clearance " << nameClearance << " at rotation "
+                                        << rotationNames[r] << " differs from " << nameRef << " (tolerance "
+                                        << tolerance << ")" );
+        }
+
+        DefaultTransform = oldTransform;
+    }
+}
+
+// Symbol that shows only pin numbers (names hidden).
+static std::unique_ptr<LIB_SYMBOL> createNumberOnlySymbol()
+{
+    auto symbol = std::make_unique<LIB_SYMBOL>( wxT( "TestNumberOnly" ) );
+
+    symbol->SetShowPinNames( false );
+    symbol->SetShowPinNumbers( true );
+
+    // A plain number and a stacked number.
+    auto pin1 = std::make_unique<SCH_PIN>( symbol.get() );
+    pin1->SetPosition( VECTOR2I( 0, schIUScale.MilsToIU( 250 ) ) );
+    pin1->SetOrientation( PIN_ORIENTATION::PIN_RIGHT );
+    pin1->SetLength( schIUScale.MilsToIU( 100 ) );
+    pin1->SetNumber( wxT( "12" ) );
+    pin1->SetType( ELECTRICAL_PINTYPE::PT_PASSIVE );
+    pin1->SetUnit( 1 );
+
+    auto pin2 = std::make_unique<SCH_PIN>( symbol.get() );
+    pin2->SetPosition( VECTOR2I( 0, schIUScale.MilsToIU( -250 ) ) );
+    pin2->SetOrientation( PIN_ORIENTATION::PIN_LEFT );
+    pin2->SetLength( schIUScale.MilsToIU( 50 ) );
+    pin2->SetNumber( wxT( "[6,7,9-11]" ) );
+    pin2->SetType( ELECTRICAL_PINTYPE::PT_PASSIVE );
+    pin2->SetUnit( 1 );
+
+    symbol->AddDrawItem( pin1.release() );
+    symbol->AddDrawItem( pin2.release() );
+
+    return symbol;
+}
+
+// Perpendicular distance from the pin to its number centre, at 0/90/180/270 deg.
+static std::vector<int> collectNumberGapsPerRotation( SCH_PIN* aPin )
+{
+    const std::vector<TRANSFORM> rotations = {
+        TRANSFORM( 1, 0, 0, 1 ),   // 0
+        TRANSFORM( 0, -1, 1, 0 ),  // 90
+        TRANSFORM( -1, 0, 0, -1 ), // 180
+        TRANSFORM( 0, 1, -1, 0 )   // 270
+    };
+
+    std::vector<int> gaps;
+
+    for( const TRANSFORM& transform : rotations )
+    {
+        TRANSFORM oldTransform = DefaultTransform;
+        DefaultTransform = transform;
+
+        PIN_LAYOUT_CACHE                           cache( *aPin );
+        std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> numberInfo = cache.GetPinNumberInfo( 0 );
+
+        BOOST_REQUIRE_MESSAGE( numberInfo.has_value(), "Missing pin number info for pin " << aPin->GetNumber() );
+
+        VECTOR2I        pinPos = aPin->GetPosition();
+        PIN_ORIENTATION orient = aPin->PinDrawOrient( transform );
+        int             gap;
+
+        if( orient == PIN_ORIENTATION::PIN_LEFT || orient == PIN_ORIENTATION::PIN_RIGHT )
+            gap = std::abs( numberInfo->m_TextPosition.y - pinPos.y ); // horizontal pin
+        else
+            gap = std::abs( numberInfo->m_TextPosition.x - pinPos.x ); // vertical pin
+
+        gaps.push_back( gap );
+
+        DefaultTransform = oldTransform;
+    }
+
+    return gaps;
+}
+
+// Issue 21778: the number-to-pin gap must not change when the symbol is rotated.
+// Here names and numbers are both shown (name offset 0).
+BOOST_AUTO_TEST_CASE( PinNumberGapConstantAcrossRotations )
+{
+    std::unique_ptr<LIB_SYMBOL> symbol = createTestResistorSymbol();
+    BOOST_REQUIRE( symbol );
+
+    std::vector<SCH_PIN*> pins;
+
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
+    {
+        if( item.Type() == SCH_PIN_T )
+            pins.push_back( static_cast<SCH_PIN*>( &item ) );
+    }
+
+    BOOST_REQUIRE_EQUAL( pins.size(), 2 );
+
+    // Gap is orientation independent, allow a couple of units for rounding.
+    const int tolerance = 2;
+
+    for( SCH_PIN* pin : pins )
+    {
+        std::vector<int> gaps = collectNumberGapsPerRotation( pin );
+
+        int minGap = *std::min_element( gaps.begin(), gaps.end() );
+        int maxGap = *std::max_element( gaps.begin(), gaps.end() );
+
+        BOOST_CHECK_MESSAGE( ( maxGap - minGap ) <= tolerance,
+                             "Pin " << pin->GetNumber() << " number gap changes with rotation. "
+                                    << "0=" << gaps[0] << " 90=" << gaps[1] << " 180=" << gaps[2] << " 270=" << gaps[3]
+                                    << " (tolerance " << tolerance << ")" );
+    }
+}
+
+// Issue 21778, number-only branch (pin names hidden): gap must stay constant too.
+BOOST_AUTO_TEST_CASE( PinNumberOnlyGapConstantAcrossRotations )
+{
+    std::unique_ptr<LIB_SYMBOL> symbol = createNumberOnlySymbol();
+    BOOST_REQUIRE( symbol );
+
+    std::vector<SCH_PIN*> pins;
+
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
+    {
+        if( item.Type() == SCH_PIN_T )
+            pins.push_back( static_cast<SCH_PIN*>( &item ) );
+    }
+
+    BOOST_REQUIRE_EQUAL( pins.size(), 2 );
+
+    const int tolerance = 2;
+
+    for( SCH_PIN* pin : pins )
+    {
+        std::vector<int> gaps = collectNumberGapsPerRotation( pin );
+
+        int minGap = *std::min_element( gaps.begin(), gaps.end() );
+        int maxGap = *std::max_element( gaps.begin(), gaps.end() );
+
+        BOOST_CHECK_MESSAGE( ( maxGap - minGap ) <= tolerance,
+                             "Pin " << pin->GetNumber() << " number gap changes with rotation. "
+                                    << "0=" << gaps[0] << " 90=" << gaps[1] << " 180=" << gaps[2] << " 270=" << gaps[3]
+                                    << " (tolerance " << tolerance << ")" );
+    }
+}
+
+// Symbol for issue 24894: number-only display, one bottom-edge vertical pin with a
+// stacked number that wraps to a block, one horizontal pin with the same, and a
+// horizontal pin with a plain single-line number.
+static std::unique_ptr<LIB_SYMBOL> createMirrorTestSymbol()
+{
+    auto symbol = std::make_unique<LIB_SYMBOL>( wxT( "TestMirror" ) );
+
+    symbol->SetShowPinNames( false );
+    symbol->SetShowPinNumbers( true );
+
+    auto vertPin = std::make_unique<SCH_PIN>( symbol.get() );
+    vertPin->SetPosition( VECTOR2I( 0, schIUScale.MilsToIU( 250 ) ) );
+    vertPin->SetOrientation( PIN_ORIENTATION::PIN_UP );
+    vertPin->SetLength( schIUScale.MilsToIU( 50 ) );
+    vertPin->SetNumber( wxT( "[8,11,16,19]" ) );
+    vertPin->SetType( ELECTRICAL_PINTYPE::PT_PASSIVE );
+    vertPin->SetUnit( 1 );
+
+    auto horizPin = std::make_unique<SCH_PIN>( symbol.get() );
+    horizPin->SetPosition( VECTOR2I( schIUScale.MilsToIU( -250 ), 0 ) );
+    horizPin->SetOrientation( PIN_ORIENTATION::PIN_RIGHT );
+    horizPin->SetLength( schIUScale.MilsToIU( 50 ) );
+    horizPin->SetNumber( wxT( "[1,2,3,4]" ) );
+    horizPin->SetType( ELECTRICAL_PINTYPE::PT_PASSIVE );
+    horizPin->SetUnit( 1 );
+
+    auto plainPin = std::make_unique<SCH_PIN>( symbol.get() );
+    plainPin->SetPosition( VECTOR2I( schIUScale.MilsToIU( 250 ), 0 ) );
+    plainPin->SetOrientation( PIN_ORIENTATION::PIN_LEFT );
+    plainPin->SetLength( schIUScale.MilsToIU( 100 ) );
+    plainPin->SetNumber( wxT( "12" ) );
+    plainPin->SetType( ELECTRICAL_PINTYPE::PT_PASSIVE );
+    plainPin->SetUnit( 1 );
+
+    symbol->AddDrawItem( vertPin.release() );
+    symbol->AddDrawItem( horizPin.release() );
+    symbol->AddDrawItem( plainPin.release() );
+
+    return symbol;
+}
+
+
+static PIN_LAYOUT_CACHE::TEXT_INFO numberInfoWithTransform( SCH_PIN* aPin, const TRANSFORM& aTransform )
+{
+    TRANSFORM oldTransform = DefaultTransform;
+    DefaultTransform = aTransform;
+
+    PIN_LAYOUT_CACHE                           cache( *aPin );
+    std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> info = cache.GetPinNumberInfo( 0 );
+
+    DefaultTransform = oldTransform;
+
+    BOOST_REQUIRE_MESSAGE( info.has_value(), "Missing pin number info for pin " << aPin->GetNumber() );
+    return *info;
+}
+
+
+// Truth table for the side-flip test used by the painter and the plotter.
+BOOST_AUTO_TEST_CASE( StackedTextSideFlippedTransforms )
+{
+    auto symbol = std::make_unique<LIB_SYMBOL>( wxT( "TestFlip" ) );
+
+    auto     pin = std::make_unique<SCH_PIN>( symbol.get() );
+    SCH_PIN* pinPtr = pin.get();
+    symbol->AddDrawItem( pin.release() );
+
+    const TRANSFORM identity( 1, 0, 0, 1 );
+    const TRANSFORM mirrorY( -1, 0, 0, 1 ); // left-right flip
+    const TRANSFORM mirrorX( 1, 0, 0, -1 ); // top-bottom flip
+    const TRANSFORM rot180( -1, 0, 0, -1 );
+
+    struct FLIP_CASE
+    {
+        PIN_ORIENTATION orient;
+        TRANSFORM       transform;
+        bool            expected;
+    };
+
+    const std::vector<FLIP_CASE> cases = {
+        { PIN_ORIENTATION::PIN_RIGHT, identity, false },
+        { PIN_ORIENTATION::PIN_LEFT, identity, false },
+        { PIN_ORIENTATION::PIN_UP, identity, false },
+        { PIN_ORIENTATION::PIN_DOWN, identity, false },
+
+        // Left-right flip moves the block side of vertical pins only
+        { PIN_ORIENTATION::PIN_RIGHT, mirrorY, false },
+        { PIN_ORIENTATION::PIN_LEFT, mirrorY, false },
+        { PIN_ORIENTATION::PIN_UP, mirrorY, true },
+        { PIN_ORIENTATION::PIN_DOWN, mirrorY, true },
+
+        // Top-bottom flip moves the block side of horizontal pins only
+        { PIN_ORIENTATION::PIN_RIGHT, mirrorX, true },
+        { PIN_ORIENTATION::PIN_LEFT, mirrorX, true },
+        { PIN_ORIENTATION::PIN_UP, mirrorX, false },
+        { PIN_ORIENTATION::PIN_DOWN, mirrorX, false },
+
+        { PIN_ORIENTATION::PIN_RIGHT, rot180, true },
+        { PIN_ORIENTATION::PIN_LEFT, rot180, true },
+        { PIN_ORIENTATION::PIN_UP, rot180, true },
+        { PIN_ORIENTATION::PIN_DOWN, rot180, true },
+    };
+
+    for( const FLIP_CASE& c : cases )
+    {
+        pinPtr->SetOrientation( c.orient );
+
+        BOOST_CHECK_MESSAGE( pinPtr->StackedTextSideFlipped( c.transform ) == c.expected,
+                             "Orientation " << (int) c.orient << " transform (" << c.transform.x1 << ","
+                                            << c.transform.y1 << "," << c.transform.x2 << "," << c.transform.y2
+                                            << ") expected " << c.expected );
+    }
+}
+
+
+// Issue 24894: a stacked multi-line number block must move to the other side of the pin
+// when the symbol is mirrored, so it stays clear of the neighbouring pins.  Single-line
+// numbers keep the classic fixed side.
+BOOST_AUTO_TEST_CASE( StackedBlockFollowsMirror )
+{
+    std::unique_ptr<LIB_SYMBOL> symbol = createMirrorTestSymbol();
+    BOOST_REQUIRE( symbol );
+
+    SCH_PIN* vertPin = nullptr;
+    SCH_PIN* horizPin = nullptr;
+    SCH_PIN* plainPin = nullptr;
+
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
+    {
+        if( item.Type() != SCH_PIN_T )
+            continue;
+
+        SCH_PIN* pin = static_cast<SCH_PIN*>( &item );
+
+        if( pin->GetNumber() == wxT( "[8,11,16,19]" ) )
+            vertPin = pin;
+        else if( pin->GetNumber() == wxT( "[1,2,3,4]" ) )
+            horizPin = pin;
+        else if( pin->GetNumber() == wxT( "12" ) )
+            plainPin = pin;
+    }
+
+    BOOST_REQUIRE( vertPin && horizPin && plainPin );
+
+    const TRANSFORM identity( 1, 0, 0, 1 );
+    const TRANSFORM mirrorY( -1, 0, 0, 1 );
+    const TRANSFORM mirrorX( 1, 0, 0, -1 );
+
+    // Vertical pin: block left of the pin, right when mirrored left-right
+    {
+        PIN_LAYOUT_CACHE::TEXT_INFO base = numberInfoWithTransform( vertPin, identity );
+        PIN_LAYOUT_CACHE::TEXT_INFO mirrored = numberInfoWithTransform( vertPin, mirrorY );
+
+        BOOST_REQUIRE_MESSAGE( base.m_Text.Contains( '\n' ), "Stacked number did not wrap to a block" );
+
+        int baseOffset = base.m_TextPosition.x - vertPin->GetPosition().x;
+        int mirroredOffset = mirrored.m_TextPosition.x - vertPin->GetPosition().x;
+
+        BOOST_CHECK_MESSAGE( baseOffset < 0, "Unmirrored block not left of the vertical pin" );
+        BOOST_CHECK_MESSAGE( mirroredOffset > 0, "Mirrored block not right of the vertical pin" );
+        BOOST_CHECK_EQUAL( baseOffset, -mirroredOffset );
+    }
+
+    // Horizontal pin: block above the pin, below when mirrored top-bottom
+    {
+        PIN_LAYOUT_CACHE::TEXT_INFO base = numberInfoWithTransform( horizPin, identity );
+        PIN_LAYOUT_CACHE::TEXT_INFO mirrored = numberInfoWithTransform( horizPin, mirrorX );
+
+        BOOST_REQUIRE_MESSAGE( base.m_Text.Contains( '\n' ), "Stacked number did not wrap to a block" );
+
+        int baseOffset = base.m_TextPosition.y - horizPin->GetPosition().y;
+        int mirroredOffset = mirrored.m_TextPosition.y - horizPin->GetPosition().y;
+
+        BOOST_CHECK_MESSAGE( baseOffset < 0, "Unmirrored block not above the horizontal pin" );
+        BOOST_CHECK_MESSAGE( mirroredOffset > 0, "Mirrored block not below the horizontal pin" );
+        BOOST_CHECK_EQUAL( baseOffset, -mirroredOffset );
+    }
+
+    // Single-line number keeps the classic side under both mirrors
+    {
+        PIN_LAYOUT_CACHE::TEXT_INFO base = numberInfoWithTransform( plainPin, identity );
+        PIN_LAYOUT_CACHE::TEXT_INFO mirrored = numberInfoWithTransform( plainPin, mirrorX );
+
+        BOOST_REQUIRE_MESSAGE( !base.m_Text.Contains( '\n' ), "Plain number unexpectedly wrapped" );
+
+        BOOST_CHECK_EQUAL( base.m_TextPosition.y, mirrored.m_TextPosition.y );
+        BOOST_CHECK_MESSAGE( mirrored.m_TextPosition.y < plainPin->GetPosition().y,
+                             "Single-line number moved off the classic side" );
+    }
+
+    // Painter hint: a pre-transformed temp pin flips via the flag alone
+    {
+        PIN_LAYOUT_CACHE::TEXT_INFO base = numberInfoWithTransform( vertPin, identity );
+
+        vertPin->SetFlipStackedTextSide( true );
+        PIN_LAYOUT_CACHE::TEXT_INFO flagged = numberInfoWithTransform( vertPin, identity );
+        vertPin->SetFlipStackedTextSide( false );
+
+        BOOST_CHECK_EQUAL( base.m_TextPosition.x - vertPin->GetPosition().x,
+                           -( flagged.m_TextPosition.x - vertPin->GetPosition().x ) );
+    }
+}
+
+BOOST_AUTO_TEST_SUITE_END()

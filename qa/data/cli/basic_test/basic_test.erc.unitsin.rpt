@@ -1,0 +1,33 @@
+ERC report (2026-05-26T16:40:38, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(4.700 in, 3.800 in): Symbol #PWR01 Hidden pin 1 [GND, Power input, Line]
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(5.550 in, 2.800 in): Symbol U1 Pin 5 [V+, Power input, Line]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Connector'
+    ; warning
+    @(4.150 in, 2.500 in): Symbol J1 [Conn_01x01_Pin]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Connector'
+    ; warning
+    @(4.150 in, 3.000 in): Symbol J2 [Conn_01x01_Pin]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Connector'
+    ; warning
+    @(4.150 in, 3.900 in): Symbol J4 [Conn_01x01_Pin]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Amplifier_Operational'
+    ; warning
+    @(5.650 in, 3.100 in): Symbol U1 [TLV2371DBV]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Connector'
+    ; warning
+    @(7.000 in, 3.100 in): Symbol J3 [Conn_01x01_Pin]
+
+ ** ERC messages: 7  Errors 2  Warnings 5
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - Footprint link issue
+    - Assigned footprint doesn't match footprint filters
