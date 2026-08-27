@@ -96,6 +96,7 @@ def parse_spec(spec: str) -> dict:
                 "description": str(data.get("description", "")),
                 "footprint": str(data.get("footprint", "")),
                 "datasheet": str(data.get("datasheet", "")),
+                "layout": data.get("layout") if isinstance(data.get("layout"), dict) else None,
                 "pins": norm,
             }
         except Exception:
@@ -150,14 +151,27 @@ def parse_spec(spec: str) -> dict:
     return part
 
 
-def layout_pins(pins: list[dict]) -> dict:
+def layout_pins(pins: list[dict], l_spacing: Optional[float] = None,
+                p_spacing: Optional[float] = None) -> dict:
     """给引脚分配位置。
 
+    Args:
+        pins: 引脚列表（含 side）。
+        l_spacing: 左右引脚栅格（mm），默认 SPACING=2.54。GPIO 名字较长时
+            可加大（如 3.0）避免引脚名文字重叠。
+        p_spacing: 顶部/底部引脚栅格（mm），默认 3.5。电源引脚名字较长
+            （IOVDD/VREG_VIN/ADC_AVDD 等），需要比左右更大的间距，否则
+            顶部/底部引脚名与编号会文字重叠。
+
     Returns:
-        {"pins": [ {number,name,type,side,x,y,angle} ... ],
+        {"pins": [ {number,name,type,side,x,y,angle,hide_name?} ... ],
          "body": {"x0","y0","x1","y1"} }  (x0,y0 左上，x1,y1 右下；Y 向下)
     """
+    l_spacing = l_spacing or SPACING
+    p_spacing = p_spacing or 3.5
+
     left, right, top, bottom = [], [], [], []
+    seen_names = {}
     for p in pins:
         # 显式 side 优先；否则按电气类型默认
         side = p.get("side") or TYPE_SIDE.get(p["type"], "left")
@@ -166,48 +180,63 @@ def layout_pins(pins: list[dict]) -> dict:
                 and re.search(r"\bGND\b|VSS|VEE|VSUB|GNDA", p["name"].upper())):
             side = "bottom"
         p = {**p, "side": side}
+        # 同名引脚（如 6 个 IOVDD / 2 个 DVDD）只显示第一个的名字，其余隐藏
+        # 名字只留编号，避免顶部/底部电源引脚名字文字重叠
+        if p["name"]:
+            if seen_names.get(p["name"]):
+                p["hide_name"] = True
+            seen_names[p["name"]] = True
         {"left": left, "right": right, "top": top, "bottom": bottom}[side].append(p)
 
     max_side = max(len(left), len(right), 1)
     # 左右引脚：从 body 顶部向下排，y 正值在上
-    body_h = (max_side - 1) * SPACING + 2 * SPACING
+    body_h = (max_side - 1) * l_spacing + 2 * SPACING
+
+    # body 半宽至少覆盖顶部/底部电源引脚的分布范围，否则电源引脚会远远
+    # 飞出窄 body，造成符号宽度比例失调（像"一坨散开的线"）。
+    n_top = max(len(top), 1)
+    n_bot = max(len(bottom), 1)
+    top_span = (n_top - 1) * p_spacing
+    bot_span = (n_bot - 1) * p_spacing
+    body_half_w = max(BODY_WIDTH, top_span / 2 + p_spacing / 2,
+                      bot_span / 2 + p_spacing / 2)
+
     y_top = body_h / 2 - SPACING          # 最上面引脚 y
-    pin_x = BODY_WIDTH + PIN_LENGTH       # 左右引脚距中心的 x
+    pin_x = body_half_w + PIN_LENGTH      # 左右引脚距中心的 x
 
     for i, p in enumerate(left):
-        p["x"], p["y"], p["angle"] = -pin_x, y_top - i * SPACING, 0
+        p["x"], p["y"], p["angle"] = -pin_x, y_top - i * l_spacing, 0
     for i, p in enumerate(right):
-        p["x"], p["y"], p["angle"] = pin_x, y_top - i * SPACING, 180
+        p["x"], p["y"], p["angle"] = pin_x, y_top - i * l_spacing, 180
 
     # 顶部/底部电源引脚：居中对称排列，引线朝外。
     # KiCad 符号库坐标 Y 向上为正（与原理图相反）：
     #   上方引脚 at (0, +y) angle 270（引线朝上）
     #   下方引脚 at (0, -y) angle 90 （引线朝下）
     # 已用 eeschema 渲染/读回验证（VDC: at (0,+5.08) 270 渲染在原理图上方）。
-    n_top = max(len(top), 1)
     top_y = body_h / 2 + PIN_LENGTH
-    top_x0 = (n_top - 1) * SPACING / 2
+    top_x0 = (n_top - 1) * p_spacing / 2
     for i, p in enumerate(top):
-        p["x"], p["y"], p["angle"] = top_x0 - i * SPACING, top_y, 270
-    n_bot = max(len(bottom), 1)
+        p["x"], p["y"], p["angle"] = top_x0 - i * p_spacing, top_y, 270
     bot_y = -(body_h / 2 + PIN_LENGTH)
-    bot_x0 = (n_bot - 1) * SPACING / 2
+    bot_x0 = (n_bot - 1) * p_spacing / 2
     for i, p in enumerate(bottom):
-        p["x"], p["y"], p["angle"] = bot_x0 - i * SPACING, bot_y, 90
+        p["x"], p["y"], p["angle"] = bot_x0 - i * p_spacing, bot_y, 90
 
     return {
         "pins": left + right + top + bottom,
-        "body": {"x0": -BODY_WIDTH, "y0": body_h / 2,
-                 "x1": BODY_WIDTH, "y1": -body_h / 2},
+        "body": {"x0": -body_half_w, "y0": body_h / 2,
+                 "x1": body_half_w, "y1": -body_h / 2},
     }
 
 
 def _pin_sexpr(p: dict, indent: str = "\t\t\t") -> str:
     token = PIN_TYPE_TOKEN.get(p["type"], "passive")
+    hide = " hide" if p.get("hide_name") else ""
     return (f"{indent}(pin {token} line "
             f"(at {_fmt(p['x'])} {_fmt(p['y'])} {p['angle']}) "
             f"(length {PIN_LENGTH:g}) "
-            f"(name \"{p['name']}\" (effects (font (size 1.27 1.27)))) "
+            f"(name \"{p['name']}\" (effects (font (size 1.27 1.27)){hide})) "
             f"(number \"{p['number']}\" (effects (font (size 1.27 1.27)))))")
 
 
@@ -223,13 +252,23 @@ def build_symbol(part: dict) -> str:
     """生成单个符号的 s-expr 文本（KiCad 10 标准缩进格式）。"""
     name = part["name"]
     reference = part.get("reference", "U")
-    layout = layout_pins(part["pins"])
+    layout_cfg = part.get("layout") or {}
+    layout = layout_pins(part["pins"],
+                         l_spacing=layout_cfg.get("left_spacing"),
+                         p_spacing=layout_cfg.get("pin_spacing"))
     body = layout["body"]
     pins = layout["pins"]
 
-    # 库坐标 Y 向上为正：Reference 放在 body 上方（正 Y），Value 在下方（负 Y）
-    ref_y = body["y0"] + 2.54
-    val_y = body["y1"] - 2.54
+    # 库坐标 Y 向上为正：Reference 放在 body 上方，Value 在下方。
+    # 但有大符号顶部/底部有引脚时，body 外上方/下方会被引脚名+编号占据，
+    # Reference/Value 需放 body 内部避免与引脚文字重叠；小符号仍放 body 外。
+    has_tb = any(p.get("side") in ("top", "bottom") for p in layout["pins"])
+    if has_tb and body["y0"] > 5.08:
+        ref_y = body["y0"] - 2.54   # body 内上方
+        val_y = body["y1"] + 2.54   # body 内下方
+    else:
+        ref_y = body["y0"] + 2.54   # body 上方
+        val_y = body["y1"] - 2.54   # body 下方
 
     lines = [f"\t(symbol \"{name}\"",
              "\t\t(pin_names (offset 1.016))",

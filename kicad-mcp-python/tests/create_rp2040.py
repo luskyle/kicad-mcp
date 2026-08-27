@@ -58,18 +58,17 @@ PINS = [
     ("35", "GPIO23", "bidirectional", "right"),
     ("36", "GPIO24", "bidirectional", "right"),
     ("37", "GPIO25", "bidirectional", "right"),
-    ("38", "GPIO26/ADC0", "bidirectional", "right"),
-    ("39", "GPIO27/ADC1", "bidirectional", "right"),
-    ("40", "GPIO28/ADC2", "bidirectional", "right"),
-    ("41", "GPIO29/ADC3", "bidirectional", "right"),
-    # 右侧 QSPI flash 接口
+    ("38", "GPIO26", "bidirectional", "right"),
+    ("39", "GPIO27", "bidirectional", "right"),
+    ("40", "GPIO28", "bidirectional", "right"),
+    ("41", "GPIO29", "bidirectional", "right"),
+    # 右侧 QSPI flash 接口 + USB（与 GPIO16-29 同侧）
     ("51", "QSPI_SD3", "bidirectional", "right"),
     ("52", "QSPI_SCLK", "bidirectional", "right"),
     ("53", "QSPI_SD0", "bidirectional", "right"),
     ("54", "QSPI_SD2", "bidirectional", "right"),
     ("55", "QSPI_SD1", "bidirectional", "right"),
     ("56", "QSPI_CSn", "bidirectional", "right"),
-    # 右侧 USB
     ("46", "USB_DM", "bidirectional", "right"),
     ("47", "USB_DP", "bidirectional", "right"),
     # 顶部电源
@@ -101,6 +100,9 @@ SPEC = {
     "description": "Raspberry Pi RP2040 Dual-core ARM Cortex-M0+ MCU, 133MHz, 264KB SRAM, QFN-56",
     "footprint": "Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm",
     "datasheet": "https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf",
+    # 布局参数：左右 GPIO 间距 3.5mm（GPIO 名字长，防文字重叠）；
+    # 顶部/底部电源/特殊引脚间距 5mm（IOVDD/VREG_VIN/ADC_AVDD 名字更长）
+    "layout": {"left_spacing": 3.5, "pin_spacing": 5.0},
     "pins": [{"number": n, "name": nm, "type": t, "side": s} for n, nm, t, s in PINS],
 }
 

@@ -212,3 +212,15 @@ schSymbol->SetOrientation( orient );
   顶 / GND(pad57)+VREG_VOUT+TESTEN+RUN+SWCLK+SWD+XIN+XOUT 底。
   生成脚本 `tests/create_rp2040.py`，库 `keyboard-89_local`（用户桌面项目）。
   放置+引脚读回+SVG 渲染全部验证通过。
+
+### RP2040 引脚文字重叠修复（2026-08-27 实测）✅
+- **独立间距**: layout_pins 增加 `l_spacing`（左右，默认 2.54）和 `p_spacing`
+  （顶部/底部，默认 3.5）参数。电源/特殊引脚名长（IOVDD/VREG_VIN/ADC_AVDD），
+  需更大间距防文字重叠。JSON spec 顶层加 `"layout": {"left_spacing": 3.5,
+  "pin_spacing": 5.0}` 控制。
+- **同名电源隐藏重复名**: 6 个 IOVDD / 2 个 DVDD 只显示第一个的名字
+  （`(name "IOVDD" ...)` 其余加 `hide`），其余只留引脚编号 → 顶部电源文字大减。
+- **Reference/Value 位置**: 大符号（有顶/底引脚且 body 高 >10mm）放 body 内部
+  （`body_y0-2.54`），避免与顶部/底部引脚文字重叠；小符号仍放 body 外。
+- **RP2040 最终**: 左 GPIO0-15 / 右 GPIO16-29+QSPI+USB / 顶 11 电源 / 底 8 特殊，
+  body 55x78.58mm，SVG 渲染验证顶部电源、左右 GPIO、右侧 QSPI 文字全部无重叠。
