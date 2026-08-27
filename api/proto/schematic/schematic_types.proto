@@ -52,7 +52,11 @@ message Line
 
 message Text
 {
-  kiapi.common.types.Text text = 1;
+  // (kicad-mcp patch) ID was added so text items can be updated/deleted via
+  // the API (the base kiapi.common.types.Text has no ID field).
+  kiapi.common.types.KIID id = 1;
+
+  kiapi.common.types.Text text = 2;
 }
 
 message LocalLabel
@@ -104,4 +108,8 @@ message Symbol
 
   // Fields to set on the created symbol (Reference, Value, custom fields)
   repeated Field fields = 4;
+
+  // (kicad-mcp patch) Symbol rotation/mirror state as stored by
+  // SCH_SYMBOL::GetOrientation() (0/90/180/270 plus mirror flags).
+  int32 orientation_degrees = 5;
 }

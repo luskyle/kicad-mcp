@@ -58,6 +58,7 @@ void SCH_TEXT::Serialize( google::protobuf::Any& aContainer ) const
 {
     kiapi::schematic::types::Text text;
 
+    text.mutable_id()->set_value( m_Uuid.AsStdString() );
     text.mutable_text()->set_text( GetText().ToStdString() );
     kiapi::common::PackVector2( *text.mutable_text()->mutable_position(), GetPosition() );
     text.mutable_text()->mutable_attributes()->mutable_size()->set_x_nm( GetTextWidth() );
@@ -73,6 +74,9 @@ bool SCH_TEXT::Deserialize( const google::protobuf::Any& aContainer )
 
     if( !aContainer.UnpackTo( &text ) )
         return false;
+
+    if( text.has_id() && !text.id().value().empty() )
+        const_cast<KIID&>( m_Uuid ) = KIID( text.id().value() );
 
     SetText( wxString::FromUTF8( text.text().text() ) );
     SetPosition( kiapi::common::UnpackVector2( text.text().position() ) );

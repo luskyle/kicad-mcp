@@ -1,5 +1,5 @@
 diff --git a/api/proto/schematic/schematic_types.proto b/api/proto/schematic/schematic_types.proto
-index 3f872dcb..d351af36 100644
+index 3f872dcb..02f5c32e 100644
 --- a/api/proto/schematic/schematic_types.proto
 +++ b/api/proto/schematic/schematic_types.proto
 @@ -26,6 +26,15 @@ import "common/types/base_types.proto";
@@ -18,7 +18,20 @@ index 3f872dcb..d351af36 100644
  }
  
  /// Represents a schematic line segment, which may be a wire, bus, or graphical line
-@@ -73,3 +82,26 @@ message DirectiveLabel
+@@ -43,7 +52,11 @@ message Line
+ 
+ message Text
+ {
+-  kiapi.common.types.Text text = 1;
++  // (kicad-mcp patch) ID was added so text items can be updated/deleted via
++  // the API (the base kiapi.common.types.Text has no ID field).
++  kiapi.common.types.KIID id = 1;
++
++  kiapi.common.types.Text text = 2;
+ }
+ 
+ message LocalLabel
+@@ -73,3 +86,30 @@ message DirectiveLabel
    kiapi.common.types.Vector2 position = 2;
    Text                       text     = 3;
  }
@@ -44,6 +57,10 @@ index 3f872dcb..d351af36 100644
 +
 +  // Fields to set on the created symbol (Reference, Value, custom fields)
 +  repeated Field fields = 4;
++
++  // (kicad-mcp patch) Symbol rotation/mirror state as stored by
++  // SCH_SYMBOL::GetOrientation() (0/90/180/270 plus mirror flags).
++  int32 orientation_degrees = 5;
 +}
 diff --git a/common/api/api_enums.cpp b/common/api/api_enums.cpp
 index 57f734d2..007ffe13 100644
@@ -69,6 +86,20 @@ index 57f734d2..007ffe13 100644
  
      default:
          wxCHECK_MSG( false, schematic::types::SchematicLayer::SL_UNKNOWN,
+diff --git a/common/api/api_handler_editor.cpp b/common/api/api_handler_editor.cpp
+index 555db821..14171a99 100644
+--- a/common/api/api_handler_editor.cpp
++++ b/common/api/api_handler_editor.cpp
+@@ -323,8 +323,7 @@ HANDLER_RESULT<DeleteItemsResponse> API_HANDLER_EDITOR::handleDeleteItems(
+     {
+         ItemDeletionResult result;
+         result.mutable_id()->set_value( id.AsStdString() );
+-        result.set_status( status );
+-    }
++        result.set_status( status );        response.mutable_deleted_items()->Add( std::move( result ) );    }
+ 
+     response.set_status( kiapi::common::types::ItemRequestStatus::IRS_OK );
+     return response;
 diff --git a/common/api/api_utils.cpp b/common/api/api_utils.cpp
 index 5df10b76..1f0912fc 100644
 --- a/common/api/api_utils.cpp
@@ -97,13 +128,14 @@ index 5df10b76..1f0912fc 100644
  
      auto it = s_types.find( aMessage.type_url() );
 diff --git a/eeschema/api/api_handler_sch.cpp b/eeschema/api/api_handler_sch.cpp
-index 90b6e998..b46afce6 100644
+index 90b6e998..15201107 100644
 --- a/eeschema/api/api_handler_sch.cpp
 +++ b/eeschema/api/api_handler_sch.cpp
-@@ -27,6 +27,12 @@
+@@ -27,6 +27,13 @@
  #include <wx/filename.h>
  
  #include <api/common/types/base_types.pb.h>
++#include <api/api_enums.h>
 +#include <api/schematic/schematic_types.pb.h>
 +#include <ki_exception.h>
 +#include <lib_id.h>
@@ -113,7 +145,7 @@ index 90b6e998..b46afce6 100644
  
  using namespace kiapi::common::commands;
  using kiapi::common::types::CommandStatus;
-@@ -35,11 +41,15 @@ using kiapi::common::types::ItemRequestStatus;
+@@ -35,11 +42,18 @@ using kiapi::common::types::ItemRequestStatus;
  
  
  API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
@@ -127,10 +159,13 @@ index 90b6e998..b46afce6 100644
 +    // (kicad-mcp patch) SaveDocument support (mirrors pcbnew)
 +    registerHandler<SaveDocument, google::protobuf::Empty>(
 +            &API_HANDLER_SCH::handleSaveDocument );
++
++    // (kicad-mcp patch) GetItems support (mirrors pcbnew)
++    registerHandler<GetItems, GetItemsResponse>( &API_HANDLER_SCH::handleGetItems );
  }
  
  
-@@ -87,6 +97,23 @@ HANDLER_RESULT<GetOpenDocumentsResponse> API_HANDLER_SCH::handleGetOpenDocuments
+@@ -87,6 +101,90 @@ HANDLER_RESULT<GetOpenDocumentsResponse> API_HANDLER_SCH::handleGetOpenDocuments
  }
  
  
@@ -151,10 +186,77 @@ index 90b6e998..b46afce6 100644
 +}
 +
 +
++// (kicad-mcp patch) GetItems handler, mirroring the pcbnew implementation.
++// Returns schematic items whose KICAD_T was requested and whose type has a
++// concrete serialization implementation (Text / Symbol / Line for now).
++HANDLER_RESULT<GetItemsResponse> API_HANDLER_SCH::handleGetItems(
++        const HANDLER_CONTEXT<GetItems>& aCtx )
++{
++    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
++        return tl::unexpected( *busy );
++
++    auto containerResult = validateItemHeaderDocument( aCtx.Request.header() );
++
++    if( !containerResult && containerResult.error().status() == ApiStatusCode::AS_UNHANDLED )
++    {
++        ApiResponseStatus e;
++        // No message needed for AS_UNHANDLED; this is an internal flag for the API server
++        e.set_status( ApiStatusCode::AS_UNHANDLED );
++        return tl::unexpected( e );
++    }
++    else if( !containerResult )
++    {
++        return tl::unexpected( containerResult.error() );
++    }
++
++    GetItemsResponse response;
++
++    std::set<KICAD_T> typesRequested;
++
++    for( int typeRaw : aCtx.Request.types() )
++    {
++        auto typeMessage = static_cast<types::KiCadObjectType>( typeRaw );
++        KICAD_T type = FromProtoEnum<KICAD_T>( typeMessage );
++
++        if( type != TYPE_NOT_INIT )
++            typesRequested.emplace( type );
++    }
++
++    // Only types with a concrete serialization implementation can be returned.
++    static const std::set<KICAD_T> serializableTypes = {
++        SCH_TEXT_T, SCH_SYMBOL_T, SCH_LINE_T,
++        SCH_LABEL_T, SCH_GLOBAL_LABEL_T, SCH_HIER_LABEL_T, SCH_DIRECTIVE_LABEL_T,
++    };
++
++    SCH_SCREEN* screen = m_frame->GetScreen();
++
++    if( !screen )
++    {
++        ApiResponseStatus e;
++        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
++        e.set_error_message( "No schematic is open" );
++        return tl::unexpected( e );
++    }
++
++    for( EDA_ITEM* item : screen->Items() )
++    {
++        if( typesRequested.count( item->Type() ) && serializableTypes.count( item->Type() ) )
++        {
++            google::protobuf::Any itemBuf;
++            item->Serialize( itemBuf );
++            response.mutable_items()->Add( std::move( itemBuf ) );
++        }
++    }
++
++    response.set_status( ItemRequestStatus::IRS_OK );
++    return response;
++}
++
++
  HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KICAD_T aType,
          EDA_ITEM* aContainer )
  {
-@@ -131,6 +158,59 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
+@@ -131,6 +229,59 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
  }
  
  
@@ -214,7 +316,7 @@ index 90b6e998..b46afce6 100644
  HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsInternal( bool aCreate,
          const std::string& aClientName,
          const types::ItemHeader &aHeader,
-@@ -192,6 +272,12 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -192,9 +343,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              return tl::unexpected( e );
          }
      }
@@ -227,7 +329,12 @@ index 90b6e998..b46afce6 100644
  
      COMMIT* commit = getCurrentCommit( aClientName );
  
-@@ -209,8 +295,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
++    bool anyModified = false;
++
+     for( const google::protobuf::Any& anyItem : aItems )
+     {
+         ItemStatus status;
+@@ -209,8 +368,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              continue;
          }
  
@@ -244,8 +351,96 @@ index 90b6e998..b46afce6 100644
  
          if( !creationResult )
          {
+@@ -254,9 +419,6 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+         {
+             item->Serialize( newItem );
+             commit->Add( item.release(), screen );
+-
+-            if( !m_activeClients.count( aClientName ) )
+-                pushCurrentCommit( aClientName, _( "Added items via API" ) );
+         }
+         else
+         {
+@@ -272,14 +434,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+             {
+                 wxASSERT( false );
+             }
+-
+-            if( !m_activeClients.count( aClientName ) )
+-                pushCurrentCommit( aClientName, _( "Created items via API" ) );
+         }
+ 
++        anyModified = true;
+         aItemHandler( status, newItem );
+     }
+ 
++    // (kicad-mcp patch fix) Push the auto-commit exactly once, after the whole
++    // batch.  pushCurrentCommit() erases the commit from m_commits, so calling
++    // it inside the loop leaves `commit` dangling and the second item crashes.
++    if( anyModified && !m_activeClients.count( aClientName ) )
++        pushCurrentCommit( aClientName, _( "Items modified via API" ) );
+ 
+     return ItemRequestStatus::IRS_OK;
+ }
+@@ -288,7 +453,37 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+ void API_HANDLER_SCH::deleteItemsInternal( std::map<KIID, ItemDeletionStatus>& aItemsToDelete,
+                                            const std::string& aClientName )
+ {
+-    // TODO
++    // (kicad-mcp patch) Implement deletion: locate each requested KIID in the
++    // current schematic screen and remove it via the commit framework.
++    SCH_SCREEN* screen = m_frame->GetScreen();
++
++    if( !screen )
++        return;
++
++    COMMIT* commit = getCurrentCommit( aClientName );
++
++    std::map<KIID, EDA_ITEM*> itemUuidMap;
++
++    for( EDA_ITEM* item : screen->Items() )
++        itemUuidMap[item->m_Uuid] = item;
++
++    bool anyDeleted = false;
++
++    for( auto& [id, status] : aItemsToDelete )
++    {
++        auto it = itemUuidMap.find( id );
++
++        if( it == itemUuidMap.end() )
++            continue;   // keep IDS_NONEXISTENT
++
++        commit->Remove( it->second, screen );
++        status = ItemDeletionStatus::IDS_OK;
++        anyDeleted = true;
++    }
++
++    // Auto-commit exactly once (pushCurrentCommit erases the commit).
++    if( anyDeleted && !m_activeClients.count( aClientName ) )
++        pushCurrentCommit( aClientName, _( "Deleted items via API" ) );
+ }
+ 
+ 
+@@ -298,7 +493,16 @@ std::optional<EDA_ITEM*> API_HANDLER_SCH::getItemFromDocument( const DocumentSpe
+     if( !validateDocument( aDocument ) )
+         return std::nullopt;
+ 
+-    // TODO
++    SCH_SCREEN* screen = m_frame->GetScreen();
++
++    if( !screen )
++        return std::nullopt;
++
++    for( EDA_ITEM* item : screen->Items() )
++    {
++        if( item->m_Uuid == aId )
++            return item;
++    }
+ 
+     return std::nullopt;
+ }
 diff --git a/eeschema/api/api_handler_sch.h b/eeschema/api/api_handler_sch.h
-index 64e51892..1ac7d451 100644
+index 64e51892..c72e42bb 100644
 --- a/eeschema/api/api_handler_sch.h
 +++ b/eeschema/api/api_handler_sch.h
 @@ -23,6 +23,7 @@
@@ -256,7 +451,7 @@ index 64e51892..1ac7d451 100644
  #include <kiid.h>
  
  using namespace kiapi;
-@@ -67,6 +68,22 @@ private:
+@@ -67,6 +68,29 @@ private:
      HANDLER_RESULT<commands::GetOpenDocumentsResponse> handleGetOpenDocuments(
              const HANDLER_CONTEXT<commands::GetOpenDocuments>& aCtx );
  
@@ -266,6 +461,13 @@ index 64e51892..1ac7d451 100644
 +    // the pcbnew implementation.
 +    HANDLER_RESULT<google::protobuf::Empty> handleSaveDocument(
 +            const HANDLER_CONTEXT<commands::SaveDocument>& aCtx );
++
++    // (kicad-mcp patch) GetItems support: read schematic items back over the
++    // API so clients can inspect the current schematic (position planning,
++    // verification, etc.).  Only types with a concrete serialization
++    // implementation are returned (Text / Symbol / Line for now).
++    HANDLER_RESULT<commands::GetItemsResponse> handleGetItems(
++            const HANDLER_CONTEXT<commands::GetItems>& aCtx );
 +
 +    /**
 +     * Create a schematic symbol, resolving its LIB_SYMBOL from the project's
@@ -279,8 +481,186 @@ index 64e51892..1ac7d451 100644
      SCH_EDIT_FRAME* m_frame;
  };
  
+diff --git a/eeschema/sch_label.cpp b/eeschema/sch_label.cpp
+index e8330b93..7cb8b735 100644
+--- a/eeschema/sch_label.cpp
++++ b/eeschema/sch_label.cpp
+@@ -1617,12 +1617,49 @@ SCH_LABEL::SCH_LABEL( const VECTOR2I& pos, const wxString& text ) :
+ }
+ 
+ 
++// (kicad-mcp patch) Label text serialization helpers.  The stock KiCad 10
++// label serializers only write id + position, so label text (the network name!)
++// is lost.  These helpers pack/unpack the nested Text message.
++static void packLabelText( kiapi::schematic::types::Text* aText, const SCH_TEXT& aSchText )
++{
++    aText->mutable_id()->set_value( aSchText.m_Uuid.AsStdString() );
++    aText->mutable_text()->set_text( aSchText.GetText().ToStdString() );
++    kiapi::common::PackVector2( *aText->mutable_text()->mutable_position(),
++                                aSchText.GetPosition() );
++    aText->mutable_text()->mutable_attributes()->mutable_size()->set_x_nm(
++            aSchText.GetTextWidth() );
++    aText->mutable_text()->mutable_attributes()->mutable_size()->set_y_nm(
++            aSchText.GetTextHeight() );
++}
++
++
++static bool unpackLabelText( const kiapi::schematic::types::Text& aText, SCH_TEXT& aSchText )
++{
++    if( !aText.has_text() )
++        return true;
++
++    aSchText.SetText( wxString::FromUTF8( aText.text().text() ) );
++
++    if( aText.text().has_position() )
++        aSchText.SetPosition( kiapi::common::UnpackVector2( aText.text().position() ) );
++
++    if( aText.text().has_attributes() && aText.text().attributes().has_size() )
++    {
++        aSchText.SetTextSize( VECTOR2I( aText.text().attributes().size().x_nm(),
++                                        aText.text().attributes().size().y_nm() ) );
++    }
++
++    return true;
++}
++
++
+ void SCH_LABEL::Serialize( google::protobuf::Any& aContainer ) const
+ {
+     kiapi::schematic::types::LocalLabel label;
+ 
+     label.mutable_id()->set_value( m_Uuid.AsStdString() );
+     kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
++    packLabelText( label.mutable_text(), *this );
+ 
+     aContainer.PackFrom( label );
+ }
+@@ -1635,9 +1672,14 @@ bool SCH_LABEL::Deserialize( const google::protobuf::Any& aContainer )
+     if( !aContainer.UnpackTo( &label ) )
+         return false;
+ 
+-    const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
++    if( label.has_id() && !label.id().value().empty() )
++        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
++
+     SetPosition( kiapi::common::UnpackVector2( label.position() ) );
+ 
++    if( label.has_text() )
++        unpackLabelText( label.text(), *this );
++
+     return true;
+ }
+ 
+@@ -1722,14 +1764,32 @@ SCH_DIRECTIVE_LABEL::~SCH_DIRECTIVE_LABEL()
+ 
+ void SCH_DIRECTIVE_LABEL::Serialize( google::protobuf::Any& aContainer ) const
+ {
+-    UNIMPLEMENTED_FOR( GetClass() );
++    kiapi::schematic::types::DirectiveLabel label;
++
++    label.mutable_id()->set_value( m_Uuid.AsStdString() );
++    kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
++    packLabelText( label.mutable_text(), *this );
++
++    aContainer.PackFrom( label );
+ }
+ 
+ 
+ bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any& aContainer )
+ {
+-    UNIMPLEMENTED_FOR( GetClass() );
+-    return false;
++    kiapi::schematic::types::DirectiveLabel label;
++
++    if( !aContainer.UnpackTo( &label ) )
++        return false;
++
++    if( label.has_id() && !label.id().value().empty() )
++        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
++
++    SetPosition( kiapi::common::UnpackVector2( label.position() ) );
++
++    if( label.has_text() )
++        unpackLabelText( label.text(), *this );
++
++    return true;
+ }
+ 
+ 
+@@ -2042,14 +2102,32 @@ SCH_GLOBALLABEL::SCH_GLOBALLABEL( const SCH_GLOBALLABEL& aGlobalLabel ) :
+ 
+ void SCH_GLOBALLABEL::Serialize( google::protobuf::Any& aContainer ) const
+ {
+-    UNIMPLEMENTED_FOR( GetClass() );
++    kiapi::schematic::types::GlobalLabel label;
++
++    label.mutable_id()->set_value( m_Uuid.AsStdString() );
++    kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
++    packLabelText( label.mutable_text(), *this );
++
++    aContainer.PackFrom( label );
+ }
+ 
+ 
+ bool SCH_GLOBALLABEL::Deserialize( const google::protobuf::Any& aContainer )
+ {
+-    UNIMPLEMENTED_FOR( GetClass() );
+-    return false;
++    kiapi::schematic::types::GlobalLabel label;
++
++    if( !aContainer.UnpackTo( &label ) )
++        return false;
++
++    if( label.has_id() && !label.id().value().empty() )
++        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
++
++    SetPosition( kiapi::common::UnpackVector2( label.position() ) );
++
++    if( label.has_text() )
++        unpackLabelText( label.text(), *this );
++
++    return true;
+ }
+ 
+ 
+@@ -2259,14 +2337,32 @@ SCH_HIERLABEL::SCH_HIERLABEL( const VECTOR2I& pos, const wxString& text, KICAD_T
+ 
+ void SCH_HIERLABEL::Serialize( google::protobuf::Any& aContainer ) const
+ {
+-    UNIMPLEMENTED_FOR( GetClass() );
++    kiapi::schematic::types::HierarchicalLabel label;
++
++    label.mutable_id()->set_value( m_Uuid.AsStdString() );
++    kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
++    packLabelText( label.mutable_text(), *this );
++
++    aContainer.PackFrom( label );
+ }
+ 
+ 
+ bool SCH_HIERLABEL::Deserialize( const google::protobuf::Any& aContainer )
+ {
+-    UNIMPLEMENTED_FOR( GetClass() );
+-    return false;
++    kiapi::schematic::types::HierarchicalLabel label;
++
++    if( !aContainer.UnpackTo( &label ) )
++        return false;
++
++    if( label.has_id() && !label.id().value().empty() )
++        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
++
++    SetPosition( kiapi::common::UnpackVector2( label.position() ) );
++
++    if( label.has_text() )
++        unpackLabelText( label.text(), *this );
++
++    return true;
+ }
+ 
+ 
 diff --git a/eeschema/sch_symbol.cpp b/eeschema/sch_symbol.cpp
-index 5d88ad9f..3be595b7 100644
+index 5d88ad9f..e82ace62 100644
 --- a/eeschema/sch_symbol.cpp
 +++ b/eeschema/sch_symbol.cpp
 @@ -48,6 +48,8 @@
@@ -292,7 +672,7 @@ index 5d88ad9f..3be595b7 100644
  
  
  std::unordered_map<TRANSFORM, int> SCH_SYMBOL::s_transformToOrientationCache;
-@@ -71,6 +73,48 @@ std::string toUTFTildaText( const wxString& txt )
+@@ -71,6 +73,57 @@ std::string toUTFTildaText( const wxString& txt )
  }
  
  
@@ -304,6 +684,10 @@ index 5d88ad9f..3be595b7 100644
 +    kiapi::common::PackVector2( *symbol.mutable_position(), GetPosition() );
 +    symbol.mutable_lib_id()->set_library_nickname( m_lib_id.GetLibNickname() );
 +    symbol.mutable_lib_id()->set_entry_name( m_lib_id.GetLibItemName() );
++    // GetOrientation() returns the internal enum (SYM_ORIENT_0/90/180/270 =
++    // 3/4/5/6 + mirror flags); expose a plain angle in degrees (0/90/180/270).
++    symbol.set_orientation_degrees(
++            ( ( GetOrientation() - SYM_ORIENT_0 ) & 0x3 ) * 90 );
 +
 +    for( const SCH_FIELD& field : m_fields )
 +    {
@@ -325,6 +709,11 @@ index 5d88ad9f..3be595b7 100644
 +
 +    const_cast<KIID&>( m_Uuid ) = KIID( symbol.id().value() );
 +    SetPosition( kiapi::common::UnpackVector2( symbol.position() ) );
++
++    // proto3 scalar field; 0 is the default (upright) orientation so this is
++    // safe even when the client omitted the field.  Convert plain angle in
++    // degrees (0/90/180/270) back to the internal enum value (SYM_ORIENT_0=3).
++    SetOrientation( SYM_ORIENT_0 + ( ( symbol.orientation_degrees() / 90 ) % 4 ) );
 +
 +    for( const kiapi::schematic::types::Field& f : symbol.fields() )
 +    {
@@ -366,10 +755,10 @@ index 02bcbf05..ddf2e0f4 100644
       * Check to see if the library symbol is set to the dummy library symbol.
       *
 diff --git a/eeschema/sch_text.cpp b/eeschema/sch_text.cpp
-index 634fcfa5..14a7626e 100644
+index 634fcfa5..a8c0cd18 100644
 --- a/eeschema/sch_text.cpp
 +++ b/eeschema/sch_text.cpp
-@@ -50,6 +50,41 @@
+@@ -50,6 +50,45 @@
  #include <markup_parser.h>
  #include <properties/property.h>
  #include <properties/property_mgr.h>
@@ -381,6 +770,7 @@ index 634fcfa5..14a7626e 100644
 +{
 +    kiapi::schematic::types::Text text;
 +
++    text.mutable_id()->set_value( m_Uuid.AsStdString() );
 +    text.mutable_text()->set_text( GetText().ToStdString() );
 +    kiapi::common::PackVector2( *text.mutable_text()->mutable_position(), GetPosition() );
 +    text.mutable_text()->mutable_attributes()->mutable_size()->set_x_nm( GetTextWidth() );
@@ -396,6 +786,9 @@ index 634fcfa5..14a7626e 100644
 +
 +    if( !aContainer.UnpackTo( &text ) )
 +        return false;
++
++    if( text.has_id() && !text.id().value().empty() )
++        const_cast<KIID&>( m_Uuid ) = KIID( text.id().value() );
 +
 +    SetText( wxString::FromUTF8( text.text().text() ) );
 +    SetPosition( kiapi::common::UnpackVector2( text.text().position() ) );

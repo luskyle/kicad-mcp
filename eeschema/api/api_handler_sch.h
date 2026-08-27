@@ -75,6 +75,13 @@ private:
     HANDLER_RESULT<google::protobuf::Empty> handleSaveDocument(
             const HANDLER_CONTEXT<commands::SaveDocument>& aCtx );
 
+    // (kicad-mcp patch) GetItems support: read schematic items back over the
+    // API so clients can inspect the current schematic (position planning,
+    // verification, etc.).  Only types with a concrete serialization
+    // implementation are returned (Text / Symbol / Line for now).
+    HANDLER_RESULT<commands::GetItemsResponse> handleGetItems(
+            const HANDLER_CONTEXT<commands::GetItems>& aCtx );
+
     /**
      * Create a schematic symbol, resolving its LIB_SYMBOL from the project's
      * symbol library table.  The library symbol cannot be resolved by the item

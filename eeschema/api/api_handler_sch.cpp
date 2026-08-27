@@ -27,6 +27,7 @@
 #include <wx/filename.h>
 
 #include <api/common/types/base_types.pb.h>
+#include <api/api_enums.h>
 #include <api/schematic/schematic_types.pb.h>
 #include <ki_exception.h>
 #include <lib_id.h>
@@ -50,6 +51,9 @@ API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
     // (kicad-mcp patch) SaveDocument support (mirrors pcbnew)
     registerHandler<SaveDocument, google::protobuf::Empty>(
             &API_HANDLER_SCH::handleSaveDocument );
+
+    // (kicad-mcp patch) GetItems support (mirrors pcbnew)
+    registerHandler<GetItems, GetItemsResponse>( &API_HANDLER_SCH::handleGetItems );
 }
 
 
@@ -111,6 +115,73 @@ HANDLER_RESULT<google::protobuf::Empty> API_HANDLER_SCH::handleSaveDocument(
 
     m_frame->SaveProject();
     return google::protobuf::Empty();
+}
+
+
+// (kicad-mcp patch) GetItems handler, mirroring the pcbnew implementation.
+// Returns schematic items whose KICAD_T was requested and whose type has a
+// concrete serialization implementation (Text / Symbol / Line for now).
+HANDLER_RESULT<GetItemsResponse> API_HANDLER_SCH::handleGetItems(
+        const HANDLER_CONTEXT<GetItems>& aCtx )
+{
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    auto containerResult = validateItemHeaderDocument( aCtx.Request.header() );
+
+    if( !containerResult && containerResult.error().status() == ApiStatusCode::AS_UNHANDLED )
+    {
+        ApiResponseStatus e;
+        // No message needed for AS_UNHANDLED; this is an internal flag for the API server
+        e.set_status( ApiStatusCode::AS_UNHANDLED );
+        return tl::unexpected( e );
+    }
+    else if( !containerResult )
+    {
+        return tl::unexpected( containerResult.error() );
+    }
+
+    GetItemsResponse response;
+
+    std::set<KICAD_T> typesRequested;
+
+    for( int typeRaw : aCtx.Request.types() )
+    {
+        auto typeMessage = static_cast<types::KiCadObjectType>( typeRaw );
+        KICAD_T type = FromProtoEnum<KICAD_T>( typeMessage );
+
+        if( type != TYPE_NOT_INIT )
+            typesRequested.emplace( type );
+    }
+
+    // Only types with a concrete serialization implementation can be returned.
+    static const std::set<KICAD_T> serializableTypes = {
+        SCH_TEXT_T, SCH_SYMBOL_T, SCH_LINE_T,
+        SCH_LABEL_T, SCH_GLOBAL_LABEL_T, SCH_HIER_LABEL_T, SCH_DIRECTIVE_LABEL_T,
+    };
+
+    SCH_SCREEN* screen = m_frame->GetScreen();
+
+    if( !screen )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "No schematic is open" );
+        return tl::unexpected( e );
+    }
+
+    for( EDA_ITEM* item : screen->Items() )
+    {
+        if( typesRequested.count( item->Type() ) && serializableTypes.count( item->Type() ) )
+        {
+            google::protobuf::Any itemBuf;
+            item->Serialize( itemBuf );
+            response.mutable_items()->Add( std::move( itemBuf ) );
+        }
+    }
+
+    response.set_status( ItemRequestStatus::IRS_OK );
+    return response;
 }
 
 
@@ -281,6 +352,8 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
 
     COMMIT* commit = getCurrentCommit( aClientName );
 
+    bool anyModified = false;
+
     for( const google::protobuf::Any& anyItem : aItems )
     {
         ItemStatus status;
@@ -346,9 +419,6 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
         {
             item->Serialize( newItem );
             commit->Add( item.release(), screen );
-
-            if( !m_activeClients.count( aClientName ) )
-                pushCurrentCommit( aClientName, _( "Added items via API" ) );
         }
         else
         {
@@ -364,14 +434,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
             {
                 wxASSERT( false );
             }
-
-            if( !m_activeClients.count( aClientName ) )
-                pushCurrentCommit( aClientName, _( "Created items via API" ) );
         }
 
+        anyModified = true;
         aItemHandler( status, newItem );
     }
 
+    // (kicad-mcp patch fix) Push the auto-commit exactly once, after the whole
+    // batch.  pushCurrentCommit() erases the commit from m_commits, so calling
+    // it inside the loop leaves `commit` dangling and the second item crashes.
+    if( anyModified && !m_activeClients.count( aClientName ) )
+        pushCurrentCommit( aClientName, _( "Items modified via API" ) );
 
     return ItemRequestStatus::IRS_OK;
 }
@@ -380,7 +453,37 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
 void API_HANDLER_SCH::deleteItemsInternal( std::map<KIID, ItemDeletionStatus>& aItemsToDelete,
                                            const std::string& aClientName )
 {
-    // TODO
+    // (kicad-mcp patch) Implement deletion: locate each requested KIID in the
+    // current schematic screen and remove it via the commit framework.
+    SCH_SCREEN* screen = m_frame->GetScreen();
+
+    if( !screen )
+        return;
+
+    COMMIT* commit = getCurrentCommit( aClientName );
+
+    std::map<KIID, EDA_ITEM*> itemUuidMap;
+
+    for( EDA_ITEM* item : screen->Items() )
+        itemUuidMap[item->m_Uuid] = item;
+
+    bool anyDeleted = false;
+
+    for( auto& [id, status] : aItemsToDelete )
+    {
+        auto it = itemUuidMap.find( id );
+
+        if( it == itemUuidMap.end() )
+            continue;   // keep IDS_NONEXISTENT
+
+        commit->Remove( it->second, screen );
+        status = ItemDeletionStatus::IDS_OK;
+        anyDeleted = true;
+    }
+
+    // Auto-commit exactly once (pushCurrentCommit erases the commit).
+    if( anyDeleted && !m_activeClients.count( aClientName ) )
+        pushCurrentCommit( aClientName, _( "Deleted items via API" ) );
 }
 
 
@@ -390,7 +493,16 @@ std::optional<EDA_ITEM*> API_HANDLER_SCH::getItemFromDocument( const DocumentSpe
     if( !validateDocument( aDocument ) )
         return std::nullopt;
 
-    // TODO
+    SCH_SCREEN* screen = m_frame->GetScreen();
+
+    if( !screen )
+        return std::nullopt;
+
+    for( EDA_ITEM* item : screen->Items() )
+    {
+        if( item->m_Uuid == aId )
+            return item;
+    }
 
     return std::nullopt;
 }

@@ -81,6 +81,10 @@ void SCH_SYMBOL::Serialize( google::protobuf::Any& aContainer ) const
     kiapi::common::PackVector2( *symbol.mutable_position(), GetPosition() );
     symbol.mutable_lib_id()->set_library_nickname( m_lib_id.GetLibNickname() );
     symbol.mutable_lib_id()->set_entry_name( m_lib_id.GetLibItemName() );
+    // GetOrientation() returns the internal enum (SYM_ORIENT_0/90/180/270 =
+    // 3/4/5/6 + mirror flags); expose a plain angle in degrees (0/90/180/270).
+    symbol.set_orientation_degrees(
+            ( ( GetOrientation() - SYM_ORIENT_0 ) & 0x3 ) * 90 );
 
     for( const SCH_FIELD& field : m_fields )
     {
@@ -102,6 +106,11 @@ bool SCH_SYMBOL::Deserialize( const google::protobuf::Any& aContainer )
 
     const_cast<KIID&>( m_Uuid ) = KIID( symbol.id().value() );
     SetPosition( kiapi::common::UnpackVector2( symbol.position() ) );
+
+    // proto3 scalar field; 0 is the default (upright) orientation so this is
+    // safe even when the client omitted the field.  Convert plain angle in
+    // degrees (0/90/180/270) back to the internal enum value (SYM_ORIENT_0=3).
+    SetOrientation( SYM_ORIENT_0 + ( ( symbol.orientation_degrees() / 90 ) % 4 ) );
 
     for( const kiapi::schematic::types::Field& f : symbol.fields() )
     {

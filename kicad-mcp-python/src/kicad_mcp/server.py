@@ -26,10 +26,13 @@ def build_server() -> MCPServer:
             "- PCB 绘制: 添加文本/走线、查询元素 (kicad_pcb_add_text / "
             "kicad_pcb_add_track / kicad_get_pcb_items)\n"
             "- 原理图绘制 (kicad_sch_add_text / kicad_sch_add_line / "
-            "kicad_sch_add_symbol)\n"
-            "重要: 原理图创建工具需要「已打补丁」的 KiCad（补丁见仓库源码："
+            "kicad_sch_add_symbol / kicad_sch_add_label)\n"
+            "- 原理图查询/修改/删除 (kicad_sch_get_items / kicad_sch_update_text / "
+            "kicad_sch_delete_item)\n"
+            "重要: 原理图工具需要「已打补丁」的 KiCad（补丁见仓库源码："
             "SchematicLayer 枚举 + TypeNameFromAny schematic 映射 + "
-            "SCH_TEXT/SCH_SYMBOL 序列化）。未打补丁的 KiCad 10.0.5 使用这些工具"
+            "SCH_TEXT/SCH_SYMBOL/Label 序列化 + GetItems/SaveDocument handler + "
+            "多元素创建修复）。未打补丁的 KiCad 10.0.5 使用这些工具"
             "会导致 eeschema 崩溃，请勿在 10.0.5 上调用。"
         ),
     )

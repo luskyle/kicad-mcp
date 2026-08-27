@@ -235,13 +235,57 @@ class KiCadClient:
         header: base_types_pb2.ItemHeader,
         types: list,
     ) -> "editor_commands_pb2.GetItemsResponse":
-        """按类型查询文档中的元素。"""
+        """按类型查询文档中的元素。
+
+        types 是 kiapi.common.types.KiCadObjectType 枚举值列表
+        （如 KOT_SCH_TEXT / KOT_SCH_SYMBOL / KOT_SCH_LINE）。
+        """
         req = editor_commands_pb2.GetItems()
         req.header.CopyFrom(header)
         for t in types:
             req.types.append(int(t))
         resp = self._call(req)
         out = editor_commands_pb2.GetItemsResponse()
+        resp.message.Unpack(out)
+        return out
+
+    def update_items(
+        self,
+        header: base_types_pb2.ItemHeader,
+        item_messages: list,
+    ) -> "editor_commands_pb2.UpdateItemsResponse":
+        """更新文档中的一组元素。
+
+        item_messages 是携带目标 KIID 的完整 protobuf 消息
+        （通过 GetItems 获取后修改），会被 Pack 成 Any 发送。
+        """
+        req = editor_commands_pb2.UpdateItems()
+        req.header.CopyFrom(header)
+        for msg in item_messages:
+            any_item = req.items.add()
+            any_item.Pack(msg, type_url_prefix="type.googleapis.com")
+        resp = self._call(req)
+        out = editor_commands_pb2.UpdateItemsResponse()
+        resp.message.Unpack(out)
+        return out
+
+    def delete_items(
+        self,
+        header: base_types_pb2.ItemHeader,
+        item_ids: list,
+    ) -> "editor_commands_pb2.DeleteItemsResponse":
+        """按 KIID 删除文档中的一组元素。
+
+        item_ids 是 str 形式的 KIID（如 "3a2b..."）。
+        """
+        req = editor_commands_pb2.DeleteItems()
+        req.header.CopyFrom(header)
+        for iid in item_ids:
+            # NOTE: chained add().set_value() fails on protobuf upb backend
+            kid = req.item_ids.add()
+            kid.value = iid
+        resp = self._call(req)
+        out = editor_commands_pb2.DeleteItemsResponse()
         resp.message.Unpack(out)
         return out
 

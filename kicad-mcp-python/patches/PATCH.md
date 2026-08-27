@@ -1,6 +1,6 @@
-# 补丁：让 AI 能通过 API 创建原理图元素
+# 补丁：让 AI 能通过 API 创建/查询/修改/删除原理图元素
 
-补丁文件：`patches/kicad-schematic-api.patch`（480 行，10 个源文件）
+补丁文件：`patches/kicad-schematic-api.patch`（873 行，12 个源文件）
 
 ## 解决的问题
 
@@ -12,9 +12,12 @@ KiCad 源码的 API 基础设施（`common/api/`）只实现了 **PCB** 元素�
 - 即便类型能识别，`SchematicLayer` 枚举只有 `SL_UNKNOWN`、`SCH_TEXT`/`SCH_SYMBOL`
   也没有序列化实现；
 - `eeschema` 的 `API_HANDLER_SCH` 只注册了 `GetOpenDocuments`（没有
-  `SaveDocument`/`GetItems`），画完无法保存落盘；
+  `SaveDocument`/`GetItems`/`GetItemsById`），画完无法保存、无法读回；
 - `API_HANDLER_SCH` 构造器没把 frame 传给 `API_HANDLER_EDITOR` 基类，导致
-  `checkForBusy()` 空指针崩溃。
+  `checkForBusy()` 空指针崩溃；
+- 多元素一次创建会段错误（`pushCurrentCommit` 在循环内销毁 commit，第二个
+  item 悬空指针）；`deleteItemsInternal`/`getItemFromDocument` 是空 TODO；
+- 基础 `Text` 消息无 id 字段、Label 序列化无文本 → 无法更新/删除、标签网络名丢失。
 
 实测在 KiCad 10.0.5 上发送 `CreateItems(kiapi.schematic.types.Text)` 会触发
 **eeschema 段错误崩溃**（无效 item → `Deserialize` 崩溃）。
@@ -23,29 +26,33 @@ KiCad 源码的 API 基础设施（`common/api/`）只实现了 **PCB** 元素�
 
 | 文件 | 改动 |
 |---|---|
-| `api/proto/schematic/schematic_types.proto` | 补全 `SchematicLayer` 枚举（SL_WIRE/SL_BUS/SL_NOTES）；新增 `Symbol`/`Field` 消息 |
+| `api/proto/schematic/schematic_types.proto` | 补全 `SchematicLayer` 枚举（SL_WIRE/SL_BUS/SL_NOTES）；新增 `Symbol`/`Field` 消息；`Text` 加 `id` 字段；`Symbol` 加 `orientation_degrees` 字段 |
 | `common/api/api_enums.cpp` | 实现 `SchematicLayer` ↔ `SCH_LAYER_ID` 双向映射 |
 | `common/api/api_utils.cpp` | `TypeNameFromAny` 增加 7 个 schematic 类型映射（Text/Line/Local/Global/Hierarchical/Directive Label/Symbol） |
-| `eeschema/sch_text.h/.cpp` | 新增 `SCH_TEXT::Serialize/Deserialize`（Text 消息） |
-| `eeschema/sch_symbol.h/.cpp` | 新增 `SCH_SYMBOL::Serialize/Deserialize`（Symbol 消息：LIB_ID+位置+字段） |
-| `eeschema/api/api_handler_sch.h/.cpp` | ① 新增 `createSymbolFromAny`：从项目符号库表加载 `LIB_SYMBOL` 后构造 `SCH_SYMBOL`；② **修复构造器**：`API_HANDLER_EDITOR( aFrame )` 传 frame，消除 `checkForBusy()` 空指针崩溃；③ 无 container 时默认用 `m_frame->GetScreen()->Schematic()`；④ **新增 `SaveDocument` handler**（镜像 pcbnew）：`registerHandler<SaveDocument, google::protobuf::Empty>` → `m_frame->SaveProject()` |
+| `common/api/api_handler_editor.cpp` | **修复 `handleDeleteItems`**：把每个删除结果加入 `response.deleted_items`（原代码漏掉，响应永远为空） |
+| `eeschema/sch_text.h/.cpp` | `SCH_TEXT::Serialize/Deserialize`（Text 消息，含 **id**） |
+| `eeschema/sch_symbol.h/.cpp` | `SCH_SYMBOL::Serialize/Deserialize`（Symbol 消息：LIB_ID+位置+字段+**orientation_degrees 角度**） |
+| `eeschema/sch_label.h/.cpp` | **补全 4 个 Label 类（Local/Global/Hierarchical/Directive）的序列化**：官方 3 个是 `UNIMPLEMENTED_FOR`、1 个只写 id+position；补全为含**标签文本**（网络名） |
+| `eeschema/api/api_handler_sch.h/.cpp` | ① `createSymbolFromAny`：从项目符号库表加载 `LIB_SYMBOL`；② **修复构造器**：`API_HANDLER_EDITOR( aFrame )`；③ 无 container 时默认 `m_frame->GetScreen()->Schematic()`；④ **`SaveDocument` handler**；⑤ **`GetItems` handler**（读回 Text/Symbol/Line/Label，带 id）；⑥ **实现 `deleteItemsInternal`/`getItemFromDocument`**（删除按 KIID 走 commit）；⑦ **修复多元素创建崩溃**：`pushCurrentCommit` 移出循环、循环后统一提交 |
 | `pcbnew/exporters/step/step_pcb_model.cpp` | **编译兼容**：OCC 7.7+ 的 `XCAFDoc_Editor::Extract` 在 OCC 7.5 不存在，用 `#if OCC_VERSION_HEX >= 0x070700` 分支回退到 `TDocStd_XLinkTool::Copy` |
 
-## 补丁后支持的元素（`CreateItems`）
+## 补丁后支持的元素（`CreateItems` / `GetItems` / `UpdateItems` / `DeleteItems`）
 
-- `kiapi.schematic.types.Text` → SCH_TEXT（文本注释）
-- `kiapi.schematic.types.Line` → SCH_LINE（连线/图形线，层 = wire/bus/notes）
+- `kiapi.schematic.types.Text` → SCH_TEXT（文本注释；含 id，可更新/删除）
+- `kiapi.schematic.types.Line` → SCH_LINE（连线/图形线，层 = wire/bus/notes；含 id）
 - `kiapi.schematic.types.LocalLabel/GlobalLabel/HierarchicalLabel/DirectiveLabel`
-  → 标签（位置已支持；文本字段序列化仍待补全）
-- `kiapi.schematic.types.Symbol` → SCH_SYMBOL（放置元件，从库加载）
+  → 网络标签（**含文本**，即网络名）
+- `kiapi.schematic.types.Symbol` → SCH_SYMBOL（放置元件，从库加载；含 **orientation_degrees** 0/90/180/270）
 
 ## 补丁后支持的命令（eeschema API handler）
 
 - `GetOpenDocuments`（原有）
-- `CreateItems`（基类分发，patch 前已能到内部，patch 后不崩溃）
+- `CreateItems` / `UpdateItems` / `DeleteItems`（基类分发 + 上述实现）
 - `SaveDocument`（**patch 新增**，保存原理图 + 项目）
+- `GetItems`（**patch 新增**，按 `KiCadObjectType` 读回元素，含 KIID）
 
-> `GetItems`/`GetItemsById` 仍未在 eeschema 实现（官方仅 pcbnew 有）。
+> `GetItemsById`/`HitTest` 仍受限（`getItemFromDocument` 已实现，可支持 HitTest；
+> `GetItemsById` 未注册）。
 
 ## 如何应用
 
@@ -111,17 +118,23 @@ print(kicad_sch_add_symbol('Device', 'R', 130, 90, reference='R1', value='10k'))
 "
 ```
 
-**实测结果（本机）**：
-- 文本、连线、符号创建全部 `ISC_OK(1)`；
+**实测结果（本机，2026-08-27）**：
+- 创建：文本、连线、符号（含 **orientation_degrees=90 旋转**）全部 `ISC_OK(1)`；
+- **一次创建多个元素不再崩溃**（修复 `pushCurrentCommit` 悬空指针）；
+- `GetItems` 读回 Text/Symbol/Line/Label（含完整 KIID 与字段）；StickHub 现有
+  符号角度分布（0/90/180/270）与文件一致；
+- `UpdateItems` 更新文本内容+位置、`DeleteItems` 按 KIID 删除，均 `ISC_OK(1)`
+  并即时可读回确认；
+- **标签**（Global/Local/Hier/Directive）创建 + 读回**网络名文本**成功；
 - `SaveDocument` 成功落盘（`.kicad_sch` 中可见 `(symbol "Device:R"`、
   `(text "Hello from MCP ..."`、`(wire ...)`）；
-- MCP stdio 端到端（`tests/test_mcp_sch.py`）通过 10 个工具注册 + 原理图
-  文本/连线/符号创建。
+- MCP stdio 端到端 **14 个工具**全部通过：`tests/test_mcp_sch.py`（创建）+
+  `tests/test_mcp_sch_crud.py`（查询/标签/更新/删除）+ `tests/verify_crud.py` +
+  `tests/verify_label.py`。
 
 ## 已知限制 / 后续工作
 
-- 标签（Label）的**文本**字段序列化仍缺失（只有位置）——如需支持需补全
-  `SCH_LABEL` 系列在 `Serialize/Deserialize` 中对 `text` 的处理。
-- 符号暂不支持**旋转/镜像**（Symbol 消息未含 orientation 字段）。
-- `SCH_SYMBOL` 创建的 sheet 实例（`SCH_SYMBOL_INSTANCE`）未设置——需要在实际
-  原理图提交时确认，必要时补充。
+- `GetItemsById` 未注册（`getItemFromDocument` 已实现，可顺带补上）。
+- `SCH_SYMBOL` 创建的 sheet 实例（`SCH_SYMBOL_INSTANCE`）未显式设置——实际
+  提交验证正常，必要时补充。
+- Symbol 的**镜像**未暴露（`orientation_degrees` 只含角度，镜像标志被掩掉）。

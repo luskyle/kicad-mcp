@@ -1617,12 +1617,49 @@ SCH_LABEL::SCH_LABEL( const VECTOR2I& pos, const wxString& text ) :
 }
 
 
+// (kicad-mcp patch) Label text serialization helpers.  The stock KiCad 10
+// label serializers only write id + position, so label text (the network name!)
+// is lost.  These helpers pack/unpack the nested Text message.
+static void packLabelText( kiapi::schematic::types::Text* aText, const SCH_TEXT& aSchText )
+{
+    aText->mutable_id()->set_value( aSchText.m_Uuid.AsStdString() );
+    aText->mutable_text()->set_text( aSchText.GetText().ToStdString() );
+    kiapi::common::PackVector2( *aText->mutable_text()->mutable_position(),
+                                aSchText.GetPosition() );
+    aText->mutable_text()->mutable_attributes()->mutable_size()->set_x_nm(
+            aSchText.GetTextWidth() );
+    aText->mutable_text()->mutable_attributes()->mutable_size()->set_y_nm(
+            aSchText.GetTextHeight() );
+}
+
+
+static bool unpackLabelText( const kiapi::schematic::types::Text& aText, SCH_TEXT& aSchText )
+{
+    if( !aText.has_text() )
+        return true;
+
+    aSchText.SetText( wxString::FromUTF8( aText.text().text() ) );
+
+    if( aText.text().has_position() )
+        aSchText.SetPosition( kiapi::common::UnpackVector2( aText.text().position() ) );
+
+    if( aText.text().has_attributes() && aText.text().attributes().has_size() )
+    {
+        aSchText.SetTextSize( VECTOR2I( aText.text().attributes().size().x_nm(),
+                                        aText.text().attributes().size().y_nm() ) );
+    }
+
+    return true;
+}
+
+
 void SCH_LABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
     kiapi::schematic::types::LocalLabel label;
 
     label.mutable_id()->set_value( m_Uuid.AsStdString() );
     kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
+    packLabelText( label.mutable_text(), *this );
 
     aContainer.PackFrom( label );
 }
@@ -1635,8 +1672,13 @@ bool SCH_LABEL::Deserialize( const google::protobuf::Any& aContainer )
     if( !aContainer.UnpackTo( &label ) )
         return false;
 
-    const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
+    if( label.has_id() && !label.id().value().empty() )
+        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
+
     SetPosition( kiapi::common::UnpackVector2( label.position() ) );
+
+    if( label.has_text() )
+        unpackLabelText( label.text(), *this );
 
     return true;
 }
@@ -1722,14 +1764,32 @@ SCH_DIRECTIVE_LABEL::~SCH_DIRECTIVE_LABEL()
 
 void SCH_DIRECTIVE_LABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
-    UNIMPLEMENTED_FOR( GetClass() );
+    kiapi::schematic::types::DirectiveLabel label;
+
+    label.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
+    packLabelText( label.mutable_text(), *this );
+
+    aContainer.PackFrom( label );
 }
 
 
 bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any& aContainer )
 {
-    UNIMPLEMENTED_FOR( GetClass() );
-    return false;
+    kiapi::schematic::types::DirectiveLabel label;
+
+    if( !aContainer.UnpackTo( &label ) )
+        return false;
+
+    if( label.has_id() && !label.id().value().empty() )
+        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
+
+    SetPosition( kiapi::common::UnpackVector2( label.position() ) );
+
+    if( label.has_text() )
+        unpackLabelText( label.text(), *this );
+
+    return true;
 }
 
 
@@ -2042,14 +2102,32 @@ SCH_GLOBALLABEL::SCH_GLOBALLABEL( const SCH_GLOBALLABEL& aGlobalLabel ) :
 
 void SCH_GLOBALLABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
-    UNIMPLEMENTED_FOR( GetClass() );
+    kiapi::schematic::types::GlobalLabel label;
+
+    label.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
+    packLabelText( label.mutable_text(), *this );
+
+    aContainer.PackFrom( label );
 }
 
 
 bool SCH_GLOBALLABEL::Deserialize( const google::protobuf::Any& aContainer )
 {
-    UNIMPLEMENTED_FOR( GetClass() );
-    return false;
+    kiapi::schematic::types::GlobalLabel label;
+
+    if( !aContainer.UnpackTo( &label ) )
+        return false;
+
+    if( label.has_id() && !label.id().value().empty() )
+        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
+
+    SetPosition( kiapi::common::UnpackVector2( label.position() ) );
+
+    if( label.has_text() )
+        unpackLabelText( label.text(), *this );
+
+    return true;
 }
 
 
@@ -2259,14 +2337,32 @@ SCH_HIERLABEL::SCH_HIERLABEL( const VECTOR2I& pos, const wxString& text, KICAD_T
 
 void SCH_HIERLABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
-    UNIMPLEMENTED_FOR( GetClass() );
+    kiapi::schematic::types::HierarchicalLabel label;
+
+    label.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
+    packLabelText( label.mutable_text(), *this );
+
+    aContainer.PackFrom( label );
 }
 
 
 bool SCH_HIERLABEL::Deserialize( const google::protobuf::Any& aContainer )
 {
-    UNIMPLEMENTED_FOR( GetClass() );
-    return false;
+    kiapi::schematic::types::HierarchicalLabel label;
+
+    if( !aContainer.UnpackTo( &label ) )
+        return false;
+
+    if( label.has_id() && !label.id().value().empty() )
+        const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
+
+    SetPosition( kiapi::common::UnpackVector2( label.position() ) );
+
+    if( label.has_text() )
+        unpackLabelText( label.text(), *this );
+
+    return true;
 }
 
 
