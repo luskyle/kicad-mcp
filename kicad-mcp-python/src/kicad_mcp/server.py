@@ -39,6 +39,10 @@ def build_server() -> MCPServer:
             "行为是否符合预期（如 RC 充电、分压、放大等）。观测向量默认自动提取"
             "所有非地节点，也可手动指定 vectors=；可用 extra= 注入 ngspice 指令"
             "（如 '.ic v(/OUT)=0' 让电容从 0V 充电）。\n"
+            "- 原理图自动仿真类型选择 (kicad_sch_detect_simulation)：分析电路拓扑\n"
+            "（器件 + 激励源类型）自动确定最合适的仿真类型（.tran/.op/.dc/.ac）\n"
+            "并给出建议指令；kicad_sch_simulate / kicad_sch_simulate_gui 在原理图\n"
+            "没有仿真指令时会自动按推荐类型注入（GUI 版会把指令文本写入原理图）。\n"
 
             "- 原理图 KiCad GUI 仿真 (kicad_sch_simulate_gui)：打开 eeschema 内置的\n"
             "仿真器（ngspice 集成 + 波形绘图），自动运行当前电路并把波形显示在\n"

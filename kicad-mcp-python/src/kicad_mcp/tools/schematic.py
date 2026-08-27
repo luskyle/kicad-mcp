@@ -467,6 +467,7 @@ def kicad_sch_simulate(
     vectors: str = "auto",
     points: int = 200,
     extra: str = "",
+    auto_directive: bool = True,
 ) -> str:
     """对原理图进行 SPICE 电路仿真（用 KiCad 自带 ngspice 验证电路行为）。
 
@@ -509,11 +510,23 @@ def kicad_sch_simulate(
     # 额外指令
     extra_lines = [e.strip() for e in extra.split(";") if e.strip()] if extra else None
 
+    # 若原理图没有仿真指令且未手动指定，自动根据电路推荐并注入
+    auto_injected = None
+    if not extra_lines and auto_directive:
+        det = spice_mod.detect_simulation(netlist)
+        if not det["has_directive"] and det["recommendation"]:
+            rec = det["recommendation"]
+            auto_injected = rec["command"]
+            # 多条指令（如 .op\n.dc）分号分隔注入
+            extra_lines = [l.strip() for l in rec["command"].split("\n") if l.strip()]
+
     result = spice_mod.run_ngspice(netlist, vec_list, extra_lines)
 
     nrows = result["rows"]
     lines = [f"🧪 SPICE 仿真完成（{nrows} 个数据点）"]
     lines.append(f"   观测向量: {', '.join(vec_list)}")
+    if auto_injected:
+        lines.append(f"   🤖 已按电路自动选择仿真类型，注入指令: {auto_injected}")
     if extra_lines:
         lines.append(f"   注入指令: {'; '.join(extra_lines)}")
 
@@ -543,11 +556,77 @@ def kicad_sch_simulate(
     return "\n".join(lines)
 
 
+def kicad_sch_detect_simulation(
+    sch_file: Optional[str] = None,
+) -> str:
+    """分析电路并自动确定最合适的仿真类型（SPICE 分析类型）。
+
+    根据电路拓扑自动判断该用哪种仿真：
+      - 含 AC 激励源        → 交流小信号分析 `.ac`（频响/增益/带宽）
+      - 正弦/调频源         → 瞬态分析 `.tran`（时域波形）
+      - 脉冲/阶跃激励        → 瞬态分析 `.tran`（看响应）
+      - 电容/电感 + 直流源   → 瞬态分析 `.tran`（充放电/阶跃响应）
+      - 二极管/晶体管        → 直流扫描 `.dc` / 工作点 `.op`
+      - 纯电阻 + 直流源      → 工作点 `.op`
+
+    Args:
+        sch_file: 原理图 .kicad_sch 路径；不传则使用当前 eeschema 打开的文档。
+
+    Returns:
+        电路元件清单、激励源类型、已有的仿真指令，以及推荐的仿真类型和指令。
+    """
+    sch = sch_file or _current_sch_path()
+    netlist = spice_mod.export_spice_netlist(sch)
+    det = spice_mod.detect_simulation(netlist)
+
+    lines = ["📋 电路分析："]
+    if det["devices_summary"]:
+        lines.append("  ▸ 元件: " + ", ".join(det["devices_summary"]))
+    if det["sources"]:
+        src_desc = ", ".join(
+            f"{s['ref']}={s['type']}{(' ' + s['value']) if s['value'] else ''}"
+            for s in det["sources"])
+        lines.append("  ▸ 激励: " + src_desc)
+    else:
+        lines.append("  ▸ 激励: （未检测到独立源）")
+
+    if det["existing"]:
+        lines.append("  ▸ 已有仿真指令: " + ", ".join(det["existing"]))
+        lines.append("  → 将直接使用现有指令进行仿真")
+        return "\n".join(lines)
+
+    rec = det["recommendation"]
+    if rec:
+        lines.append(f"\n🧭 推荐仿真类型: {rec['type']}")
+        for r in rec["reasons"]:
+            lines.append(f"    · {r}")
+        lines.append(f"  建议指令: {rec['command']}")
+    else:
+        lines.append("\n（无法确定推荐仿真类型）")
+
+    return "\n".join(lines)
+
+
+def _add_directive_text(text: str, sch_file: Optional[str]) -> None:
+    """把 SPICE 仿真指令文本（以 . 开头）写入原理图空白处并保存。
+
+    供 KiCad 内置仿真器识别（它从原理图 .tran/.op 等文本读取仿真指令）。
+    """
+    # 放在 A4 右下角空白处，避免与元件/连线重叠
+    kicad_sch_add_text(text=text, x_mm=230.0, y_mm=50.0, height_mm=2.54)
+    from .common import kicad_save_document
+    try:
+        kicad_save_document()
+    except Exception:
+        pass  # 保存失败不阻塞（KiCad 内存里已加入指令文本）
+
+
 def kicad_sch_simulate_gui(
     signal: str = "",
     signals: str = "auto",
     sch_file: Optional[str] = None,
     analyze: bool = True,
+    auto_directive: bool = True,
 ) -> str:
     """在 KiCad 集成的仿真 GUI 中运行当前原理图的 SPICE 仿真并自动显示波形。
 
@@ -557,8 +636,11 @@ def kicad_sch_simulate_gui(
     同时会再做一次独立仿真并**自动分析**结果（初/末/极值、充放电/振荡分类、
     时间常数估计），用于验证 GUI 波形是否合理。
 
+    若原理图**没有仿真指令**且 auto_directive=True，会自动根据电路拓扑推断
+    最合适的仿真类型（.tran/.op/.dc/.ac）并把指令文本写入原理图后再运行。
+
     前提:
-        - 原理图必须包含仿真指令文本（如 `.tran ...`）和仿真元件。
+        - 原理图包含仿真元件（Simulation_SPICE 库的源 + 带 SPICE 模型的 R/C/L/…）。
         - 建议先用 kicad_save_document 保存，再用 kicad_sch_erc 确认无误。
 
     Args:
@@ -567,6 +649,7 @@ def kicad_sch_simulate_gui(
                 "auto"（默认）自动提取所有非地电压节点。
         sch_file: 原理图路径；不传则使用当前 eeschema 打开的文档。
         analyze: 是否自动分析仿真结果并验证（默认 True）。
+        auto_directive: 原理图无仿真指令时，自动推荐并写入指令（默认 True）。
 
     Returns:
         消息 + 自动分析的结论（波形已显示在 KiCad GUI 中）。
@@ -576,15 +659,26 @@ def kicad_sch_simulate_gui(
         if not os.path.exists(sch_file):
             raise RuntimeError(f"原理图文件不存在: {sch_file}")
 
+    sch = sch_file or _current_sch_path()
+    netlist = spice_mod.export_spice_netlist(sch)
+
+    # 若原理图没有仿真指令，自动根据电路推荐并写入指令文本
+    auto_dir_text = None
+    if auto_directive:
+        det = spice_mod.detect_simulation(netlist)
+        if not det["has_directive"] and det["recommendation"]:
+            auto_dir_text = det["recommendation"]["command"]
+            # 取第一条指令写入原理图（如 .op / .dc 取 .op；GUI 仿真器需要指令文本）
+            first_line = auto_dir_text.split("\n")[0]
+            _add_directive_text(first_line, sch_file)
+            netlist = spice_mod.export_spice_netlist(sch)
+
     # 确定要在 GUI 中自动显示的信号
     if signal and signals == "auto":
         vec_list = [signal]
     elif signals.strip() and signals.strip().lower() != "auto":
         vec_list = [s.strip() for s in signals.split(",") if s.strip()]
     else:
-        # 自动：导出 netlist，提取非地节点生成 v(node)
-        netlist = spice_mod.export_spice_netlist(
-            sch_file or _current_sch_path())
         clean = spice_mod.preprocess_netlist(netlist)
         nodes = spice_mod.extract_nodes(clean)
         vec_list = [f"v({n})" for n in nodes]
@@ -597,6 +691,8 @@ def kicad_sch_simulate_gui(
 
     lines = [resp.message,
              f"   已在波形图中自动显示: {', '.join(vec_list)}"]
+    if auto_dir_text:
+        lines.append(f"   🤖 原理图无仿真指令，已自动添加: {auto_dir_text}")
 
     # 独立仿真 + 自动分析（验证 GUI 结果是否合理）
     if analyze:
@@ -778,6 +874,7 @@ ALL_TOOLS = [
     kicad_sch_get_symbol_pins,
     kicad_sch_connect,
     kicad_sch_erc,
+    kicad_sch_detect_simulation,
     kicad_sch_simulate,
     kicad_sch_simulate_gui,
 ]

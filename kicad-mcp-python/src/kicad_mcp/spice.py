@@ -415,6 +415,195 @@ def auto_analyze(netlist: str, vec_list: list[str],
     return lines
 
 
+# ---------------- 电路分析与仿真类型自动推荐 ----------------
+
+# SPICE 器件前缀 -> 器件类型中文名
+DEVICE_TYPE_CN = {
+    "V": "电压源", "I": "电流源",
+    "R": "电阻", "C": "电容", "L": "电感", "K": "耦合电感",
+    "D": "二极管", "Q": "三极管", "M": "MOSFET", "J": "JFET",
+    "X": "子电路/运放", "E": "压控电压源", "G": "压控电流源",
+    "F": "流控电流源", "H": "流控电压源", "B": "行为源",
+}
+
+# 独立源的关键字（决定激励类型）
+_SRC_KW = ("DC", "AC", "SIN", "PULSE", "EXP", "PWL", "SFFM")
+
+# 真正的仿真分析指令（.title/.end 等是 netlist 结构，不算）
+_ANALYSIS_DIRECTIVES = {".tran", ".op", ".dc", ".ac", ".noise", ".fft",
+                        ".sp", ".pz", ".tf", ".sens", ".disto"}
+
+# 有标称值（阻容感）的器件前缀
+_VALUE_PREFIXES = {"R", "C", "L"}
+
+
+def parse_circuit(netlist: str) -> dict:
+    """解析 SPICE netlist，返回器件清单和分析指令。
+
+    Returns:
+        {"devices": {prefix: [{"ref","nodes","args","value"}...]},
+         "directives": [".tran", ...]}
+    """
+    devices: dict[str, list] = {}
+    directives: list[str] = []
+    for line in netlist.splitlines():
+        l = line.strip()
+        if not l or l.startswith("*") or l.startswith("//"):
+            continue
+        if l.startswith("."):
+            dname = l.split()[0].lower()
+            if dname in _ANALYSIS_DIRECTIVES:
+                directives.append(dname)
+            continue
+        toks = l.split()
+        if not toks:
+            continue
+        prefix = toks[0][0].upper()
+        if prefix not in DEVICE_TYPE_CN:
+            continue
+        # 值 = 最后一个数值 token（仅对 R/C/L 有意义）
+        value = None
+        if prefix in _VALUE_PREFIXES:
+            for tok in reversed(toks[1:]):
+                if _parse_spice_num(tok) is not None:
+                    value = tok
+                    break
+        devices.setdefault(prefix, []).append(
+            {"ref": toks[0], "nodes": toks[1:3], "args": toks[1:], "value": value}
+        )
+    return {"devices": devices, "directives": directives}
+
+
+def analyze_sources(devices: dict) -> dict:
+    """分析独立源的类型与值。返回 {"types": set, "sources": [...], "has_ac": bool}。"""
+    srcs = []
+    src_types: set[str] = set()
+    for prefix in ("V", "I"):
+        for d in devices.get(prefix, []):
+            args = d["args"]
+            found = [kw for kw in _SRC_KW if any(a.upper().startswith(kw) for a in args)]
+            # 按激励类型优先级判定（AC 最特殊，其次瞬态激励，最后 DC）
+            priority = ["AC", "SIN", "SFFM", "PULSE", "PWL", "EXP", "DC"]
+            src_type = next((kw for kw in priority if kw in found), "DC")
+            src_types.add(src_type)
+            srcs.append({"ref": d["ref"], "kind": prefix, "type": src_type,
+                         "value": d["value"]})
+    return {"types": src_types, "sources": srcs,
+            "has_ac": "AC" in src_types, "has_sin": bool(src_types & {"SIN", "SFFM"}),
+            "has_pulse": bool(src_types & {"PULSE", "PWL", "EXP"})}
+
+
+def estimate_time_constant(devices: dict) -> float | None:
+    """粗略估计时间常数：max(R)*max(C) 或 max(L)/min(R)（取大者）。"""
+    rs = [_parse_spice_num(d["value"]) for d in devices.get("R", []) if d["value"]]
+    cs = [_parse_spice_num(d["value"]) for d in devices.get("C", []) if d["value"]]
+    ls = [_parse_spice_num(d["value"]) for d in devices.get("L", []) if d["value"]]
+    r_max = max(rs) if rs else None
+    c_max = max(cs) if cs else None
+    l_max = max(ls) if ls else None
+    cand = []
+    if r_max and c_max:
+        cand.append(r_max * c_max)
+    if l_max and r_max:
+        cand.append(l_max / r_max)
+    return max(cand) if cand else None
+
+
+def recommend_sim_command(devices: dict) -> dict:
+    """根据电路拓扑自动推荐最合适的仿真类型与指令。
+
+    Returns:
+        {"type": "tran"|"op"|"dc"|"ac",
+         "command": 具体 ngspice 指令文本,
+         "reasons": [说明...]}
+    """
+    src = analyze_sources(devices)
+    d = devices
+    has = {k: bool(d.get(k)) for k in DEVICE_TYPE_CN}
+    reasons: list[str] = []
+
+    # 1) 交流小信号分析：有 AC 激励
+    if src["has_ac"]:
+        reasons.append("检测到 AC 激励源，适合交流小信号分析（频响/增益/带宽）")
+        return {"type": "ac",
+                "command": ".ac dec 10 1 1meg",
+                "reasons": reasons}
+
+    # 2) 正弦源：时域波形 + 频响都有意义，优先瞬态看波形
+    if src["has_sin"]:
+        tau = estimate_time_constant(d)
+        tstop = max(tau * 5 if tau else 1e-3, 1e-3)
+        reasons.append("检测到正弦/调频源，瞬态分析可查看时域波形")
+        return {"type": "tran",
+                "command": f".tran {tstop / 1000:g} {tstop:g} UIC",
+                "reasons": reasons}
+
+    # 3) 脉冲/阶跃激励：瞬态看响应
+    if src["has_pulse"]:
+        tau = estimate_time_constant(d)
+        tstop = max(tau * 5 if tau else 1e-3, 1e-3)
+        reasons.append("检测到脉冲/阶跃激励，瞬态分析可查看电路响应")
+        return {"type": "tran",
+                "command": f".tran {tstop / 1000:g} {tstop:g} UIC",
+                "reasons": reasons}
+
+    # 4) 动态元件（电容/电感）+ 直流源：上电瞬态
+    if has["C"] or has["L"]:
+        tau = estimate_time_constant(d)
+        tstop = max(tau * 5 if tau else 1e-3, 1e-3)
+        kind = []
+        if has["C"]:
+            kind.append("电容")
+        if has["L"]:
+            kind.append("电感")
+        reasons.append(f"含{'+'.join(kind)}与直流源，瞬态分析可查看充放电/阶跃响应")
+        return {"type": "tran",
+                "command": f".tran {tstop / 1000:g} {tstop:g} UIC",
+                "reasons": reasons}
+
+    # 5) 非线性器件（二极管/晶体管）：工作点 + 直流扫描
+    if has["D"] or has["Q"] or has["M"] or has["J"]:
+        reasons.append("含非线性器件（二极管/晶体管），直流扫描可查看转移/伏安特性，"
+                       "也可先用 .op 确认工作点")
+        return {"type": "dc",
+                "command": ".op\n.dc V1 0 5 0.05",
+                "reasons": reasons}
+
+    # 6) 纯阻性 + 直流源：直流工作点即可
+    reasons.append("纯电阻/直流电路，直流工作点分析即可")
+    return {"type": "op", "command": ".op", "reasons": reasons}
+
+
+def detect_simulation(netlist: str) -> dict:
+    """分析 netlist，检测已有仿真指令并自动推荐合适的仿真类型。
+
+    Returns:
+        {"has_directive": bool, "existing": [指令...],
+         "devices_summary": [描述...], "sources": [...],
+         "recommendation": {...}}
+    """
+    parsed = parse_circuit(netlist)
+    devices, directives = parsed["devices"], parsed["directives"]
+    src = analyze_sources(devices)
+
+    devices_summary = []
+    for prefix, items in devices.items():
+        for it in items:
+            desc = f"{it['ref']}: {DEVICE_TYPE_CN[prefix]}"
+            if it["value"]:
+                desc += f" {it['value']}"
+            devices_summary.append(desc)
+
+    has_dir = bool(directives)
+    return {
+        "has_directive": has_dir,
+        "existing": directives,
+        "devices_summary": devices_summary,
+        "sources": src["sources"],
+        "recommendation": None if has_dir else recommend_sim_command(devices),
+    }
+
+
 # ---------------- kicad-cli 导出 ----------------
 
 
