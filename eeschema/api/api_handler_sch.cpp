@@ -278,7 +278,24 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createSymbolFromAny(
 
     VECTOR2I pos = kiapi::common::UnpackVector2( symbol.position() );
 
-    return std::make_unique<SCH_SYMBOL>( *libSymbol, libId, nullptr, 1, 0, pos );
+    // (kicad-mcp patch fix) Pass the current sheet path so the symbol gets a
+    // proper sheet instance.  Without it the constructor skips SetRef() (it
+    // only runs when aSheet != nullptr), so the symbol has no (instances)
+    // section and KiCad renders NO symbol body (only wires/text appear).
+    SCH_SHEET_PATH sheetPath = m_frame->GetCurrentSheet();
+
+    auto schSymbol =
+            std::make_unique<SCH_SYMBOL>( *libSymbol, libId, &sheetPath, 1, 0, pos );
+
+    // Reference is stored per sheet instance; apply it here (other fields are
+    // set by SCH_SYMBOL::Deserialize afterwards).
+    for( const kiapi::schematic::types::Field& f : symbol.fields() )
+    {
+        if( f.name() == "Reference" )
+            schSymbol->SetRef( &sheetPath, wxString::FromUTF8( f.value() ) );
+    }
+
+    return schSymbol;
 }
 
 

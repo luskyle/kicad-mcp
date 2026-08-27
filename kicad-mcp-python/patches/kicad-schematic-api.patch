@@ -128,7 +128,7 @@ index 5df10b76..1f0912fc 100644
  
      auto it = s_types.find( aMessage.type_url() );
 diff --git a/eeschema/api/api_handler_sch.cpp b/eeschema/api/api_handler_sch.cpp
-index 90b6e998..15201107 100644
+index 90b6e998..1f91321f 100644
 --- a/eeschema/api/api_handler_sch.cpp
 +++ b/eeschema/api/api_handler_sch.cpp
 @@ -27,6 +27,13 @@
@@ -256,7 +256,7 @@ index 90b6e998..15201107 100644
  HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KICAD_T aType,
          EDA_ITEM* aContainer )
  {
-@@ -131,6 +229,59 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
+@@ -131,6 +229,76 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
  }
  
  
@@ -309,14 +309,31 @@ index 90b6e998..15201107 100644
 +
 +    VECTOR2I pos = kiapi::common::UnpackVector2( symbol.position() );
 +
-+    return std::make_unique<SCH_SYMBOL>( *libSymbol, libId, nullptr, 1, 0, pos );
++    // (kicad-mcp patch fix) Pass the current sheet path so the symbol gets a
++    // proper sheet instance.  Without it the constructor skips SetRef() (it
++    // only runs when aSheet != nullptr), so the symbol has no (instances)
++    // section and KiCad renders NO symbol body (only wires/text appear).
++    SCH_SHEET_PATH sheetPath = m_frame->GetCurrentSheet();
++
++    auto schSymbol =
++            std::make_unique<SCH_SYMBOL>( *libSymbol, libId, &sheetPath, 1, 0, pos );
++
++    // Reference is stored per sheet instance; apply it here (other fields are
++    // set by SCH_SYMBOL::Deserialize afterwards).
++    for( const kiapi::schematic::types::Field& f : symbol.fields() )
++    {
++        if( f.name() == "Reference" )
++            schSymbol->SetRef( &sheetPath, wxString::FromUTF8( f.value() ) );
++    }
++
++    return schSymbol;
 +}
 +
 +
  HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsInternal( bool aCreate,
          const std::string& aClientName,
          const types::ItemHeader &aHeader,
-@@ -192,9 +343,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -192,9 +360,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              return tl::unexpected( e );
          }
      }
@@ -334,7 +351,7 @@ index 90b6e998..15201107 100644
      for( const google::protobuf::Any& anyItem : aItems )
      {
          ItemStatus status;
-@@ -209,8 +368,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -209,8 +385,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              continue;
          }
  
@@ -351,7 +368,7 @@ index 90b6e998..15201107 100644
  
          if( !creationResult )
          {
-@@ -254,9 +419,6 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -254,9 +436,6 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
          {
              item->Serialize( newItem );
              commit->Add( item.release(), screen );
@@ -361,7 +378,7 @@ index 90b6e998..15201107 100644
          }
          else
          {
-@@ -272,14 +434,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -272,14 +451,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              {
                  wxASSERT( false );
              }
@@ -382,7 +399,7 @@ index 90b6e998..15201107 100644
  
      return ItemRequestStatus::IRS_OK;
  }
-@@ -288,7 +453,37 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -288,7 +470,37 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
  void API_HANDLER_SCH::deleteItemsInternal( std::map<KIID, ItemDeletionStatus>& aItemsToDelete,
                                             const std::string& aClientName )
  {
@@ -421,7 +438,7 @@ index 90b6e998..15201107 100644
  }
  
  
-@@ -298,7 +493,16 @@ std::optional<EDA_ITEM*> API_HANDLER_SCH::getItemFromDocument( const DocumentSpe
+@@ -298,7 +510,16 @@ std::optional<EDA_ITEM*> API_HANDLER_SCH::getItemFromDocument( const DocumentSpe
      if( !validateDocument( aDocument ) )
          return std::nullopt;
  
