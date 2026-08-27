@@ -27,6 +27,12 @@
  */
 #include "sch_bitmap.h"
 
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
+
+#include <wx/mstream.h>
+
 #include <bitmap_base.h>
 #include <bitmaps.h>
 #include <base_units.h>
@@ -343,3 +349,54 @@ static struct SCH_BITMAP_DESC
                              groupImage );
     }
 } _SCH_BITMAP_DESC;
+
+
+void SCH_BITMAP::Serialize( google::protobuf::Any& aContainer ) const
+{
+    using namespace kiapi::common;
+    kiapi::schematic::types::Image msg;
+
+    msg.mutable_id()->set_value( m_Uuid.AsStdString() );
+    PackVector2( *msg.mutable_position(), GetPosition() );
+    msg.set_scale( GetImageScale() );
+
+    const BITMAP_BASE& img = GetReferenceImage().GetImage();
+
+    if( const wxImage* image = img.GetImageData() )
+    {
+        wxMemoryOutputStream out;
+
+        if( image->SaveFile( out, wxBITMAP_TYPE_PNG ) )
+        {
+            wxStreamBuffer* buf = out.GetOutputStreamBuffer();
+            msg.set_bitmap( buf->GetBufferStart(), buf->GetBufferSize() );
+        }
+    }
+
+    aContainer.PackFrom( msg );
+}
+
+
+bool SCH_BITMAP::Deserialize( const google::protobuf::Any& aContainer )
+{
+    using namespace kiapi::common;
+    kiapi::schematic::types::Image msg;
+
+    if( !aContainer.UnpackTo( &msg ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( msg.id().value() );
+    SetPosition( UnpackVector2( msg.position() ) );
+    SetImageScale( msg.scale() );
+
+    if( !msg.bitmap().empty() )
+    {
+        wxMemoryBuffer buf;
+        buf.AppendData( msg.bitmap().data(), msg.bitmap().size() );
+
+        if( !GetReferenceImage().ReadImageFile( buf ) )
+            return false;
+    }
+
+    return true;
+}

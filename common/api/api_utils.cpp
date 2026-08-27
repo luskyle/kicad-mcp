@@ -56,6 +56,10 @@ KICOMMON_API std::optional<KICAD_T> TypeNameFromAny( const google::protobuf::Any
         { "type.googleapis.com/kiapi.schematic.types.HierarchicalLabel", SCH_HIER_LABEL_T },
         { "type.googleapis.com/kiapi.schematic.types.DirectiveLabel", SCH_DIRECTIVE_LABEL_T },
         { "type.googleapis.com/kiapi.schematic.types.Symbol", SCH_SYMBOL_T },
+        { "type.googleapis.com/kiapi.schematic.types.Shape", SCH_SHAPE_T },
+        { "type.googleapis.com/kiapi.schematic.types.NoConnect", SCH_NO_CONNECT_T },
+        { "type.googleapis.com/kiapi.schematic.types.Junction", SCH_JUNCTION_T },
+        { "type.googleapis.com/kiapi.schematic.types.Image", SCH_BITMAP_T },
     };
 
     auto it = s_types.find( aMessage.type_url() );

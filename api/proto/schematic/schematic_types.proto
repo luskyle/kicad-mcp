@@ -129,3 +129,59 @@ message Symbol
   // KiCad (read back via GetItems).  Clients use these for exact wire routing.
   repeated Pin pins = 6;
 }
+
+// (kicad-mcp patch) Schematic graphical shape (segment/rectangle/arc/circle/
+// polyline/bezier), corresponding to SCH_SHAPE.
+enum ShapeType
+{
+  ST_UNKNOWN = 0;
+  ST_SEGMENT = 1;
+  ST_RECTANGLE = 2;
+  ST_ARC = 3;
+  ST_CIRCLE = 4;
+  ST_POLY = 5;
+  ST_BEZIER = 6;
+}
+
+message Shape
+{
+  kiapi.common.types.KIID    id        = 1;
+  // Shape origin (start point). Points in `points` are ABSOLUTE schematic
+  // coordinates (KiCad stores them relative to the origin internally, but the
+  // API accepts absolute positions for convenience).
+  kiapi.common.types.Vector2 position  = 2;
+  ShapeType                  shape_type = 3;
+  repeated kiapi.common.types.Vector2 points = 4;
+  bool                       filled    = 5;
+  // Stroke width in nanometers
+  int64                      stroke_width = 6;
+  SchematicLayer             layer     = 7;
+  // Full graphic geometry, reusing the board-side GraphicShape message.  When
+  // present this is authoritative (position/shape_type/points are ignored).
+  kiapi.common.types.GraphicShape graphic = 8;
+}
+
+/// Represents a no-connect (X) marker on an unused pin
+message NoConnect
+{
+  kiapi.common.types.KIID    id       = 1;
+  kiapi.common.types.Vector2 position = 2;
+}
+
+/// Represents a wire junction dot
+message Junction
+{
+  kiapi.common.types.KIID    id       = 1;
+  kiapi.common.types.Vector2 position = 2;
+}
+
+/// Represents a bitmap image placed on the schematic (SCH_BITMAP)
+message Image
+{
+  kiapi.common.types.KIID    id       = 1;
+  kiapi.common.types.Vector2 position = 2;
+  double                     scale    = 3;
+  // PNG-encoded bitmap data
+  bytes                      bitmap   = 4;
+}
+

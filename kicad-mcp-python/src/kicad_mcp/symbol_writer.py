@@ -192,6 +192,16 @@ def layout_pins(pins: list[dict], l_spacing: Optional[float] = None,
     # 左右引脚：从 body 顶部向下排，y 正值在上
     body_h = (max_side - 1) * l_spacing + 2 * SPACING
 
+    # 关键：确保 body_h 是偶数个 1.27 网格（半高落在整数网格上）。
+    # 否则顶部/底部引脚 y 会落在半格（如 33.5 格），连到这些引脚的导线
+    # ERC 报 endpoint_off_grid 且 KiCad 网格连接判定会失败（线端点吸附到
+    # 最近网格点而碰不到 off_grid 引脚）。
+    grid = 1.27
+    body_grids = round(body_h / (2 * grid)) * 2
+    if body_grids * grid < body_h:
+        body_grids += 2
+    body_h = body_grids * grid
+
     # body 半宽至少覆盖顶部/底部电源引脚的分布范围，否则电源引脚会远远
     # 飞出窄 body，造成符号宽度比例失调（像"一坨散开的线"）。
     n_top = max(len(top), 1)

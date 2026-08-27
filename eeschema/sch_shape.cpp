@@ -27,6 +27,9 @@
 #include <plotters/plotter.h>
 #include <base_units.h>
 #include <widgets/msgpanel.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
 #include <bitmaps.h>
 #include <eda_draw_frame.h>
 #include <gr_basic.h>
@@ -623,3 +626,52 @@ static struct SCH_SHAPE_DESC
 } _SCH_SHAPE_DESC;
 
 ENUM_TO_WXANY( FILL_T );
+
+
+void SCH_SHAPE::Serialize( google::protobuf::Any& aContainer ) const
+{
+    using namespace kiapi::common;
+    kiapi::schematic::types::Shape msg;
+
+    msg.mutable_id()->set_value( m_Uuid.AsStdString() );
+    msg.set_layer( ToProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>(
+            GetLayer() ) );
+    msg.set_filled( GetFillMode() == FILL_T::FILLED_SHAPE );
+    msg.set_stroke_width( GetStroke().GetWidth() );
+    PackVector2( *msg.mutable_position(), GetPosition() );
+
+    google::protobuf::Any any;
+    EDA_SHAPE::Serialize( any );
+    any.UnpackTo( msg.mutable_graphic() );
+
+    aContainer.PackFrom( msg );
+}
+
+
+bool SCH_SHAPE::Deserialize( const google::protobuf::Any& aContainer )
+{
+    using namespace kiapi::common;
+    kiapi::schematic::types::Shape msg;
+
+    if( !aContainer.UnpackTo( &msg ) )
+        return false;
+
+    SetLayer( FromProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>(
+            msg.layer() ) );
+
+    google::protobuf::Any any;
+    any.PackFrom( msg.graphic() );
+    EDA_SHAPE::Deserialize( any );
+
+    if( msg.filled() )
+        SetFilled( true );
+
+    if( msg.stroke_width() > 0 )
+    {
+        STROKE_PARAMS sp = GetStroke();
+        sp.SetWidth( msg.stroke_width() );
+        SetStroke( sp );
+    }
+
+    return true;
+}

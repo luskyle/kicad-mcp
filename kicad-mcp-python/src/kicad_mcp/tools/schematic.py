@@ -40,6 +40,10 @@ KOT_MAP = {
     "global_label": enums_pb2.KOT_SCH_GLOBAL_LABEL,
     "hier_label": enums_pb2.KOT_SCH_HIER_LABEL,
     "directive_label": enums_pb2.KOT_SCH_DIRECTIVE_LABEL,
+    "shape": enums_pb2.KOT_SCH_SHAPE,
+    "image": enums_pb2.KOT_SCH_BITMAP,
+    "no_connect": enums_pb2.KOT_SCH_NO_CONNECT,
+    "junction": enums_pb2.KOT_SCH_JUNCTION,
 }
 
 LABEL_TYPE_MAP = {
@@ -160,10 +164,12 @@ def kicad_sch_add_line(
         raise ValueError(f"不支持的层: {layer}，可选: {sorted(layers)}")
 
     line = schematic_types_pb2.Line()
-    line.start.x_nm = int(x1_mm * MM)
-    line.start.y_nm = int(y1_mm * MM)
-    line.end.x_nm = int(x2_mm * MM)
-    line.end.y_nm = int(y2_mm * MM)
+    # 用 round 而非 int：ix/MM*MM 的浮点误差若用 int 截断会差 1 IU，
+    # KiCad 网格连接判定会把线端点判为不与引脚相连（ERC pin_not_connected）
+    line.start.x_nm = round(x1_mm * MM)
+    line.start.y_nm = round(y1_mm * MM)
+    line.end.x_nm = round(x2_mm * MM)
+    line.end.y_nm = round(y2_mm * MM)
     line.layer = layers[layer.lower()]
 
     url, header = _sch_context()
@@ -728,13 +734,14 @@ def kicad_sch_add_label(
         raise ValueError(f"不支持的标签类型: {label_type}，可选: {sorted(LABEL_TYPE_MAP)}")
 
     label = LABEL_TYPE_MAP[label_type.lower()]()
-    label.position.x_nm = int(x_mm * MM)
-    label.position.y_nm = int(y_mm * MM)
+    # round 避免浮点截断误差导致 label 偏离引脚/线端点 1 IU 而 dangling
+    label.position.x_nm = round(x_mm * MM)
+    label.position.y_nm = round(y_mm * MM)
     label.text.text.text = text
-    label.text.text.position.x_nm = int(x_mm * MM)
-    label.text.text.position.y_nm = int(y_mm * MM)
-    label.text.text.attributes.size.x_nm = int(height_mm * MM)
-    label.text.text.attributes.size.y_nm = int(height_mm * MM)
+    label.text.text.position.x_nm = round(x_mm * MM)
+    label.text.text.position.y_nm = round(y_mm * MM)
+    label.text.text.attributes.size.x_nm = round(height_mm * MM)
+    label.text.text.attributes.size.y_nm = round(height_mm * MM)
 
     url, header = _sch_context()
     with KiCadClient(url, client_name="kicad-mcp") as kc:
@@ -765,6 +772,29 @@ def _fmt_any(any_item) -> str:
         return (f"Line id={ln.id.value} layer={layer} "
                 f"({ln.start.x_nm / MM:.1f},{ln.start.y_nm / MM:.1f})->"
                 f"({ln.end.x_nm / MM:.1f},{ln.end.y_nm / MM:.1f})mm")
+    if any_item.Is(schematic_types_pb2.Shape.DESCRIPTOR):
+        sh = schematic_types_pb2.Shape()
+        any_item.Unpack(sh)
+        stype = (schematic_types_pb2.ShapeType.Name(sh.shape_type)
+                 if sh.shape_type else 'graphic')
+        return (f"Shape id={sh.id.value} type={stype} filled={sh.filled} "
+                f"@({sh.position.x_nm / MM:.1f},{sh.position.y_nm / MM:.1f})mm")
+    if any_item.Is(schematic_types_pb2.NoConnect.DESCRIPTOR):
+        nc = schematic_types_pb2.NoConnect()
+        any_item.Unpack(nc)
+        return (f"NoConnect id={nc.id.value} "
+                f"@({nc.position.x_nm / MM:.1f},{nc.position.y_nm / MM:.1f})mm")
+    if any_item.Is(schematic_types_pb2.Junction.DESCRIPTOR):
+        jn = schematic_types_pb2.Junction()
+        any_item.Unpack(jn)
+        return (f"Junction id={jn.id.value} "
+                f"@({jn.position.x_nm / MM:.1f},{jn.position.y_nm / MM:.1f})mm")
+    if any_item.Is(schematic_types_pb2.Image.DESCRIPTOR):
+        im = schematic_types_pb2.Image()
+        any_item.Unpack(im)
+        return (f"Image id={im.id.value} scale={im.scale} "
+                f"@({im.position.x_nm / MM:.1f},{im.position.y_nm / MM:.1f})mm "
+                f"({len(im.bitmap)}B png)")
     for proto_cls, kind in [
         (schematic_types_pb2.GlobalLabel, 'GlobalLabel'),
         (schematic_types_pb2.LocalLabel, 'LocalLabel'),
@@ -863,6 +893,156 @@ def kicad_sch_delete_item(item_id: str) -> str:
     return f"未找到 id={item_id}（或已被删除）"
 
 
+def _pt_nm(x_mm: float, y_mm: float) -> tuple:
+    return round(x_mm * MM), round(y_mm * MM)
+
+
+def _build_graphic_shape(shape_type: str, points: list, filled: bool,
+                         stroke_width_nm: int) -> base_types_pb2.GraphicShape:
+    """把简单形状描述转成 board 侧复用的 GraphicShape 几何。"""
+    gs = base_types_pb2.GraphicShape()
+    gs.attributes.stroke.width.value_nm = stroke_width_nm
+    gs.attributes.stroke.style = enums_pb2.SLS_SOLID
+    gs.attributes.fill.fill_type = (base_types_pb2.GFT_FILLED if filled
+                                    else base_types_pb2.GFT_UNFILLED)
+    st = shape_type.lower()
+    if st in ("segment", "line"):
+        seg = gs.segment
+        seg.start.x_nm, seg.start.y_nm = _pt_nm(*points[0])
+        seg.end.x_nm, seg.end.y_nm = _pt_nm(*points[1])
+    elif st == "rectangle":
+        r = gs.rectangle
+        r.top_left.x_nm, r.top_left.y_nm = _pt_nm(*points[0])
+        r.bottom_right.x_nm, r.bottom_right.y_nm = _pt_nm(*points[1])
+    elif st == "circle":
+        c = gs.circle
+        c.center.x_nm, c.center.y_nm = _pt_nm(*points[0])
+        c.radius_point.x_nm, c.radius_point.y_nm = _pt_nm(*points[1])
+    elif st == "arc":
+        a = gs.arc
+        a.start.x_nm, a.start.y_nm = _pt_nm(*points[0])
+        a.mid.x_nm, a.mid.y_nm = _pt_nm(*points[1])
+        a.end.x_nm, a.end.y_nm = _pt_nm(*points[2])
+    elif st == "bezier":
+        b = gs.bezier
+        b.start.x_nm, b.start.y_nm = _pt_nm(*points[0])
+        b.control1.x_nm, b.control1.y_nm = _pt_nm(*points[1])
+        b.control2.x_nm, b.control2.y_nm = _pt_nm(*points[2])
+        b.end.x_nm, b.end.y_nm = _pt_nm(*points[3])
+    else:
+        raise ValueError(f"不支持的形状: {shape_type}，"
+                         f"可选 segment/rectangle/circle/arc/bezier")
+    return gs
+
+
+def kicad_sch_add_shape(
+    shape_type: str,
+    points_mm: str,
+    filled: bool = False,
+    stroke_width_mm: float = 0.15,
+    layer: str = "notes",
+) -> str:
+    """在原理图上创建图形形状（直线/矩形/圆/圆弧/贝塞尔曲线）。
+
+    Args:
+        shape_type: segment / rectangle / circle / arc / bezier。
+        points_mm: 点列表（绝对坐标 mm），分号分隔，如 "10,20;30,40"。
+            所需点数: segment/rectangle/circle=2, arc=3, bezier=4。
+        filled: 是否填充。
+        stroke_width_mm: 线宽（mm）。
+        layer: "notes" | "wire" | "bus"。
+
+    说明: 这些是图形注释元素，不参与电气连接。
+    """
+    try:
+        points = [tuple(float(v) for v in p.split(","))
+                  for p in points_mm.split(";") if p.strip()]
+    except ValueError as e:
+        raise ValueError(f"points_mm 格式应为 'x,y;x,y;...'，收到: {points_mm}") from e
+
+    required = {"segment": 2, "line": 2, "rectangle": 2, "circle": 2,
+                "arc": 3, "bezier": 4}
+    n = required.get(shape_type.lower())
+    if n is None:
+        raise ValueError(f"不支持的形状: {shape_type}，可选 {sorted(required)}")
+    if len(points) != n:
+        raise ValueError(f"{shape_type} 需要 {n} 个点，收到 {len(points)}")
+
+    layers = {"wire": schematic_types_pb2.SL_WIRE,
+              "bus": schematic_types_pb2.SL_BUS,
+              "notes": schematic_types_pb2.SL_NOTES}
+    if layer.lower() not in layers:
+        raise ValueError(f"不支持的层: {layer}，可选: {sorted(layers)}")
+
+    stroke_nm = round(stroke_width_mm * MM)
+    sh = schematic_types_pb2.Shape()
+    sh.shape_type = schematic_types_pb2.ShapeType.ST_SEGMENT
+    sh.filled = filled
+    sh.stroke_width = stroke_nm
+    sh.layer = layers[layer.lower()]
+    sh.position.x_nm, sh.position.y_nm = _pt_nm(*points[0])
+    sh.graphic.CopyFrom(_build_graphic_shape(shape_type, points, filled, stroke_nm))
+
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        resp = kc.create_items(header, [sh])
+
+    _check_create_resp(resp)
+    return (f"已在原理图创建图形形状 {shape_type}（{points_mm}mm, "
+            f"线宽 {stroke_width_mm}mm, {'填充' if filled else '不填充'}）")
+
+
+def kicad_sch_add_no_connect(x_mm: float, y_mm: float) -> str:
+    """在原理图上放置一个"不连接"（X）标记，用于标记未使用的引脚。
+
+    Args:
+        x_mm, y_mm: 位置（毫米）。通常放在未使用引脚的中心。
+
+    注意: X 标记应精确落在引脚端点上才有效。
+    """
+    nc = schematic_types_pb2.NoConnect()
+    nc.position.x_nm = round(x_mm * MM)
+    nc.position.y_nm = round(y_mm * MM)
+
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        resp = kc.create_items(header, [nc])
+
+    _check_create_resp(resp)
+    return f"已在 ({x_mm}mm, {y_mm}mm) 放置不连接标记"
+
+
+def kicad_sch_add_image(
+    file_path: str,
+    x_mm: float,
+    y_mm: float,
+    scale: float = 1.0,
+) -> str:
+    """在原理图上放置一张 PNG 图片（常用于框图/说明图）。
+
+    Args:
+        file_path: PNG 文件路径。
+        x_mm, y_mm: 图片中心位置（毫米）。
+        scale: 显示缩放倍数。
+    """
+    path = Path(file_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"图片不存在: {file_path}")
+
+    img = schematic_types_pb2.Image()
+    img.position.x_nm = round(x_mm * MM)
+    img.position.y_nm = round(y_mm * MM)
+    img.scale = scale
+    img.bitmap = path.read_bytes()
+
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        resp = kc.create_items(header, [img])
+
+    _check_create_resp(resp)
+    return f"已在 ({x_mm}mm, {y_mm}mm) 放置图片 {path.name} (scale={scale})"
+
+
 ALL_TOOLS = [
     kicad_sch_add_text,
     kicad_sch_add_line,
@@ -877,4 +1057,7 @@ ALL_TOOLS = [
     kicad_sch_detect_simulation,
     kicad_sch_simulate,
     kicad_sch_simulate_gui,
+    kicad_sch_add_shape,
+    kicad_sch_add_no_connect,
+    kicad_sch_add_image,
 ]

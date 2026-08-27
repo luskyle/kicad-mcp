@@ -33,6 +33,9 @@
 #include <schematic.h>
 #include <geometry/geometry_utils.h>
 #include <sch_no_connect.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
 #include <settings/color_settings.h>
 #include <default_values.h>    // For some default values
 #include <core/mirror.h>
@@ -237,4 +240,26 @@ double SCH_NO_CONNECT::Similarity( const SCH_ITEM& aOther ) const
         return 0.0;
 
     return 1.0;
+}
+
+
+void SCH_NO_CONNECT::Serialize( google::protobuf::Any& aContainer ) const
+{
+    kiapi::schematic::types::NoConnect nc;
+    nc.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *nc.mutable_position(), GetPosition() );
+    aContainer.PackFrom( nc );
+}
+
+
+bool SCH_NO_CONNECT::Deserialize( const google::protobuf::Any& aContainer )
+{
+    kiapi::schematic::types::NoConnect nc;
+
+    if( !aContainer.UnpackTo( &nc ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( nc.id().value() );
+    SetPosition( kiapi::common::UnpackVector2( nc.position() ) );
+    return true;
 }

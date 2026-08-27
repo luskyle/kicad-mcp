@@ -26,6 +26,9 @@
 #include <trigo.h>
 #include <common.h>
 #include <plotters/plotter.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
 #include <bitmaps.h>
 #include <core/mirror.h>
 #include <geometry/shape_rect.h>
@@ -383,3 +386,25 @@ static struct SCH_JUNCTION_DESC
 
     }
 } _SCH_JUNCTION_DESC;
+
+
+void SCH_JUNCTION::Serialize( google::protobuf::Any& aContainer ) const
+{
+    kiapi::schematic::types::Junction j;
+    j.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *j.mutable_position(), GetPosition() );
+    aContainer.PackFrom( j );
+}
+
+
+bool SCH_JUNCTION::Deserialize( const google::protobuf::Any& aContainer )
+{
+    kiapi::schematic::types::Junction j;
+
+    if( !aContainer.UnpackTo( &j ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( j.id().value() );
+    SetPosition( kiapi::common::UnpackVector2( j.position() ) );
+    return true;
+}

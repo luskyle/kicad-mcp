@@ -100,9 +100,9 @@ SPEC = {
     "description": "Raspberry Pi RP2040 Dual-core ARM Cortex-M0+ MCU, 133MHz, 264KB SRAM, QFN-56",
     "footprint": "Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm",
     "datasheet": "https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf",
-    # 布局参数：左右 GPIO 间距 3.5mm（GPIO 名字长，防文字重叠）；
-    # 顶部/底部电源/特殊引脚间距 5mm（IOVDD/VREG_VIN/ADC_AVDD 名字更长）
-    "layout": {"left_spacing": 3.5, "pin_spacing": 5.0},
+    # 布局参数：左右 GPIO 间距 3.81mm（=3*1.27，在 1.27 网格上，防 ERC off_grid；
+    #   GPIO 名 3.15mm 不重叠）；顶部/底部电源间距 5.08mm（=4*1.27，也在网格上）
+    "layout": {"left_spacing": 3.81, "pin_spacing": 5.08},
     "pins": [{"number": n, "name": nm, "type": t, "side": s} for n, nm, t, s in PINS],
 }
 
