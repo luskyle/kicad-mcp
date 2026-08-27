@@ -82,6 +82,12 @@ private:
     HANDLER_RESULT<commands::GetItemsResponse> handleGetItems(
             const HANDLER_CONTEXT<commands::GetItems>& aCtx );
 
+    // (kicad-mcp patch) Simulate support: open KiCad's built-in SPICE
+    // simulator frame for the current schematic and start the simulation, so
+    // waveform results are shown in the integrated GUI.
+    HANDLER_RESULT<commands::SimulateResponse> handleSimulate(
+            const HANDLER_CONTEXT<commands::Simulate>& aCtx );
+
     /**
      * Create a schematic symbol, resolving its LIB_SYMBOL from the project's
      * symbol library table.  The library symbol cannot be resolved by the item

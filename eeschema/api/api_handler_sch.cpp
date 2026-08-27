@@ -26,6 +26,10 @@
 #include <sch_edit_frame.h>
 #include <wx/filename.h>
 
+#include <frame_type.h>
+#include <kiway.h>
+#include <sim/simulator_frame.h>
+
 #include <api/common/types/base_types.pb.h>
 #include <api/api_enums.h>
 #include <api/schematic/schematic_types.pb.h>
@@ -54,6 +58,9 @@ API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
 
     // (kicad-mcp patch) GetItems support (mirrors pcbnew)
     registerHandler<GetItems, GetItemsResponse>( &API_HANDLER_SCH::handleGetItems );
+
+    // (kicad-mcp patch) Simulate support: run SPICE in KiCad's GUI simulator
+    registerHandler<Simulate, SimulateResponse>( &API_HANDLER_SCH::handleSimulate );
 }
 
 
@@ -189,6 +196,64 @@ HANDLER_RESULT<GetItemsResponse> API_HANDLER_SCH::handleGetItems(
     }
 
     response.set_status( ItemRequestStatus::IRS_OK );
+    return response;
+}
+
+
+// (kicad-mcp patch) Simulate handler: open KiCad's built-in SPICE simulator
+// frame and start the simulation so waveform results are shown in the
+// integrated GUI.  The schematic must contain a simulation directive such as
+// ".tran 1u 20m" (otherwise the simulator opens with no simulation tab and
+// StartSimulation is a no-op).
+HANDLER_RESULT<SimulateResponse> API_HANDLER_SCH::handleSimulate(
+        const HANDLER_CONTEXT<Simulate>& aCtx )
+{
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    SimulateResponse response;
+    response.set_success( false );
+
+    // 幂等：仿真窗口已存在时只置前，不重复 StartSimulation —— 否则上一次
+    // 仿真的 ngspice 后台线程还没结束，try_to_lock 失败会弹 "Another
+    // simulation is already running" 模态错误框阻塞 eeschema。
+    KIWAY_PLAYER* existing = m_frame->Kiway().Player( FRAME_SIMULATOR, false );
+
+    if( existing )
+    {
+        SIMULATOR_FRAME* simFrame = static_cast<SIMULATOR_FRAME*>( existing );
+        simFrame->Show( true );
+
+        if( simFrame->IsIconized() )
+            simFrame->Iconize( false );
+
+        simFrame->Raise();
+
+        response.set_success( true );
+        response.set_message( "已在 KiCad 仿真器中显示（窗口已存在）。"
+                              "如需重新仿真，请在仿真窗口中点击 Run。" );
+        return response;
+    }
+
+    SIMULATOR_FRAME* simFrame = static_cast<SIMULATOR_FRAME*>(
+            m_frame->Kiway().Player( FRAME_SIMULATOR, true ) );
+
+    if( !simFrame )
+    {
+        response.set_message( "无法打开仿真器（未安装或未链接 ngspice）" );
+        return response;
+    }
+
+    simFrame->Show( true );
+
+    if( simFrame->IsIconized() )
+        simFrame->Iconize( false );
+
+    simFrame->Raise();
+    simFrame->StartSimulation();
+
+    response.set_success( true );
+    response.set_message( "已在 KiCad 仿真器中运行仿真，请在波形窗口查看结果" );
     return response;
 }
 

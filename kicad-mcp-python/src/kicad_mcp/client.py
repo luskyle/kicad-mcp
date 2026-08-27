@@ -210,6 +210,21 @@ class KiCadClient:
         req.document.CopyFrom(doc)
         self._call(req)
 
+    def simulate(self, doc: base_types_pb2.DocumentSpecifier,
+                 signal: str = "") -> "editor_commands_pb2.SimulateResponse":
+        """在 KiCad 内置仿真 GUI 中运行当前原理图的 SPICE 仿真。
+
+        需要原理图包含仿真指令（如 ".tran ..."）。返回响应消息。
+        """
+        req = editor_commands_pb2.Simulate()
+        req.document.CopyFrom(doc)
+        if signal:
+            req.signal = signal
+        resp = self._call(req)
+        out = editor_commands_pb2.SimulateResponse()
+        resp.message.Unpack(out)
+        return out
+
     def create_items(
         self,
         header: base_types_pb2.ItemHeader,

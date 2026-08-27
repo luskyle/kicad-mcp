@@ -39,6 +39,11 @@ def build_server() -> MCPServer:
             "行为是否符合预期（如 RC 充电、分压、放大等）。观测向量默认自动提取"
             "所有非地节点，也可手动指定 vectors=；可用 extra= 注入 ngspice 指令"
             "（如 '.ic v(/OUT)=0' 让电容从 0V 充电）。\n"
+
+            "- 原理图 KiCad GUI 仿真 (kicad_sch_simulate_gui)：打开 eeschema 内置的\n"
+            "仿真器（ngspice 集成 + 波形绘图），自动运行当前电路并把波形显示在\n"
+            "KiCad 的窗口中（真正的 KiCad GUI 查看仿真结果）。前提：原理图含仿真\n"
+            "指令（.tran 等）与仿真元件。\n"
             "ERC 注意事项: 元件中心放在 1.27mm 网格（add_symbol 默认吸附）；"
             "竖直放置的元件若上下引脚连线共线，KiCad 会合并 wire 导致引脚被埋、"
             "ERC 报未连接——可旋转元件（如电池横放）让引脚在左右，连线不共线。\n"

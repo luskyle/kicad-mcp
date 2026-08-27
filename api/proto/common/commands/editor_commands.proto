@@ -52,6 +52,24 @@ message SaveDocument
   kiapi.common.types.DocumentSpecifier document = 1;
 }
 
+// (kicad-mcp patch) Run the SPICE simulation in KiCad's built-in simulator and
+// show the waveform results in the integrated GUI (eeschema Simulator frame).
+// Requires the schematic to contain a simulation directive (e.g. ".tran ...").
+message Simulate
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+
+  // Optional: a signal to add to the plot (e.g. "v(/OUT)").  When empty, the
+  // simulator shows the signals available after the run.
+  string signal = 2;
+}
+
+message SimulateResponse
+{
+  bool success = 1;
+  string message = 2;
+}
+
 // Saves the given document to a new location and opens the new copy
 // Note, this is not going to be implemented anytime soon as we don't currently
 // want to allow API access to changing which project is open

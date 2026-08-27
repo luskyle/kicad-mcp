@@ -36,6 +36,11 @@ async def main() -> None:
                 "extra": ".ic v(/OUT)=0",
                 "points": 40,
             })
+            # 只打印前几行（波形较长）
+            print("\n".join(out.split("\n")[:6]))
+
+            print("\n===== 在 KiCad GUI 中运行仿真并查看波形 =====")
+            out = await call(session, "kicad_sch_simulate_gui", {})
             print(out)
 
 

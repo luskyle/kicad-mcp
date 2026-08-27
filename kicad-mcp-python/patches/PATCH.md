@@ -36,6 +36,18 @@ KiCad 源码的 API 基础设施（`common/api/`）只实现了 **PCB** 元素�
 | `eeschema/api/api_handler_sch.h/.cpp` | ① `createSymbolFromAny`：从项目符号库表加载 `LIB_SYMBOL`，**并传入当前 sheet path 创建符号实例（否则 KiCad 不渲染符号图形！）**；② **修复构造器**：`API_HANDLER_EDITOR( aFrame )`；③ 无 container 时默认 `m_frame->GetScreen()->Schematic()`；④ **`SaveDocument` handler**；⑤ **`GetItems` handler**（读回 Text/Symbol/Line/Label，带 id）；⑥ **实现 `deleteItemsInternal`/`getItemFromDocument`**；⑦ **修复多元素创建崩溃**（`pushCurrentCommit` 移出循环）；⑧ **`GetOpenDocuments` 补全 project.path**（客户端可解析完整文件路径，用于 ERC 等） |
 | `pcbnew/exporters/step/step_pcb_model.cpp` | **编译兼容**：OCC 7.7+ 的 `XCAFDoc_Editor::Extract` 在 OCC 7.5 不存在，用 `#if OCC_VERSION_HEX >= 0x070700` 分支回退到 `TDocStd_XLinkTool::Copy` |
 
+## 仿真 GUI 集成补丁（2026-08-27）
+
+| 文件 | 改动 |
+|---|---|
+| `api/proto/common/commands/editor_commands.proto` | 新增 `Simulate{document, signal}` / `SimulateResponse{success, message}` 命令 |
+| `eeschema/api/api_handler_sch.h/.cpp` | 新增 `handleSimulate`：`Kiway().Player(FRAME_SIMULATOR, true)` 打开 KiCad 内置 SPICE 仿真窗口，Show/Raise 后 `StartSimulation()` 自动跑原理图的 `.tran` 等指令并显示波形。**幂等**：窗口已存在（`Player(...,false)` 非空）时只置前，不重复 `StartSimulation`（否则上次 ngspice 后台线程 mutex 未释放会弹 "Another simulation is already running" 模态框阻塞 API） |
+| `eeschema/sim/ngspice.cpp` | **libngspice0 精简版兼容**：`ngCM_Input_Path` / `ngGet_Vec_Info` 等可选符号用 `m_dll.HasSymbol()` 先判断再 `GetSymbol()`——否则 wx `GetSymbol` 找不到符号会 `wxLogError` 弹模态 "Couldn't find symbol ..." Error 框阻塞 API；`ngGet_Vec_Info` 调用处改三元初始化避免 null 崩溃 |
+
+**仿真 GUI 注意事项**：
+- 需 Python 端重新生成 pb（`kicad-mcp-python/gen_proto.sh`）并新增 MCP 工具 `kicad_sch_simulate_gui`。
+- **含 power 符号（GND/PWR_FLAG）的电路**在本地 libngspice0 上无法仿真：KiCad SPICE netlist 会输出 `GND1 __GND1` 占位行，libngspice 报 bad syntax。改用 **local 标签网络名 "0"** 接地（netlist 输出 `V1 /VIN 0 DC 5`，干净），ERC 也通过。
+
 ## 补丁后支持的元素（`CreateItems` / `GetItems` / `UpdateItems` / `DeleteItems`）
 
 - `kiapi.schematic.types.Text` → SCH_TEXT（文本注释；含 id，可更新/删除）

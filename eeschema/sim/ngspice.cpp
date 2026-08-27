@@ -146,7 +146,7 @@ std::vector<COMPLEX> NGSPICE::GetComplexVector( const std::string& aName, int aM
     if( aMaxLen == 0 )
         return data;
 
-    if( vector_info* vi = m_ngGet_Vec_Info( (char*) aName.c_str() ) )
+    if( vector_info* vi = ( m_ngGet_Vec_Info ? m_ngGet_Vec_Info( (char*) aName.c_str() ) : nullptr ) )
     {
         int length = aMaxLen < 0 ? vi->v_length : std::min( aMaxLen, vi->v_length );
         data.reserve( length );
@@ -176,7 +176,7 @@ std::vector<double> NGSPICE::GetRealVector( const std::string& aName, int aMaxLe
     if( aMaxLen == 0 )
         return data;
 
-    if( vector_info* vi = m_ngGet_Vec_Info( (char*) aName.c_str() ) )
+    if( vector_info* vi = ( m_ngGet_Vec_Info ? m_ngGet_Vec_Info( (char*) aName.c_str() ) : nullptr ) )
     {
         int length = aMaxLen < 0 ? vi->v_length : std::min( aMaxLen, vi->v_length );
         data.reserve( length );
@@ -206,7 +206,7 @@ std::vector<double> NGSPICE::GetImaginaryVector( const std::string& aName, int a
     if( aMaxLen == 0 )
         return data;
 
-    if( vector_info* vi = m_ngGet_Vec_Info( (char*) aName.c_str() ) )
+    if( vector_info* vi = ( m_ngGet_Vec_Info ? m_ngGet_Vec_Info( (char*) aName.c_str() ) : nullptr ) )
     {
         int length = aMaxLen < 0 ? vi->v_length : std::min( aMaxLen, vi->v_length );
         data.reserve( length );
@@ -231,7 +231,7 @@ std::vector<double> NGSPICE::GetGainVector( const std::string& aName, int aMaxLe
     if( aMaxLen == 0 )
         return data;
 
-    if( vector_info* vi = m_ngGet_Vec_Info( (char*) aName.c_str() ) )
+    if( vector_info* vi = ( m_ngGet_Vec_Info ? m_ngGet_Vec_Info( (char*) aName.c_str() ) : nullptr ) )
     {
         int length = aMaxLen < 0 ? vi->v_length : std::min( aMaxLen, vi->v_length );
         data.reserve( length );
@@ -261,7 +261,7 @@ std::vector<double> NGSPICE::GetPhaseVector( const std::string& aName, int aMaxL
     if( aMaxLen == 0 )
         return data;
 
-    if( vector_info* vi = m_ngGet_Vec_Info( (char*) aName.c_str() ) )
+    if( vector_info* vi = ( m_ngGet_Vec_Info ? m_ngGet_Vec_Info( (char*) aName.c_str() ) : nullptr ) )
     {
         int length = aMaxLen < 0 ? vi->v_length : std::min( aMaxLen, vi->v_length );
         data.reserve( length );
@@ -563,8 +563,17 @@ void NGSPICE::init_dll()
     m_ngSpice_Init = (ngSpice_Init) m_dll.GetSymbol( "ngSpice_Init" );
     m_ngSpice_Circ = (ngSpice_Circ) m_dll.GetSymbol( "ngSpice_Circ" );
     m_ngSpice_Command = (ngSpice_Command) m_dll.GetSymbol( "ngSpice_Command" );
-    m_ngGet_Vec_Info = (ngGet_Vec_Info) m_dll.GetSymbol( "ngGet_Vec_Info" );
-    m_ngCM_Input_Path = (ngCM_Input_Path) m_dll.GetSymbol( "ngCM_Input_Path" );
+
+    // (kicad-mcp patch) Some ngspice builds (e.g. Debian's libngspice0) do not
+    // export optional symbols like ngGet_Vec_Info / ngCM_Input_Path.  Guard the
+    // lookups with HasSymbol() so wxWidgets does not pop a modal "Couldn't find
+    // symbol ..." error dialog (which blocks the API server).  The simulator
+    // still works for basic transient analysis via the SendData callback.
+    if( m_dll.HasSymbol( "ngGet_Vec_Info" ) )
+        m_ngGet_Vec_Info = (ngGet_Vec_Info) m_dll.GetSymbol( "ngGet_Vec_Info" );
+    else
+        m_ngGet_Vec_Info = nullptr;
+
     m_ngSpice_CurPlot  = (ngSpice_CurPlot) m_dll.GetSymbol( "ngSpice_CurPlot" );
     m_ngSpice_AllPlots = (ngSpice_AllPlots) m_dll.GetSymbol( "ngSpice_AllPlots" );
     m_ngSpice_AllVecs = (ngSpice_AllVecs) m_dll.GetSymbol( "ngSpice_AllVecs" );
@@ -575,6 +584,12 @@ void NGSPICE::init_dll()
         m_ngSpice_LockRealloc = (ngSpice_LockRealloc) m_dll.GetSymbol( "ngSpice_LockRealloc" );
         m_ngSpice_UnlockRealloc = (ngSpice_UnlockRealloc) m_dll.GetSymbol( "ngSpice_UnlockRealloc" );
     }
+
+    // (kicad-mcp patch) Optional codemodel input-path symbol (absent in some builds)
+    if( m_dll.HasSymbol( "ngCM_Input_Path" ) )
+        m_ngCM_Input_Path = (ngCM_Input_Path) m_dll.GetSymbol( "ngCM_Input_Path" );
+    else
+        m_ngCM_Input_Path = nullptr;
 
     m_ngSpice_Init( &cbSendChar, &cbSendStat, &cbControlledExit, nullptr, nullptr,
                     &cbBGThreadRunning, this );

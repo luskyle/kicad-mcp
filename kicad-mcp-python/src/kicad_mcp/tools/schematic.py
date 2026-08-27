@@ -543,6 +543,41 @@ def kicad_sch_simulate(
     return "\n".join(lines)
 
 
+def kicad_sch_simulate_gui(
+    signal: str = "",
+    sch_file: Optional[str] = None,
+) -> str:
+    """在 KiCad 集成的仿真 GUI 中运行当前原理图的 SPICE 仿真并查看波形。
+
+    这是「在 KiCad GUI 里看仿真结果」的方式：打开 eeschema 自带的仿真器
+    （ngspice 集成，带波形绘图界面），自动从原理图读取仿真指令（如
+    `.tran 1u 20m`）并运行，波形直接显示在 KiCad 的窗口中。
+
+    前提:
+        - 原理图必须包含仿真指令文本（如 `.tran ...`）和仿真元件
+          （Simulation_SPICE 库的 VDC/VSIN 等 + 带 SPICE 模型的 R/C/L/…）。
+        - 建议先用 kicad_save_document 保存，再用 kicad_sch_erc 确认无误。
+
+    Args:
+        signal: 可选，要观测的信号（如 "v(/OUT)"）。留空时 KiCad 显示
+                仿真产生的全部信号，可在 GUI 中勾选。
+        sch_file: 原理图路径；不传则使用当前 eeschema 打开的文档。
+
+    Returns:
+        KiCad 仿真器的响应消息（成功则波形已显示在 GUI 中）。
+    """
+    url, header = _sch_context()
+    if sch_file:
+        # 校验文件存在（可选，帮助定位问题）
+        if not os.path.exists(sch_file):
+            raise RuntimeError(f"原理图文件不存在: {sch_file}")
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        resp = kc.simulate(header.document, signal)
+    if not resp.success:
+        raise RuntimeError(resp.message)
+    return resp.message
+
+
 def kicad_sch_add_label(
     label_type: str,
     text: str,
@@ -711,4 +746,5 @@ ALL_TOOLS = [
     kicad_sch_connect,
     kicad_sch_erc,
     kicad_sch_simulate,
+    kicad_sch_simulate_gui,
 ]
