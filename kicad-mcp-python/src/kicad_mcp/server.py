@@ -27,13 +27,17 @@ def build_server() -> MCPServer:
             "kicad_pcb_add_track / kicad_get_pcb_items)\n"
             "- 原理图绘制 (kicad_sch_add_text / kicad_sch_add_line / "
             "kicad_sch_add_symbol / kicad_sch_add_label)\n"
+            "- 原理图引脚感知绘制 (kicad_sch_add_symbol 会返回每个引脚的绝对坐标；"
+            "kicad_sch_get_symbol_pins 查询引脚；kicad_sch_connect 按引脚名连线，"
+            "自动对齐引脚坐标并支持旋转后的引脚位置)\n"
             "- 原理图查询/修改/删除 (kicad_sch_get_items / kicad_sch_update_text / "
             "kicad_sch_delete_item)\n"
             "重要: 原理图工具需要「已打补丁」的 KiCad（补丁见仓库源码："
             "SchematicLayer 枚举 + TypeNameFromAny schematic 映射 + "
             "SCH_TEXT/SCH_SYMBOL/Label 序列化 + GetItems/SaveDocument handler + "
-            "多元素创建修复）。未打补丁的 KiCad 10.0.5 使用这些工具"
-            "会导致 eeschema 崩溃，请勿在 10.0.5 上调用。"
+            "多元素创建修复 + 符号实例渲染修复）。未打补丁的 KiCad 10.0.5 使用这些"
+            "工具会导致 eeschema 崩溃，请勿在 10.0.5 上调用。"
+            "坐标系注意: 原理图坐标 1mm = 1e4 内部单位（不是 PCB 的 1e6）。"
         ),
     )
     for fn in ALL_TOOLS:

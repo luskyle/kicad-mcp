@@ -2,7 +2,7 @@
 	(version 20260306)
 	(generator "eeschema")
 	(generator_version "10.0")
-	(uuid "fe51f7a9-8c15-422c-9e72-244da0bfb221")
+	(uuid "89df9635-6746-4aa7-a923-2c4181dcf2e4")
 	(paper "A4")
 	(title_block
 		(title "Single Series Circuit")
@@ -541,93 +541,253 @@
 	)
 	(text "Single Series Circuit"
 		(exclude_from_sim no)
-		(at 70 135 0)
+		(at 70 140 0)
 		(effects
 			(font
 				(size 3.5 3.5)
 			)
 		)
-		(uuid "2054b721-4e6f-4c44-ba60-b0a3a40ea2b8")
+		(uuid "09ad90a6-ea6f-4cd0-92a5-fa0c0e37584d")
 	)
-	(text "BAT1 = 9V battery | SW1 = SPST switch | LAMP1 = load"
+	(text "BAT1=9V | SW1=SPST | LAMP1=12V (rotated 90)"
 		(exclude_from_sim no)
-		(at 70 150 0)
+		(at 70 155 0)
 		(effects
 			(font
 				(size 2.5 2.5)
 			)
 		)
-		(uuid "4009be91-2987-455e-a3c2-f29326f744d3")
+		(uuid "a9b08cdd-db12-48ed-a31a-4148602dabba")
 	)
 	(wire
 		(pts
-			(xy 212 80) (xy 212 105)
+			(xy 215.08 80) (xy 215.08 105)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "477381c9-fb1e-4189-b3f1-cdcf7decf4c0")
+		(uuid "1069ef42-924a-4210-aff1-55c0c238720d")
 	)
 	(wire
 		(pts
-			(xy 142 80) (xy 208 80)
+			(xy 215.08 105) (xy 70 105)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "89bb5254-f771-46c2-b3a6-a2aad7b52a6b")
+		(uuid "5b130c61-b0a4-4c9d-af15-47c8467399bf")
 	)
 	(wire
 		(pts
-			(xy 70 72) (xy 70 55)
+			(xy 70 77.46) (xy 70 55)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "8afa12ee-c230-41b1-a1fb-8ff486d5d19a")
+		(uuid "874514be-99d2-4199-abfc-149ea4d9d98c")
 	)
 	(wire
 		(pts
-			(xy 70 105) (xy 70 88)
+			(xy 145.08 80) (xy 204.92 80)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "c2641d4e-2970-4de8-9066-e08088552d0c")
+		(uuid "9f4aef98-59a8-4fa6-8075-787ec96ec665")
 	)
 	(wire
 		(pts
-			(xy 70 55) (xy 138 55)
+			(xy 70 105) (xy 70 85.08)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "c97a6a1e-acfb-416c-abc1-278f628b9039")
+		(uuid "b2dceef2-fbcb-4edb-9d77-9ee970ec7c73")
 	)
 	(wire
 		(pts
-			(xy 138 55) (xy 138 80)
+			(xy 134.92 55) (xy 134.92 80)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e778001d-a558-421c-a3f2-85c0bd0808e5")
+		(uuid "e3cea5fc-8308-41aa-bea5-694e0e469463")
 	)
 	(wire
 		(pts
-			(xy 212 105) (xy 70 105)
+			(xy 70 55) (xy 134.92 55)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "f3076032-9fa2-449a-8505-48105458dc46")
+		(uuid "f79b3cd7-ad60-4c64-991c-453ff5512a98")
+	)
+	(symbol
+		(lib_id "Switch:SW_SPST")
+		(at 140 80 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "9294542d-667c-4710-b26e-7961fc356d7d")
+		(property "Reference" "SW1"
+			(at 140 76.825 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SPST"
+			(at 140 82.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 140 80 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 140 80 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Single Pole Single Throw (SPST) switch"
+			(at 140 80 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "023019d4-040f-4ab7-8614-096ff794facd")
+		)
+		(pin "1"
+			(uuid "43a060a2-be4a-41a4-80c5-f13c2fdd051e")
+		)
+		(instances
+			(project "Simple_Series"
+				(path "/89df9635-6746-4aa7-a923-2c4181dcf2e4"
+					(reference "SW1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:Lamp")
+		(at 210 80 90)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "dd84e97e-7ac4-4fd4-bb51-1dc77c1d79a6")
+		(property "Reference" "LAMP1"
+			(at 206.19 79.365 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "12V"
+			(at 213.81 79.365 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 207.46 80 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 207.46 80 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Lamp"
+			(at 210 80 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "1ecadb20-3b65-4aec-871d-7a08e6fd3495")
+		)
+		(pin "1"
+			(uuid "14187b80-67fb-42fe-8c93-a444a760e417")
+		)
+		(instances
+			(project "Simple_Series"
+				(path "/89df9635-6746-4aa7-a923-2c4181dcf2e4"
+					(reference "LAMP1")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Device:Battery_Cell")
@@ -639,7 +799,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "022ab077-060f-446f-925d-3886a03f6439")
+		(uuid "f0dbf14c-6acd-45f4-ad6d-ac71bfefd0c5")
 		(property "Reference" "BAT1"
 			(at 72.54 77.46 0)
 			(show_name no)
@@ -729,175 +889,15 @@
 			)
 		)
 		(pin "2"
-			(uuid "db75dd01-7dec-44db-b0f8-5fb0313f9f4d")
+			(uuid "43054376-6e46-485f-9ef8-a12e0e4a40f5")
 		)
 		(pin "1"
-			(uuid "dbfe75a0-4dd6-4078-bdc1-5faed3bad76e")
+			(uuid "9074988b-cb0a-4fba-bdd9-c87e3c3a2e92")
 		)
 		(instances
 			(project "Simple_Series"
-				(path "/fe51f7a9-8c15-422c-9e72-244da0bfb221"
+				(path "/89df9635-6746-4aa7-a923-2c4181dcf2e4"
 					(reference "BAT1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Switch:SW_SPST")
-		(at 140 80 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "556e0d2b-6af8-4bf8-babc-9101b7f4524a")
-		(property "Reference" "SW1"
-			(at 140 76.825 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SPST"
-			(at 140 82.54 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 140 80 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 140 80 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Single Pole Single Throw (SPST) switch"
-			(at 140 80 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "5bc648c6-cf12-4474-88b4-1da49f1dcb73")
-		)
-		(pin "1"
-			(uuid "b48a2885-3680-4258-a01d-a69ef0c5933e")
-		)
-		(instances
-			(project "Simple_Series"
-				(path "/fe51f7a9-8c15-422c-9e72-244da0bfb221"
-					(reference "SW1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:Lamp")
-		(at 210 80 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "f97acc87-3e18-4aa5-a5af-a6f7c4065060")
-		(property "Reference" "LAMP1"
-			(at 210.635 76.19 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "12V"
-			(at 210.635 83.81 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 210 77.46 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 210 77.46 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Lamp"
-			(at 210 80 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9cd695db-197e-4319-b848-13649e473300")
-		)
-		(pin "2"
-			(uuid "f4ded6bf-ba71-4f84-8b54-6c2211589d90")
-		)
-		(instances
-			(project "Simple_Series"
-				(path "/fe51f7a9-8c15-422c-9e72-244da0bfb221"
-					(reference "LAMP1")
 					(unit 1)
 				)
 			)

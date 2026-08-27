@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from .. import symbols as symbols_mod
 from ..client import (
     DOCTYPE_SCHEMATIC,
     KiCadClient,
@@ -17,6 +18,7 @@ from ..client import (
 )
 from ..proto.common.types import base_types_pb2, enums_pb2
 from ..proto.schematic import schematic_types_pb2
+from ..symbols import absolute_pin, get_pins
 
 # 原理图内部单位: SCH_IU_PER_MM = 1e4 (1 IU = 100nm)。KiCad API 的 x_nm 字段
 # 实际存的就是内部 IU（PackVector2/UnpackVector2 不做单位换算），因此原理图
@@ -79,10 +81,10 @@ def kicad_sch_add_text(
     注意: 需要已打补丁的 KiCad（10.0.5 会崩溃）。
     """
     sch_text = schematic_types_pb2.Text()
-    sch_text.text.position.x_nm = int(x_mm * MM)
-    sch_text.text.position.y_nm = int(y_mm * MM)
-    sch_text.text.attributes.size.x_nm = int(height_mm * MM)
-    sch_text.text.attributes.size.y_nm = int(height_mm * MM)
+    sch_text.text.position.x_nm = round(x_mm * MM)
+    sch_text.text.position.y_nm = round(y_mm * MM)
+    sch_text.text.attributes.size.x_nm = round(height_mm * MM)
+    sch_text.text.attributes.size.y_nm = round(height_mm * MM)
     sch_text.text.text = text
 
     url, header = _sch_context()
@@ -116,10 +118,10 @@ def kicad_sch_add_line(
         raise ValueError(f"不支持的层: {layer}，可选: {sorted(layers)}")
 
     line = schematic_types_pb2.Line()
-    line.start.x_nm = int(x1_mm * MM)
-    line.start.y_nm = int(y1_mm * MM)
-    line.end.x_nm = int(x2_mm * MM)
-    line.end.y_nm = int(y2_mm * MM)
+    line.start.x_nm = round(x1_mm * MM)
+    line.start.y_nm = round(y1_mm * MM)
+    line.end.x_nm = round(x2_mm * MM)
+    line.end.y_nm = round(y2_mm * MM)
     line.layer = layers[layer.lower()]
 
     url, header = _sch_context()
@@ -154,8 +156,8 @@ def kicad_sch_add_symbol(
     注意: 需要已打补丁的 KiCad（10.0.5 会崩溃）。
     """
     symbol = schematic_types_pb2.Symbol()
-    symbol.position.x_nm = int(x_mm * MM)
-    symbol.position.y_nm = int(y_mm * MM)
+    symbol.position.x_nm = round(x_mm * MM)
+    symbol.position.y_nm = round(y_mm * MM)
     symbol.lib_id.library_nickname = lib_nickname
     symbol.lib_id.entry_name = entry_name
     symbol.orientation_degrees = int(orientation_degrees)
@@ -173,11 +175,146 @@ def kicad_sch_add_symbol(
         resp = kc.create_items(header, [symbol])
 
     _check_create_resp(resp)
-    return (
-        f"已在原理图 ({x_mm}mm, {y_mm}mm) 放置符号 {lib_nickname}:{entry_name}"
-        + (f" (ref={reference})" if reference else "")
-        + (f" (旋转 {orientation_degrees}°)" if orientation_degrees else "")
+
+    # 计算每个引脚的绝对坐标（含旋转），供后续连线使用
+    pins = get_pins(lib_nickname, entry_name)
+    orient = int(orientation_degrees) % 360
+    pin_parts = []
+    for p in pins:
+        ax, ay = absolute_pin(x_mm, y_mm, orient, p)
+        pin_parts.append(f"{p.number}({p.name})@({ax:.2f},{ay:.2f})")
+
+    msg = (
+        f"已放置 {lib_nickname}:{entry_name} ref={reference or '?'} @({x_mm:.1f},{y_mm:.1f})mm"
+        + (f" 旋转{orientation_degrees}°" if orientation_degrees else "")
     )
+    if pin_parts:
+        msg += "\n  引脚: " + " | ".join(pin_parts)
+    return msg
+
+
+def _read_symbols() -> dict:
+    """读回原理图中所有符号：{reference: {lib, entry, pos_mm, orientation}}。"""
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        got = kc.get_items(header, [KOT_MAP["symbol"]])
+    out = {}
+    for a in got.items:
+        if not a.Is(schematic_types_pb2.Symbol.DESCRIPTOR):
+            continue
+        s = schematic_types_pb2.Symbol()
+        a.Unpack(s)
+        fields = {f.name: f.value for f in s.fields}
+        ref = fields.get("Reference", "")
+        if not ref:
+            continue
+        out[ref] = {
+            "lib": s.lib_id.library_nickname,
+            "entry": s.lib_id.entry_name,
+            "x_mm": s.position.x_nm / MM,
+            "y_mm": s.position.y_nm / MM,
+            "orientation": s.orientation_degrees,
+        }
+    return out
+
+
+def kicad_sch_get_symbol_pins(reference: str) -> str:
+    """查询已放置符号的引脚绝对坐标（考虑旋转），供精确连线。
+
+    Args:
+        reference: 符号的 Reference（如 "R1"、"BAT1"）。
+    """
+    syms = _read_symbols()
+    if reference not in syms:
+        raise RuntimeError(f"未找到符号 ref={reference}（当前图中有: {sorted(syms)}）")
+    info = syms[reference]
+    pins = get_pins(info["lib"], info["entry"])
+    if not pins:
+        return f"符号 {reference} 无引脚信息"
+    lines = [f"{reference} ({info['lib']}:{info['entry']}) @({info['x_mm']:.1f},{info['y_mm']:.1f})mm 旋转{info['orientation']}°"]
+    for p in pins:
+        ax, ay = absolute_pin(info["x_mm"], info["y_mm"], info["orientation"], p)
+        lines.append(f"  引脚 {p.number}({p.name}) = ({ax:.2f}, {ay:.2f})mm")
+    return "\n".join(lines)
+
+
+def kicad_sch_connect(
+    ref_a: str,
+    pin_a: str,
+    ref_b: str,
+    pin_b: str,
+    via_x_mm: Optional[float] = None,
+    via_y_mm: Optional[float] = None,
+) -> str:
+    """连接两个符号的引脚（自动对齐引脚坐标，画直角折线）。
+
+    这是引脚感知的连线：先读回两个符号的实际位置与旋转，再结合符号库的
+    引脚定义算出两个引脚的绝对坐标，最后画 wire 把两点连起来（Z 形折线，
+    可选 via 点控制走线路径）。
+
+    Args:
+        ref_a / pin_a: 起点符号的 Reference 与引脚号（如 "BAT1","1"）。
+        ref_b / pin_b: 终点符号的 Reference 与引脚号。
+        via_x_mm / via_y_mm: 可选，指定走线经过的中间点，控制布线路径。
+    """
+    syms = _read_symbols()
+    for ref in (ref_a, ref_b):
+        if ref not in syms:
+            raise RuntimeError(f"未找到符号 ref={ref}（当前图中有: {sorted(syms)}）")
+
+    def pin_abs(ref, pin_no):
+        info = syms[ref]
+        pins = get_pins(info["lib"], info["entry"])
+        for p in pins:
+            if p.number == str(pin_no):
+                return absolute_pin(info["x_mm"], info["y_mm"], info["orientation"], p)
+        raise RuntimeError(f"符号 {ref} 没有引脚 {pin_no}（可用引脚: {[p.number for p in pins]}）")
+
+    p1 = pin_abs(ref_a, pin_a)
+    p2 = pin_abs(ref_b, pin_b)
+
+    # 布线路径（直角折线）
+    segments = _route_wire(p1, p2, via_x_mm, via_y_mm)
+
+    url, header = _sch_context()
+    lines = []
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        for (x1, y1), (x2, y2) in segments:
+            line = schematic_types_pb2.Line()
+            line.start.x_nm = round(x1 * MM)
+            line.start.y_nm = round(y1 * MM)
+            line.end.x_nm = round(x2 * MM)
+            line.end.y_nm = round(y2 * MM)
+            line.layer = schematic_types_pb2.SL_WIRE
+            resp = kc.create_items(header, [line])
+            _check_create_resp(resp)
+        lines.append(
+            f"已连接 {ref_a}.{pin_a} ({p1[0]:.2f},{p1[1]:.2f}) -> "
+            f"{ref_b}.{pin_b} ({p2[0]:.2f},{p2[1]:.2f})，共 {len(segments)} 段"
+        )
+    return "\n".join(lines)
+
+
+def _route_wire(p1, p2, via_x=None, via_y=None):
+    """把两个点路由成直角折线（段列表，去除退化段）。
+
+    默认 Z 形（先横后竖）；提供 via_x/via_y 时走四段绕行路径，可精确控制
+    走线经过的轨道（例如先垂直上到 via_y 再横到 via_x 再垂直到目标）。
+    """
+    (x1, y1), (x2, y2) = p1, p2
+    if via_x is not None or via_y is not None:
+        mx = x1 if via_x is None else via_x
+        my = y2 if via_y is None else via_y
+        segs = [((x1, y1), (mx, y1)), ((mx, y1), (mx, my)),
+                ((mx, my), (x2, my)), ((x2, my), (x2, y2))]
+        # 去掉退化段（同一点）
+        return [s for s in segs if abs(s[0][0] - s[1][0]) > 0.001 or abs(s[0][1] - s[1][1]) > 0.001]
+    if abs(y1 - y2) < 0.001:
+        return [((x1, y1), (x2, y2))]                       # 同一水平：直线
+    if abs(x1 - x2) < 0.001:
+        return [((x1, y1), (x2, y2))]                       # 同一垂直：直线
+    # Z 形：先横到目标 x，再竖到目标 y
+    return [((x1, y1), (x2, y1)), ((x2, y1), (x2, y2))]
 
 
 def kicad_sch_add_label(
@@ -201,13 +338,13 @@ def kicad_sch_add_label(
         raise ValueError(f"不支持的标签类型: {label_type}，可选: {sorted(LABEL_TYPE_MAP)}")
 
     label = LABEL_TYPE_MAP[label_type.lower()]()
-    label.position.x_nm = int(x_mm * MM)
-    label.position.y_nm = int(y_mm * MM)
+    label.position.x_nm = round(x_mm * MM)
+    label.position.y_nm = round(y_mm * MM)
     label.text.text.text = text
-    label.text.text.position.x_nm = int(x_mm * MM)
-    label.text.text.position.y_nm = int(y_mm * MM)
-    label.text.text.attributes.size.x_nm = int(height_mm * MM)
-    label.text.text.attributes.size.y_nm = int(height_mm * MM)
+    label.text.text.position.x_nm = round(x_mm * MM)
+    label.text.text.position.y_nm = round(y_mm * MM)
+    label.text.text.attributes.size.x_nm = round(height_mm * MM)
+    label.text.text.attributes.size.y_nm = round(height_mm * MM)
 
     url, header = _sch_context()
     with KiCadClient(url, client_name="kicad-mcp") as kc:
@@ -307,9 +444,9 @@ def kicad_sch_update_text(
             if text is not None:
                 t.text.text = text
             if x_mm is not None:
-                t.text.position.x_nm = int(x_mm * MM)
+                t.text.position.x_nm = round(x_mm * MM)
             if y_mm is not None:
-                t.text.position.y_nm = int(y_mm * MM)
+                t.text.position.y_nm = round(y_mm * MM)
             resp = kc.update_items(header, [t])
             for r in resp.updated_items:
                 if r.status.code != 1:
@@ -344,4 +481,6 @@ ALL_TOOLS = [
     kicad_sch_get_items,
     kicad_sch_update_text,
     kicad_sch_delete_item,
+    kicad_sch_get_symbol_pins,
+    kicad_sch_connect,
 ]
