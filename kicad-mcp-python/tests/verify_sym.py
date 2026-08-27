@@ -8,7 +8,7 @@ from kicad_mcp.client import (
 from kicad_mcp.proto.common.types import base_types_pb2
 from kicad_mcp.proto.schematic import schematic_types_pb2
 
-MM = 1_000_000
+MM = 10_000  # 原理图内部单位 1mm = 1e4 IU (1 IU = 100nm)
 
 url, docs = find_document_socket(DOCTYPE_SCHEMATIC)
 print("socket:", url)

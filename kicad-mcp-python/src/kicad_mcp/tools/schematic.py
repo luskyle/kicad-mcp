@@ -18,7 +18,10 @@ from ..client import (
 from ..proto.common.types import base_types_pb2, enums_pb2
 from ..proto.schematic import schematic_types_pb2
 
-MM = 1_000_000
+# 原理图内部单位: SCH_IU_PER_MM = 1e4 (1 IU = 100nm)。KiCad API 的 x_nm 字段
+# 实际存的就是内部 IU（PackVector2/UnpackVector2 不做单位换算），因此原理图
+# 坐标换算 1mm = 1e4，而不是 PCB 的 1e6（PCB_IU_PER_MM = 1e6）。
+MM = 10_000
 
 # 元素类型名 -> KiCadObjectType 枚举（GetItems 查询用）
 KOT_MAP = {

@@ -9,7 +9,7 @@ from kicad_mcp.proto.common.types import base_types_pb2
 from kicad_mcp.proto.common.types import enums_pb2
 from kicad_mcp.proto.schematic import schematic_types_pb2
 
-MM = 1_000_000
+MM = 10_000  # 原理图内部单位 1mm = 1e4 IU (1 IU = 100nm)
 KOT_SCH_TEXT = enums_pb2.KOT_SCH_TEXT
 KOT_SCH_SYMBOL = enums_pb2.KOT_SCH_SYMBOL
 KOT_SCH_LINE = enums_pb2.KOT_SCH_LINE
