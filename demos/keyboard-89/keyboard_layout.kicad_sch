@@ -1,0 +1,592 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "9f7a3c2e-1b4d-4e6f-8a90-2c5d7e9b1f3a")
+	(paper "A3")
+	(title_block
+		(title "键盘布局原理图")
+		(comment 1 "RP2040 主控 + 按键矩阵")
+	)
+	(lib_symbols)
+	(rectangle
+		(start 195 75)
+		(end 350 190)
+		(stroke
+			(width 0.4)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "1e9521eb-e438-4031-8922-1c44bb937728")
+	)
+	(rectangle
+		(start 48 212)
+		(end 130 275)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "40bf5f8c-bced-4351-a6bd-5bd8870c0013")
+	)
+	(rectangle
+		(start 50 85)
+		(end 115 165)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "50cc33d4-6949-4b82-899f-7d4e530e4825")
+	)
+	(rectangle
+		(start 40 75)
+		(end 175 180)
+		(stroke
+			(width 0.4)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "52ccad0b-0439-4e51-a65e-79d2ce5ec7ea")
+	)
+	(rectangle
+		(start 370 75)
+		(end 455 175)
+		(stroke
+			(width 0.4)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "6139d192-ae59-4faf-bce7-bdb8dbe8f034")
+	)
+	(rectangle
+		(start 320 200)
+		(end 455 285)
+		(stroke
+			(width 0.4)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "6fb2182d-533e-4b0f-8baa-8d58b52cde15")
+	)
+	(rectangle
+		(start 40 200)
+		(end 300 285)
+		(stroke
+			(width 0.4)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "80d62c16-6b8a-4f1f-9ab6-49d8c4cc46c7")
+	)
+	(rectangle
+		(start 130 85)
+		(end 168 165)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "9f113e15-cce2-43b7-bad7-082301c0b11f")
+	)
+	(rectangle
+		(start 145 212)
+		(end 290 275)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "b522c84a-336e-4a4d-8428-0861a8e14351")
+	)
+	(rectangle
+		(start 303 88)
+		(end 345 118)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "b74d6d4f-07e1-4549-90bc-fd471fec0b55")
+	)
+	(rectangle
+		(start 378 88)
+		(end 447 165)
+		(stroke
+			(width 0.35)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "cf5ee0b4-1a9c-48c6-ba42-21cdf423af96")
+	)
+	(rectangle
+		(start 205 88)
+		(end 330 175)
+		(stroke
+			(width 0.35)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "e6e611f8-4037-4baf-bc74-49c61ea57ac5")
+	)
+	(text "GD25Q16E 16Mbit"
+		(exclude_from_sim no)
+		(at 412 122 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "0029cc51-7450-4ca6-bebb-607e48445c3d")
+	)
+	(text "C_out 100nF"
+		(exclude_from_sim no)
+		(at 149 148 0)
+		(effects
+			(font
+				(size 1.6 1.6)
+			)
+		)
+		(uuid "09cd9d69-968c-4780-a60f-a48703c64fef")
+	)
+	(text "CS / SCLK / SD0 / SD1"
+		(exclude_from_sim no)
+		(at 412 134 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "113f35ed-39f3-4603-810b-f7017e74df6b")
+	)
+	(text "OUT→3V3"
+		(exclude_from_sim no)
+		(at 149 135 0)
+		(effects
+			(font
+				(size 1.6 1.6)
+			)
+		)
+		(uuid "18d3d0cc-1b8d-4fcc-8672-7c14752e9e1a")
+	)
+	(text "电源: 3V3 / GND · 去耦电容"
+		(exclude_from_sim no)
+		(at 267 132 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "27f1fbcc-6d0b-4084-b20c-db04117d04e3")
+	)
+	(text "LDO 3V3"
+		(exclude_from_sim no)
+		(at 149 112 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+		)
+		(uuid "2c7e0abd-82a7-4d97-a89d-d3e3a37751b0")
+	)
+	(text "时钟: 12MHz 晶振 (Y1)"
+		(exclude_from_sim no)
+		(at 267 144 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "44072bf1-4e35-459a-997d-4a669c65c5f8")
+	)
+	(text "C: Flash 存储 (keyboard_flash.sch)"
+		(exclude_from_sim no)
+		(at 380 73 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+			)
+		)
+		(uuid "47559a94-6ff2-4760-91fc-1df1ecf83edc")
+	)
+	(text "TC-6601 轻触开关 ×89"
+		(exclude_from_sim no)
+		(at 217 242 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "4f6657ba-0e32-4d6e-b898-4e0ab9a9442f")
+	)
+	(text "B: 主控 MCU (keyboard_main.sch)"
+		(exclude_from_sim no)
+		(at 215 73 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+			)
+		)
+		(uuid "54c01647-442f-4d54-8166-de29999c24fe")
+	)
+	(text "行 R1-R5"
+		(exclude_from_sim no)
+		(at 89 243 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "63d639be-e5aa-49cb-8072-d1be2b640499")
+	)
+	(text "USB_DP / USB_DM → MCU"
+		(exclude_from_sim no)
+		(at 82 142 0)
+		(effects
+			(font
+				(size 1.6 1.6)
+			)
+		)
+		(uuid "646b0ace-6fee-41ff-a3e8-e84d41fdaccf")
+	)
+	(text "4. 矩阵行接 GPIO, 列接 ADC 复用 (需外扩或选通)"
+		(exclude_from_sim no)
+		(at 333 260 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "647a270a-3365-4f33-b8e8-a18ba35ae3ab")
+	)
+	(text "USB-C 接口"
+		(exclude_from_sim no)
+		(at 82 122 0)
+		(effects
+			(font
+				(size 2.2 2.2)
+			)
+		)
+		(uuid "654a25d4-fd5c-40e5-bb12-8e2238e3cd60")
+	)
+	(text "2. USB-C 直连 RP2040 USB DP/DM (无 USB HUB)"
+		(exclude_from_sim no)
+		(at 333 232 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "6a5321cc-3ce1-4562-bcca-131f4e417824")
+	)
+	(text "→ RP2040 QSPI"
+		(exclude_from_sim no)
+		(at 412 146 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "7c1b43fb-4002-45b7-b338-a47a2f7ed922")
+	)
+	(text "键盘矩阵 5×22"
+		(exclude_from_sim no)
+		(at 217 228 0)
+		(effects
+			(font
+				(size 2.2 2.2)
+			)
+		)
+		(uuid "84418533-ec0e-4333-ad96-c27d665d3b24")
+	)
+	(text "(阳极接行, 阴极接列)"
+		(exclude_from_sim no)
+		(at 217 264 0)
+		(effects
+			(font
+				(size 1.6 1.6)
+			)
+		)
+		(uuid "8b82445b-b8aa-4577-bbaa-b382d166a81b")
+	)
+	(text "VBUS / D+ / D- / GND"
+		(exclude_from_sim no)
+		(at 82 132 0)
+		(effects
+			(font
+				(size 1.6 1.6)
+			)
+		)
+		(uuid "8f573992-794b-43a7-a51d-a2b04e0f69e9")
+	)
+	(text "列 C1-C22"
+		(exclude_from_sim no)
+		(at 89 253 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "917bf6cd-836b-4226-afe0-551a23888682")
+	)
+	(text "VBUS→IN"
+		(exclude_from_sim no)
+		(at 149 125 0)
+		(effects
+			(font
+				(size 1.6 1.6)
+			)
+		)
+		(uuid "98b63c5c-2743-4b57-9402-7eebd8b2c4af")
+	)
+	(text "4 页架构总览 · 详细电路见各功能页"
+		(exclude_from_sim no)
+		(at 240 55 0)
+		(effects
+			(font
+				(size 2.5 2.5)
+			)
+		)
+		(uuid "9c314b81-6650-467f-8455-7b7cfc1459d8")
+	)
+	(text "KEYBOARD 89 — 系统原理图总览"
+		(exclude_from_sim no)
+		(at 240 40 0)
+		(effects
+			(font
+				(size 5 5)
+			)
+		)
+		(uuid "9e4772ab-42da-4453-af08-9d56c0fc8dec")
+	)
+	(text "Flash 存储 (U3)"
+		(exclude_from_sim no)
+		(at 412 110 0)
+		(effects
+			(font
+				(size 2.4 2.4)
+			)
+		)
+		(uuid "b288706f-c8d9-4cf7-af2c-730656ff0be3")
+	)
+	(text "12MHz"
+		(exclude_from_sim no)
+		(at 324 103 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+			)
+		)
+		(uuid "b6d04f0e-f3b6-4dc7-85cf-6745f20d3e2b")
+	)
+	(text "矩阵接口 (J2)"
+		(exclude_from_sim no)
+		(at 89 230 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+		)
+		(uuid "b886e3d4-2a39-427b-95e3-cd1c845a4aa8")
+	)
+	(text "3. 电源由 VBUS 经 LDO 输出 3V3"
+		(exclude_from_sim no)
+		(at 333 246 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "bdc7dc48-1922-4f9b-8280-6b22c08d16b5")
+	)
+	(text "A: USB 接口与电源 (keyboard_power.sch)"
+		(exclude_from_sim no)
+		(at 60 73 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+			)
+		)
+		(uuid "cf26b3b0-ade1-4ce4-a52c-4a87445dd6c3")
+	)
+	(text "E: 设计说明"
+		(exclude_from_sim no)
+		(at 335 198 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+			)
+		)
+		(uuid "d78dd213-e871-4f3c-976d-86fd245f3282")
+	)
+	(text "每键串联 1N4148W"
+		(exclude_from_sim no)
+		(at 217 254 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "d8a84b90-1509-4d79-9eea-7f6e280837e9")
+	)
+	(text "RP2040 主控 (U1)"
+		(exclude_from_sim no)
+		(at 267 108 0)
+		(effects
+			(font
+				(size 2.6 2.6)
+			)
+		)
+		(uuid "dc46c869-89f3-4940-90a5-29e7b53f514d")
+	)
+	(text "复位: BOOT / RUN"
+		(exclude_from_sim no)
+		(at 267 156 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "df608d4a-8882-498a-965e-df36f2eed4e0")
+	)
+	(text "D: 键盘矩阵 (keyboard_matrix.sch)"
+		(exclude_from_sim no)
+		(at 55 198 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+			)
+		)
+		(uuid "e4708670-a98d-44d1-b43c-20fcc4a5c08d")
+	)
+	(text "QFN-56 · GPIO0-29 · ADC · USB · PIO"
+		(exclude_from_sim no)
+		(at 267 120 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "e57e87e1-3576-4ade-a3b4-115e732fe876")
+	)
+	(text "1. RP2040 QSPI 接 GD25Q16E (低电平使能 CS)"
+		(exclude_from_sim no)
+		(at 333 218 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "e80b51c1-03d5-412f-834d-e194e257167f")
+	)
+	(text "5. 未用 GPIO 放置 X 不连接标记"
+		(exclude_from_sim no)
+		(at 333 274 0)
+		(effects
+			(font
+				(size 1.7 1.7)
+			)
+		)
+		(uuid "f718330d-cf61-43d0-a3fa-f7273ce70440")
+	)
+	(polyline
+		(pts
+			(xy 330 120) (xy 378 120)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0d9c92ea-b070-4aa6-a544-a8aefaaa54dd")
+	)
+	(polyline
+		(pts
+			(xy 115 145) (xy 205 145)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "20af0404-9e10-4c74-8b2a-cab9e298ef64")
+	)
+	(polyline
+		(pts
+			(xy 324 160) (xy 330 160)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "20b63f6b-ec05-42dd-b22d-0d2e1d6f7c88")
+	)
+	(polyline
+		(pts
+			(xy 168 100) (xy 205 100)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "50513d66-e6ef-4b85-99ac-39db1e056747")
+	)
+	(polyline
+		(pts
+			(xy 267 255) (xy 290 255)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8a569610-7a26-424c-a221-05df67ca4f88")
+	)
+	(polyline
+		(pts
+			(xy 267 175) (xy 267 255)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e78b504d-20a7-48d0-96dc-56ef601e7b0a")
+	)
+	(polyline
+		(pts
+			(xy 324 118) (xy 324 160)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ec55d2f4-9edf-48c7-9699-1d0affa9738f")
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)
