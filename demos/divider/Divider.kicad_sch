@@ -8,6 +8,161 @@
 		(title "Voltage Divider")
 	)
 	(lib_symbols
+		(symbol "Device:C"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "C"
+				(at 0.635 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "C"
+				(at 0.635 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0.9652 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Unpolarized capacitor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "cap capacitor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "C_0_1"
+				(polyline
+					(pts
+						(xy -2.032 0.762) (xy 2.032 0.762)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.032 -0.762) (xy 2.032 -0.762)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "C_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 2.794)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.794)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Device:R"
 			(pin_numbers
 				(hide yes)
@@ -372,7 +527,17 @@
 			(embedded_fonts no)
 		)
 	)
-	(text "Voltage Divider: V1=5V, R1=1k, R2=2k (no directive)"
+	(text ".tran 1u 20m UIC"
+		(exclude_from_sim no)
+		(at 63.5 114.3 0)
+		(effects
+			(font
+				(size 2.5 2.5)
+			)
+		)
+		(uuid "27c79a31-b9e6-446b-935a-543005c6377f")
+	)
+	(text "RC Charging Circuit: V1=5V DC, R1=1k, C1=100u"
 		(exclude_from_sim no)
 		(at 63.5 107.95 0)
 		(effects
@@ -380,37 +545,17 @@
 				(size 3.5 3.5)
 			)
 		)
-		(uuid "8b8071c6-524e-4fb3-b45f-97f3f584dd21")
+		(uuid "7ca2dccf-5850-438d-87bf-21088cebddd1")
 	)
-	(text ".op"
+	(text "SPICE: watch V(out) charge to 5V with tau=100ms"
 		(exclude_from_sim no)
-		(at 230 50 0)
+		(at 63.5 119.38 0)
 		(effects
 			(font
-				(size 2.54 2.54)
+				(size 2 2)
 			)
 		)
-		(uuid "d68cd8b1-19f7-49b5-9d73-e9f976b3268a")
-	)
-	(wire
-		(pts
-			(xy 194.31 76.2) (xy 194.31 88.9)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2bcd622d-8af4-4975-8e51-8e957d5ff6c6")
-	)
-	(wire
-		(pts
-			(xy 68.58 76.2) (xy 68.58 88.9)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "45f1e0c9-2d21-478a-a93e-c678e84f90d8")
+		(uuid "fe5ea1ce-a2ad-491a-9f6d-d3f65d18cc8f")
 	)
 	(wire
 		(pts
@@ -420,7 +565,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ad235013-36b5-4237-9f0b-a581d1e27828")
+		(uuid "46dcf014-2111-4909-9848-cb3c61be0ead")
 	)
 	(wire
 		(pts
@@ -430,16 +575,27 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "adbb3099-e988-4972-a6f6-5dd74db5a578")
+		(uuid "bd41b176-05be-4269-839a-26970939d655")
 	)
-	(label "VIN"
-		(at 95.25 76.2 0)
-		(effects
-			(font
-				(size 2.54 2.54)
-			)
+	(wire
+		(pts
+			(xy 194.31 76.2) (xy 194.31 88.9)
 		)
-		(uuid "1eb6f4cb-7dd8-4531-8b23-e3c95b81d407")
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e2faa0a7-4ee3-464d-8119-b6c2994f4800")
+	)
+	(wire
+		(pts
+			(xy 68.58 76.2) (xy 68.58 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f0e0f939-cf87-4c55-9e45-2a4f1a236f07")
 	)
 	(label "0"
 		(at 68.58 88.9 0)
@@ -448,7 +604,7 @@
 				(size 2.54 2.54)
 			)
 		)
-		(uuid "718a0110-5e59-480f-b0ca-9a7884842f58")
+		(uuid "064263e8-ae0a-4719-817d-f2812a20a321")
 	)
 	(label "OUT"
 		(at 158.75 76.2 0)
@@ -457,7 +613,7 @@
 				(size 2.54 2.54)
 			)
 		)
-		(uuid "c1706111-ec3b-41be-8ca7-d952dc2c3971")
+		(uuid "2f59e2d8-f3b3-45d8-ac6c-092c1cf0285a")
 	)
 	(label "0"
 		(at 194.31 88.9 0)
@@ -466,7 +622,16 @@
 				(size 2.54 2.54)
 			)
 		)
-		(uuid "f4f3d191-f09a-46c1-bf0f-c6edf7228a68")
+		(uuid "7acaff06-0825-4200-9a53-2fa16a0f09e8")
+	)
+	(label "VIN"
+		(at 95.25 76.2 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+			)
+		)
+		(uuid "d45334c2-5fd5-40cf-a206-236f3faa03ab")
 	)
 	(symbol
 		(lib_id "Simulation_SPICE:VDC")
@@ -478,7 +643,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "3d2d7b9a-21f2-432f-9bf7-5cc5ebbae551")
+		(uuid "0d9f07cd-c191-4ed5-bed6-1317fb9ee64b")
 		(property "Reference" "V1"
 			(at 60.96 73.66 0)
 			(show_name no)
@@ -568,16 +733,97 @@
 				(justify left)
 			)
 		)
-		(pin "1"
-			(uuid "b5eeb7f1-cff6-42b7-b559-679ab6245549")
-		)
 		(pin "2"
-			(uuid "556181ca-c6cf-4004-84ce-723e367ac231")
+			(uuid "c6c30779-1bf2-4a17-a1fe-74d2a8559d31")
+		)
+		(pin "1"
+			(uuid "44fdd1a3-d6e3-41bf-b8d5-a51dd8484464")
 		)
 		(instances
 			(project "Divider"
 				(path "/91a1d6ab-baa3-4e2f-aded-405b766975b0"
 					(reference "V1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 190.5 76.2 90)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "1c4cbb8f-25e8-4c82-9916-f3602efa82dd")
+		(property "Reference" "C1"
+			(at 187.96 75.565 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100u"
+			(at 193.04 75.565 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 194.31 75.2348 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 190.5 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 190.5 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "e0f7e7f7-98a7-4ecc-9a74-a2985c7a8335")
+		)
+		(pin "1"
+			(uuid "e5f53975-f257-45e8-aaff-e847f31437b4")
+		)
+		(instances
+			(project "Divider"
+				(path "/91a1d6ab-baa3-4e2f-aded-405b766975b0"
+					(reference "C1")
 					(unit 1)
 				)
 			)
@@ -593,7 +839,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "42d17f8c-be1e-4b19-8c93-015ab209d1a9")
+		(uuid "fe9200b9-40f6-4be9-9ff5-7e85c705e212")
 		(property "Reference" "R1"
 			(at 127 74.168 90)
 			(show_name no)
@@ -647,95 +893,16 @@
 				)
 			)
 		)
-		(pin "2"
-			(uuid "8269fe3a-dab7-4a40-abd6-8be4abdd760f")
-		)
 		(pin "1"
-			(uuid "1f48a80e-0a69-4867-bc8c-e8a63f500f6b")
+			(uuid "a6b61476-a787-481f-9f76-9e694641feb7")
+		)
+		(pin "2"
+			(uuid "efabba1c-abad-4972-980b-fadc06faa0b4")
 		)
 		(instances
 			(project "Divider"
 				(path "/91a1d6ab-baa3-4e2f-aded-405b766975b0"
 					(reference "R1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R")
-		(at 190.5 76.2 90)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "ae52b1ec-cb10-4394-a622-d4915e5f1211")
-		(property "Reference" "R2"
-			(at 190.5 74.168 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "2k"
-			(at 190.5 76.2 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 190.5 77.978 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 190.5 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 190.5 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "6cabcbb8-4ad9-4f5f-b36b-cc12917427df")
-		)
-		(pin "2"
-			(uuid "f68c9d31-2a4d-4ed1-af45-15c9bc990341")
-		)
-		(instances
-			(project "Divider"
-				(path "/91a1d6ab-baa3-4e2f-aded-405b766975b0"
-					(reference "R2")
 					(unit 1)
 				)
 			)

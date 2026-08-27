@@ -158,3 +158,57 @@ print(kicad_sch_add_symbol('Device', 'R', 130, 90, reference='R1', value='10k'))
 - `SCH_SYMBOL` 创建的 sheet 实例（`SCH_SYMBOL_INSTANCE`）未显式设置——实际
   提交验证正常，必要时补充。
 - Symbol 的**镜像**未暴露（`orientation_degrees` 只含角度，镜像标志被掩掉）。
+
+## 自定义符号（从规格书生成，2026-08-27 实测）✅
+
+### C++ 补丁：createSymbolFromAny 应用 orientation
+**问题**: `createSymbolFromAny` 之前忽略 `Symbol.orientation_degrees`，放置的符号
+永远是 `SYM_ORIENT_0`（引脚保持未旋转库位置）→ 旋转后连线/ERC 全错。
+**修复**: 在 `eeschema/api/api_handler_sch.cpp` 的 `createSymbolFromAny` 中，
+`schSymbol->SetRef(...)` 之后加：
+```cpp
+int orientDeg = symbol.orientation_degrees() % 360;
+SYMBOL_ORIENTATION_T orient = SYM_ORIENT_0;
+switch( orientDeg ) {
+    case 90:  orient = SYM_ORIENT_90;  break;   // =4
+    case 180: orient = SYM_ORIENT_180; break;   // =5
+    case 270: orient = SYM_ORIENT_270; break;   // =6
+    default:  orient = SYM_ORIENT_0;   break;
+}
+schSymbol->SetOrientation( orient );
+```
+
+### 符号库坐标关键约定（symbol_writer.py / symbols.py）
+- **库坐标 Y 向上为正**（与原理图相反）。.kicad_sym 里 `at (0,+5.08)` 渲染在
+  原理图**上方**（y=中心-5.08）。已用 `get_items` 读回 + `kicad-cli sch export svg`
+  双重验证。
+- **pin angle（文件坐标）**: 上方引脚 `at (0,+y) angle 270`（引线朝上）、下方
+  `at (0,-y) angle 90`、左 `at (-x,0) angle 0`、右 `at (+x,0) angle 180`
+  （参考官方 VDC: pin1 `at 0 5.08 270` 在上方）。
+- **多单元结构**: body 放 `(symbol "NAME_0_1" (rectangle ...))`，引脚放
+  `(symbol "NAME_1_1" (pin ...))`。把引脚塞进 `_0_1` 会导致引脚 y 异常（GND
+  落到 body 下方）。
+- **symbols.py `absolute_pin`**: 旋转后 Y 要取反 → `return sym_x+rx, sym_y-ry`。
+  `rotate_xy`（90°:(-y,x) 等）对文件坐标正确，已验证。
+- **GND 惯例**: `layout_pins` 对名称含 GND/VSS/VEE 的 `power_in` 引脚放**底部**
+  （VCC 顶、GND 底），其余 power_in 放顶部。
+
+### 端到端验证（MCP 工具）
+- `kicad_sch_create_custom_symbol`：规格书（JSON/文本）→ `.kicad_symdir` 符号
+  + sym-lib-table 挂载（项目私有库 `<项目名>_local`）。
+- **L78L05**（稳压器，单 GND power_in）：IN 左 / OUT 右 / GND 底，放置 + 引脚
+  读回正确（IN(133.35,76.2) GND(139.7,81.28) OUT(146.05,76.2)），完整 LDO 电路
+  （VDC + PWR_FLAG + labels）**ERC 无 error**（仅"封装库未装"与"label 单 pin"
+  两个良性 warning）。
+- **NE555**（VCC+GND power_in）：VCC 顶、GND 底，布局正确。
+- 仿真回归：RC 电路 τ≈0.09997s 仍正常。
+
+### RP2040 从数据手册生成（2026-08-27 实测）✅
+- **parse_spec 支持 side 字段**：JSON pins 可带 `"side":"left/right/top/bottom"`，
+  文本行可写第 4 列 `1: GPIO0 bidirectional left`；`layout_pins` 优先用显式 side，
+  否则按电气类型默认。用于大芯片（如 MCU）手工控制引脚分布。
+- **RP2040**（56 引脚 QFN-56）从 RP2040_DATASHEET.pdf 的 Table 620-626 提取：
+  GPIO0-15 左 / GPIO16-29+QSPI+USB 右 / IOVDD×6+DVDD×2+VREG_VIN+USB_VDD+ADC_AVDD
+  顶 / GND(pad57)+VREG_VOUT+TESTEN+RUN+SWCLK+SWD+XIN+XOUT 底。
+  生成脚本 `tests/create_rp2040.py`，库 `keyboard-89_local`（用户桌面项目）。
+  放置+引脚读回+SVG 渲染全部验证通过。

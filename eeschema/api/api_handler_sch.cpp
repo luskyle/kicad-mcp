@@ -376,6 +376,22 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createSymbolFromAny(
             schSymbol->SetRef( &sheetPath, wxString::FromUTF8( f.value() ) );
     }
 
+    // (kicad-mcp patch) Apply orientation: degrees -> SYMBOL_ORIENTATION_T.
+    // Without this the placed symbol always stays at SYM_ORIENT_0, so its pins
+    // keep their unrotated library positions (rotation was silently ignored).
+    int orientDeg = symbol.orientation_degrees() % 360;
+    SYMBOL_ORIENTATION_T orient = SYM_ORIENT_0;
+
+    switch( orientDeg )
+    {
+    case 90:  orient = SYM_ORIENT_90;  break;
+    case 180: orient = SYM_ORIENT_180; break;
+    case 270: orient = SYM_ORIENT_270; break;
+    default:  orient = SYM_ORIENT_0;   break;
+    }
+
+    schSymbol->SetOrientation( orient );
+
     return schSymbol;
 }
 

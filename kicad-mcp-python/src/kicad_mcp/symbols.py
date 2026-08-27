@@ -125,6 +125,12 @@ def get_pins(lib_name: str, sym_name: str,
 
 def absolute_pin(sym_x_mm: float, sym_y_mm: float, orientation_degrees: int,
                  pin: SymbolPin) -> tuple[float, float]:
-    """计算引脚在原理图上的绝对坐标（mm），考虑符号放置位置和旋转。"""
+    """计算引脚在原理图上的绝对坐标（mm），考虑符号放置位置和旋转。
+
+    注意: KiCad 符号库坐标 Y 与原理图坐标 Y 方向相反（.kicad_sym 里 at
+    的正 Y 渲染在原理图上方，即原理图 Y 向上为正）。因此把旋转后的库坐标
+    转换到原理图坐标时，Y 要取反（原理图 Y 向下为正）。已用 eeschema
+    get_items 读回的引脚绝对位置验证: 文件 at (0,+5.08) 读回 y = 中心-5.08。
+    """
     rx, ry = rotate_xy(pin.x_mm, pin.y_mm, orientation_degrees)
-    return sym_x_mm + rx, sym_y_mm + ry
+    return sym_x_mm + rx, sym_y_mm - ry

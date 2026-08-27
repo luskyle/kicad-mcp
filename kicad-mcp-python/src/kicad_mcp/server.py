@@ -43,6 +43,10 @@ def build_server() -> MCPServer:
             "（器件 + 激励源类型）自动确定最合适的仿真类型（.tran/.op/.dc/.ac）\n"
             "并给出建议指令；kicad_sch_simulate / kicad_sch_simulate_gui 在原理图\n"
             "没有仿真指令时会自动按推荐类型注入（GUI 版会把指令文本写入原理图）。\n"
+            "- 自定义元件 (kicad_sch_create_custom_symbol)：根据外部元件规格书\n"
+            "（JSON 或文本表格，含引脚编号/名称/电气类型）自动生成 KiCad 符号，\n"
+            "写入项目私有库（每个项目一个库，库名 <项目名>_local），挂载到\n"
+            "sym-lib-table；重启 eeschema 后即可放置。\n"
 
             "- 原理图 KiCad GUI 仿真 (kicad_sch_simulate_gui)：打开 eeschema 内置的\n"
             "仿真器（ngspice 集成 + 波形绘图），自动运行当前电路并把波形显示在\n"
