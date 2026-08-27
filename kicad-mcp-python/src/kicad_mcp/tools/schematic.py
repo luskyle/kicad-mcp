@@ -545,37 +545,70 @@ def kicad_sch_simulate(
 
 def kicad_sch_simulate_gui(
     signal: str = "",
+    signals: str = "auto",
     sch_file: Optional[str] = None,
+    analyze: bool = True,
 ) -> str:
-    """在 KiCad 集成的仿真 GUI 中运行当前原理图的 SPICE 仿真并查看波形。
+    """在 KiCad 集成的仿真 GUI 中运行当前原理图的 SPICE 仿真并自动显示波形。
 
-    这是「在 KiCad GUI 里看仿真结果」的方式：打开 eeschema 自带的仿真器
-    （ngspice 集成，带波形绘图界面），自动从原理图读取仿真指令（如
-    `.tran 1u 20m`）并运行，波形直接显示在 KiCad 的窗口中。
+    打开 eeschema 自带的仿真器（ngspice 集成 + 波形绘图），自动从原理图读取
+    仿真指令（如 `.tran 1u 20m`）并运行。**关键信号会自动添加到波形图并显示**
+    （默认自动提取所有非地电压节点，如 v(/OUT)、v(/VIN)），无需手动在 GUI 勾选。
+    同时会再做一次独立仿真并**自动分析**结果（初/末/极值、充放电/振荡分类、
+    时间常数估计），用于验证 GUI 波形是否合理。
 
     前提:
-        - 原理图必须包含仿真指令文本（如 `.tran ...`）和仿真元件
-          （Simulation_SPICE 库的 VDC/VSIN 等 + 带 SPICE 模型的 R/C/L/…）。
+        - 原理图必须包含仿真指令文本（如 `.tran ...`）和仿真元件。
         - 建议先用 kicad_save_document 保存，再用 kicad_sch_erc 确认无误。
 
     Args:
-        signal: 可选，要观测的信号（如 "v(/OUT)"）。留空时 KiCad 显示
-                仿真产生的全部信号，可在 GUI 中勾选。
+        signal: 单个要显示的信号（如 "v(/OUT)"）。与 signals 二选一。
+        signals: 要在波形图中自动显示的信号，逗号分隔（如 "v(/OUT),v(/VIN)"）；
+                "auto"（默认）自动提取所有非地电压节点。
         sch_file: 原理图路径；不传则使用当前 eeschema 打开的文档。
+        analyze: 是否自动分析仿真结果并验证（默认 True）。
 
     Returns:
-        KiCad 仿真器的响应消息（成功则波形已显示在 GUI 中）。
+        消息 + 自动分析的结论（波形已显示在 KiCad GUI 中）。
     """
     url, header = _sch_context()
     if sch_file:
-        # 校验文件存在（可选，帮助定位问题）
         if not os.path.exists(sch_file):
             raise RuntimeError(f"原理图文件不存在: {sch_file}")
+
+    # 确定要在 GUI 中自动显示的信号
+    if signal and signals == "auto":
+        vec_list = [signal]
+    elif signals.strip() and signals.strip().lower() != "auto":
+        vec_list = [s.strip() for s in signals.split(",") if s.strip()]
+    else:
+        # 自动：导出 netlist，提取非地节点生成 v(node)
+        netlist = spice_mod.export_spice_netlist(
+            sch_file or _current_sch_path())
+        clean = spice_mod.preprocess_netlist(netlist)
+        nodes = spice_mod.extract_nodes(clean)
+        vec_list = [f"v({n})" for n in nodes]
+
     with KiCadClient(url, client_name="kicad-mcp") as kc:
-        resp = kc.simulate(header.document, signal)
+        resp = kc.simulate(header.document, "", vec_list)
+
     if not resp.success:
         raise RuntimeError(resp.message)
-    return resp.message
+
+    lines = [resp.message,
+             f"   已在波形图中自动显示: {', '.join(vec_list)}"]
+
+    # 独立仿真 + 自动分析（验证 GUI 结果是否合理）
+    if analyze:
+        try:
+            sch = sch_file or _current_sch_path()
+            netlist = spice_mod.export_spice_netlist(sch)
+            lines += spice_mod.auto_analyze(netlist, vec_list)
+            lines.append("   （以上为独立仿真数据，应与 KiCad GUI 波形一致）")
+        except Exception as exc:
+            lines.append(f"   ⚠️ 自动分析失败: {exc}")
+
+    return "\n".join(lines)
 
 
 def kicad_sch_add_label(

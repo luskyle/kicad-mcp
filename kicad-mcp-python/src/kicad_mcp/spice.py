@@ -228,6 +228,193 @@ def stats_for(series: list[float]) -> dict:
     }
 
 
+def _is_saturated(times: list[float], data: list[float], tol_frac: float = 0.02) -> bool:
+    """判断波形是否已接近稳态（尾部变化小）。未饱和时 τ 估计不可靠。"""
+    if len(data) < 20:
+        return True
+    k = max(1, len(data) // 10)
+    span = max(data) - min(data)
+    if span < 1e-12:
+        return True
+    tail_change = abs(data[-1] - data[-k])
+    return tail_change / span <= tol_frac
+
+
+def _estimate_tau(times: list[float], data: list[float], v_start: float,
+                  v_final: float, charging: bool) -> float | None:
+    """对 RC 充/放电估计时间常数 τ（仅在波形接近稳态时可靠）。
+
+    充电：v_start → v_final，τ = 达到 63.2% 幅度处的时间（从起始时刻算起）。
+    放电：v_start → v_final，τ = 降到 36.8% 幅度处的时间。
+    """
+    if len(times) < 2 or len(data) != len(times):
+        return None
+    span = v_final - v_start
+    if abs(span) < 1e-12:
+        return None
+    t0 = times[0]
+    target = v_start + 0.632 * span if charging else v_start + 0.368 * span
+    for i in range(1, len(data)):
+        prev, cur = data[i - 1], data[i]
+        if (prev - target) * (cur - target) <= 0:
+            if abs(cur - prev) < 1e-12:
+                return None
+            frac = (target - prev) / (cur - prev)
+            return (times[i - 1] + frac * (times[i] - times[i - 1])) - t0
+    return None
+
+
+def analyze_signal(name: str, times: list[float], data: list[float]) -> dict:
+    """自动分析一个信号波形，返回分类、描述和关键参数。
+
+    Returns:
+        {"kind": "constant"|"rising"|"falling"|"oscillating",
+         "desc": 人类可读描述, "params": {...}}
+    """
+    if not data:
+        return {"kind": "unknown", "desc": f"{name}: 无数据", "params": {}}
+    v0, vend = data[0], data[-1]
+    vmin, vmax = min(data), max(data)
+    span = vmax - vmin
+    tol = max(span * 0.01, 1e-9)
+    saturated = _is_saturated(times, data)
+
+    if span <= tol:
+        return {"kind": "constant",
+                "desc": f"{name} 恒为 {v0:.4g} V（稳定/直流电源）",
+                "params": {"value": v0, "saturated": True}}
+
+    mono_up = all(data[i] <= data[i + 1] + tol for i in range(len(data) - 1))
+    mono_dn = all(data[i] >= data[i + 1] - tol for i in range(len(data) - 1))
+    delta = vend - v0
+
+    if mono_up and delta > 0:
+        p = {"v_start": round(v0, 6), "v_end": round(vend, 6),
+             "saturated": saturated}
+        if saturated:
+            tau = _estimate_tau(times, data, v0, vmax, charging=True)
+            if tau is not None:
+                p["tau_s"] = round(tau, 6)
+                desc = (f"{name} 从 {v0:.4g} V 上升至 {vend:.4g} V"
+                        f"（充电，τ≈{tau:.4g} s）")
+            else:
+                desc = f"{name} 从 {v0:.4g} V 上升至 {vend:.4g} V（充电）"
+        else:
+            desc = (f"{name} 从 {v0:.4g} V 上升至 {vend:.4g} V"
+                    f"（仍在充电，未达稳态，需延长仿真测 τ）")
+        return {"kind": "rising", "desc": desc, "params": p}
+
+    if mono_dn and delta < 0:
+        p = {"v_start": round(v0, 6), "v_end": round(vend, 6),
+             "saturated": saturated}
+        if saturated:
+            tau = _estimate_tau(times, data, v0, vmin, charging=False)
+            if tau is not None:
+                p["tau_s"] = round(tau, 6)
+                desc = (f"{name} 从 {v0:.4g} V 降至 {vend:.4g} V"
+                        f"（放电，τ≈{tau:.4g} s）")
+            else:
+                desc = f"{name} 从 {v0:.4g} V 降至 {vend:.4g} V（放电）"
+        else:
+            desc = (f"{name} 从 {v0:.4g} V 降至 {vend:.4g} V"
+                    f"（仍在放电，未达稳态，需延长仿真测 τ）")
+        return {"kind": "falling", "desc": desc, "params": p}
+
+    return {"kind": "oscillating",
+            "desc": f"{name} 在 {vmin:.4g}~{vmax:.4g} V 间变化"
+                    f"（起始 {v0:.4g} V，末值 {vend:.4g} V）",
+            "params": {"vmin": round(vmin, 6), "vmax": round(vmax, 6),
+                       "saturated": saturated}}
+
+
+def find_unsaturated(result: dict) -> list[str]:
+    """返回结果中尚未稳定（需延长仿真才能测准 τ）的信号名。"""
+    out = []
+    for vec, vd in result["vectors"].items():
+        a = analyze_signal(vec, vd["time"], vd["data"])
+        if a["kind"] in ("rising", "falling") and not a["params"].get("saturated", True):
+            out.append(vec)
+    return out
+
+
+_SPICE_SUFFIX = {"t": 1e12, "g": 1e9, "meg": 1e6, "k": 1e3,
+                 "m": 1e-3, "u": 1e-6, "n": 1e-9, "p": 1e-12}
+
+
+def _parse_spice_num(s: str) -> float | None:
+    import re
+    m = re.match(r"^([+-]?[\d.]+(?:e[+-]?\d+)?)\s*([a-zA-Z]*)$", s.strip())
+    if not m:
+        return None
+    val = float(m.group(1))
+    unit = m.group(2).lower()
+    return val * _SPICE_SUFFIX.get(unit, 1.0)
+
+
+def extend_tran(netlist: str, factor: float = 8.0) -> str:
+    """把 netlist 里 .tran 的仿真时长延长 factor 倍，便于测量时间常数。"""
+    out = []
+    for line in netlist.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(".tran"):
+            toks = stripped.split()
+            if len(toks) >= 3:
+                tstep = _parse_spice_num(toks[1])
+                tstop = _parse_spice_num(toks[2])
+                if tstep and tstop:
+                    new_stop = tstop * factor
+                    new_line = f".tran {toks[1]} {new_stop:g}"
+                    if len(toks) > 3:
+                        new_line += " " + " ".join(toks[3:])
+                    out.append(new_line)
+                    continue
+        out.append(line)
+    return "\n".join(out)
+
+
+def analyze_results(result: dict, title: str = "") -> list[str]:
+    """对一次仿真结果做自动分析，返回多行人类可读结论。"""
+    lines = [f"\n🔍 自动分析{('（' + title + '）') if title else ''}："]
+    for vec, vd in result["vectors"].items():
+        a = analyze_signal(vec, vd["time"], vd["data"])
+        lines.append(f"  ▸ {a['desc']}")
+        st = stats_for(vd["data"])
+        if st:
+            lines.append(f"      初值={st['initial']:.4g}  末值={st['final']:.4g}"
+                         f"  min={st['min']:.4g}  max={st['max']:.4g}")
+    return lines
+
+
+def auto_analyze(netlist: str, vec_list: list[str],
+                 max_extend_rounds: int = 3) -> list[str]:
+    """运行仿真并自动分析；对未达稳态的充/放电信号迭代延长 .tran 测准 τ。
+
+    Returns:
+        多行分析结论。
+    """
+    lines = []
+    current = netlist
+    target = vec_list
+
+    result = run_ngspice(current, target)
+    lines += analyze_results(result)
+    unsat = find_unsaturated(result)
+
+    for _ in range(max_extend_rounds):
+        if not unsat:
+            break
+        current = extend_tran(current)
+        result = run_ngspice(current, unsat)
+        lines += analyze_results(result, "延长仿真精确测量时间常数")
+        unsat = find_unsaturated(result)
+
+    if unsat:
+        lines.append(f"   ⚠️ 以下信号即使延长仿真仍未稳定（可能需要更长时间或检查电路）: "
+                     f"{', '.join(unsat)}")
+
+    return lines
+
+
 # ---------------- kicad-cli 导出 ----------------
 
 

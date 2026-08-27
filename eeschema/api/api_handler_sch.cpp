@@ -250,6 +250,14 @@ HANDLER_RESULT<SimulateResponse> API_HANDLER_SCH::handleSimulate(
         simFrame->Iconize( false );
 
     simFrame->Raise();
+
+    // (kicad-mcp) Auto-display the requested signals in the waveform plot.
+    // Traces are added (as placeholders) before the simulation starts and are
+    // filled automatically once the run finishes (OnSimRefresh), so the user
+    // does not need to tick signals manually in the GUI.
+    for( const std::string& sig : aCtx.Request.signals() )
+        simFrame->AddVoltageTrace( wxString( sig ) );
+
     simFrame->StartSimulation();
 
     response.set_success( true );

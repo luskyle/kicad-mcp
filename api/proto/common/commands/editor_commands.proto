@@ -62,6 +62,11 @@ message Simulate
   // Optional: a signal to add to the plot (e.g. "v(/OUT)").  When empty, the
   // simulator shows the signals available after the run.
   string signal = 2;
+
+  // (kicad-mcp patch) Optional list of signals to auto-display in the GUI
+  // waveform plot (e.g. "v(/OUT)", "v(/VIN)").  Traces are added before the
+  // simulation runs and get filled once it finishes.
+  repeated string signals = 3;
 }
 
 message SimulateResponse

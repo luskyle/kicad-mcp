@@ -211,15 +211,25 @@ class KiCadClient:
         self._call(req)
 
     def simulate(self, doc: base_types_pb2.DocumentSpecifier,
-                 signal: str = "") -> "editor_commands_pb2.SimulateResponse":
+                 signal: str = "",
+                 signals: list[str] | None = None,
+                 ) -> "editor_commands_pb2.SimulateResponse":
         """在 KiCad 内置仿真 GUI 中运行当前原理图的 SPICE 仿真。
 
         需要原理图包含仿真指令（如 ".tran ..."）。返回响应消息。
+
+        Args:
+            signal: 单个要显示的信号（如 "v(/OUT)"）。
+            signals: 要在波形图中自动显示的信号列表（如 ["v(/OUT)","v(/VIN)"]），
+                仿真前作为占位 trace 添加，仿真完成后自动填充显示。
         """
         req = editor_commands_pb2.Simulate()
         req.document.CopyFrom(doc)
         if signal:
             req.signal = signal
+        if signals:
+            for s in signals:
+                req.signals.append(s)
         resp = self._call(req)
         out = editor_commands_pb2.SimulateResponse()
         resp.message.Unpack(out)

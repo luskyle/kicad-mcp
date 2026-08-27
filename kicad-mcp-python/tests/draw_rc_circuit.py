@@ -102,7 +102,7 @@ async def main() -> None:
                               "x_mm": 194.31, "y_mm": 88.9}))
             for txt, x, y, h in [
                 ("RC Charging Circuit: V1=5V DC, R1=1k, C1=100u", 63.5, 107.95, 3.5),
-                (".tran 1u 20m", 63.5, 114.3, 2.5),
+                (".tran 1u 20m UIC", 63.5, 114.3, 2.5),
                 ("SPICE: watch V(out) charge to 5V with tau=100ms", 63.5, 119.38, 2.0),
             ]:
                 print(await call(session, "kicad_sch_add_text",
