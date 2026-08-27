@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 from .. import symbols as symbols_mod
+from .. import spice as spice_mod
 from ..client import (
     DOCTYPE_SCHEMATIC,
     KiCadClient,
@@ -461,6 +462,87 @@ def kicad_sch_erc(sch_file: Optional[str] = None,
     return "\n".join(lines)
 
 
+def kicad_sch_simulate(
+    sch_file: Optional[str] = None,
+    vectors: str = "auto",
+    points: int = 200,
+    extra: str = "",
+) -> str:
+    """对原理图进行 SPICE 电路仿真（用 KiCad 自带 ngspice 验证电路行为）。
+
+    流程：kicad-cli 导出 SPICE netlist -> 清洗（去除 power 符号占位行、
+    把 GND 网络映射为节点 0）-> libngspice 执行仿真（自动执行原理图中的
+    .tran/.dc/.op 指令）-> 读取各节点电压/电流波形并做统计。
+
+    Args:
+        sch_file: 原理图 .kicad_sch 路径；不传则使用当前 eeschema 打开的文档。
+                  （建议先调用 kicad_save_document 保存。）
+        vectors: 观测向量。默认 "auto"：自动从 netlist 提取所有非地节点
+                 生成 v(节点) 向量。也可手动指定，如 "v(/VIN),v(/OUT)"。
+        points: 每个向量返回的降采样点数（默认 200，便于展示波形）。
+        extra: 额外注入的 ngspice 指令，用分号分隔。例如
+               " .ic v(/OUT)=0 " 让电容从 0V 开始充电；
+               " .tran 1u 20m UIC " 用初始条件做瞬态。
+
+    Returns:
+        仿真摘要：器件/节点信息、各向量初值/末值/最值统计和降采样波形。
+    """
+    from . import common as common_mod
+
+    if not sch_file:
+        sch_file = _current_sch_path()
+    if not os.path.exists(sch_file):
+        raise RuntimeError(f"原理图文件不存在: {sch_file}")
+
+    netlist = spice_mod.export_spice_netlist(sch_file)
+
+    # 观测向量（先按 ngspice 视角清洗：GND->0、删 power 占位行）
+    clean_view = spice_mod.preprocess_netlist(netlist)
+    if vectors.strip() and vectors.strip().lower() != "auto":
+        vec_list = [v.strip() for v in vectors.split(",") if v.strip()]
+    else:
+        nodes = spice_mod.extract_nodes(clean_view)
+        vec_list = [f"v({n})" for n in nodes]
+    if not vec_list:
+        raise RuntimeError("无法确定观测向量，请手动指定 vectors=，如 'v(/VIN),v(/OUT)'")
+
+    # 额外指令
+    extra_lines = [e.strip() for e in extra.split(";") if e.strip()] if extra else None
+
+    result = spice_mod.run_ngspice(netlist, vec_list, extra_lines)
+
+    nrows = result["rows"]
+    lines = [f"🧪 SPICE 仿真完成（{nrows} 个数据点）"]
+    lines.append(f"   观测向量: {', '.join(vec_list)}")
+    if extra_lines:
+        lines.append(f"   注入指令: {'; '.join(extra_lines)}")
+
+    for v in vec_list:
+        series = result["vectors"][v]["data"]
+        times = result["vectors"][v]["time"]
+        st = spice_mod.stats_for(series)
+        if not st:
+            continue
+        lines.append(f"\n  ▸ {v}: 初值={st['initial']:.4g}  末值={st['final']:.4g}  "
+                     f"min={st['min']:.4g}  max={st['max']:.4g}  avg={st['avg']:.4g}")
+        # 降采样波形
+        n = len(series)
+        step = max(1, n // points)
+        samples = [f"{times[i]:.4g}:{series[i]:.4g}" for i in range(0, n, step)]
+        # 压缩为多行，每行 6 个采样
+        lines.append(f"    波形 [{v}]:")
+        row = []
+        for s in samples:
+            row.append(s)
+            if len(row) == 6:
+                lines.append("       " + "  ".join(row))
+                row = []
+        if row:
+            lines.append("       " + "  ".join(row))
+
+    return "\n".join(lines)
+
+
 def kicad_sch_add_label(
     label_type: str,
     text: str,
@@ -628,4 +710,5 @@ ALL_TOOLS = [
     kicad_sch_get_symbol_pins,
     kicad_sch_connect,
     kicad_sch_erc,
+    kicad_sch_simulate,
 ]

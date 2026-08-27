@@ -26,20 +26,21 @@ class SymbolPin:
 
 
 # SCH_SYMBOL 的 orientation_degrees 变换（与 KiCad 内部 transform 一致）
+# 已验证（10.0.6）：KiCad orientation 90° 对库坐标施加 (x,y)->(-y,x)。
 # 0°:  (x, y)
-# 90°: (y, -x)
+# 90°: (-y, x)
 # 180°:(-x, -y)
-# 270°:(-y, x)
+# 270°:(y, -x)
 def rotate_xy(x: float, y: float, degrees: int) -> tuple[float, float]:
     degrees = int(degrees) % 360
     if degrees == 0:
         return x, y
     if degrees == 90:
-        return y, -x
+        return -y, x
     if degrees == 180:
         return -x, -y
     if degrees == 270:
-        return -y, x
+        return y, -x
     raise ValueError(f"不支持的旋转角度: {degrees}（可选 0/90/180/270）")
 
 
