@@ -1,5 +1,5 @@
 diff --git a/api/proto/schematic/schematic_types.proto b/api/proto/schematic/schematic_types.proto
-index 3f872dcb..02f5c32e 100644
+index 3f872dcb..2a9ed774 100644
 --- a/api/proto/schematic/schematic_types.proto
 +++ b/api/proto/schematic/schematic_types.proto
 @@ -26,6 +26,15 @@ import "common/types/base_types.proto";
@@ -31,7 +31,7 @@ index 3f872dcb..02f5c32e 100644
  }
  
  message LocalLabel
-@@ -73,3 +86,30 @@ message DirectiveLabel
+@@ -73,3 +86,46 @@ message DirectiveLabel
    kiapi.common.types.Vector2 position = 2;
    Text                       text     = 3;
  }
@@ -41,6 +41,18 @@ index 3f872dcb..02f5c32e 100644
 +{
 +  string name = 1;
 +  string value = 2;
++}
++
++// (kicad-mcp patch) A pin of a placed symbol, with its ABSOLUTE position as
++// computed by KiCad (symbol origin + library pin offset, after rotation).
++// Using these coordinates for wires guarantees the endpoints land exactly on
++// the pins (KiCad's own pin positions, which can differ by 1 IU from a
++// client-side recomputation) so ERC reports no unconnected pins.
++message Pin
++{
++  string number = 1;
++  string name = 2;
++  kiapi.common.types.Vector2 position = 3;
 +}
 +
 +/// Represents a schematic symbol (component instance) placed on a schematic.
@@ -61,6 +73,10 @@ index 3f872dcb..02f5c32e 100644
 +  // (kicad-mcp patch) Symbol rotation/mirror state as stored by
 +  // SCH_SYMBOL::GetOrientation() (0/90/180/270 plus mirror flags).
 +  int32 orientation_degrees = 5;
++
++  // (kicad-mcp patch) Absolute positions of the symbol's pins, as computed by
++  // KiCad (read back via GetItems).  Clients use these for exact wire routing.
++  repeated Pin pins = 6;
 +}
 diff --git a/common/api/api_enums.cpp b/common/api/api_enums.cpp
 index 57f734d2..007ffe13 100644
@@ -128,7 +144,7 @@ index 5df10b76..1f0912fc 100644
  
      auto it = s_types.find( aMessage.type_url() );
 diff --git a/eeschema/api/api_handler_sch.cpp b/eeschema/api/api_handler_sch.cpp
-index 90b6e998..1f91321f 100644
+index 90b6e998..67d9062d 100644
 --- a/eeschema/api/api_handler_sch.cpp
 +++ b/eeschema/api/api_handler_sch.cpp
 @@ -27,6 +27,13 @@
@@ -165,7 +181,20 @@ index 90b6e998..1f91321f 100644
  }
  
  
-@@ -87,6 +101,90 @@ HANDLER_RESULT<GetOpenDocumentsResponse> API_HANDLER_SCH::handleGetOpenDocuments
+@@ -82,11 +96,103 @@ HANDLER_RESULT<GetOpenDocumentsResponse> API_HANDLER_SCH::handleGetOpenDocuments
+     doc.set_type( DocumentType::DOCTYPE_SCHEMATIC );
+     doc.set_board_filename( fn.GetFullName() );
+ 
++    // (kicad-mcp patch) Fill project info so clients can resolve the full
++    // path to the .kicad_sch file (needed e.g. to run ERC via kicad-cli).
++    if( !fn.GetPath().IsEmpty() )
++    {
++        doc.mutable_project()->set_name( fn.GetName() );
++        doc.mutable_project()->set_path( fn.GetPath().ToStdString() );
++    }
++
+     response.mutable_documents()->Add( std::move( doc ) );
+     return response;
  }
  
  
@@ -256,7 +285,7 @@ index 90b6e998..1f91321f 100644
  HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KICAD_T aType,
          EDA_ITEM* aContainer )
  {
-@@ -131,6 +229,76 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
+@@ -131,6 +237,76 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
  }
  
  
@@ -333,7 +362,7 @@ index 90b6e998..1f91321f 100644
  HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsInternal( bool aCreate,
          const std::string& aClientName,
          const types::ItemHeader &aHeader,
-@@ -192,9 +360,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -192,9 +368,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              return tl::unexpected( e );
          }
      }
@@ -351,7 +380,7 @@ index 90b6e998..1f91321f 100644
      for( const google::protobuf::Any& anyItem : aItems )
      {
          ItemStatus status;
-@@ -209,8 +385,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -209,8 +393,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              continue;
          }
  
@@ -368,7 +397,7 @@ index 90b6e998..1f91321f 100644
  
          if( !creationResult )
          {
-@@ -254,9 +436,6 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -254,9 +444,6 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
          {
              item->Serialize( newItem );
              commit->Add( item.release(), screen );
@@ -378,7 +407,7 @@ index 90b6e998..1f91321f 100644
          }
          else
          {
-@@ -272,14 +451,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -272,14 +459,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
              {
                  wxASSERT( false );
              }
@@ -399,7 +428,7 @@ index 90b6e998..1f91321f 100644
  
      return ItemRequestStatus::IRS_OK;
  }
-@@ -288,7 +470,37 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
+@@ -288,7 +478,37 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
  void API_HANDLER_SCH::deleteItemsInternal( std::map<KIID, ItemDeletionStatus>& aItemsToDelete,
                                             const std::string& aClientName )
  {
@@ -438,7 +467,7 @@ index 90b6e998..1f91321f 100644
  }
  
  
-@@ -298,7 +510,16 @@ std::optional<EDA_ITEM*> API_HANDLER_SCH::getItemFromDocument( const DocumentSpe
+@@ -298,7 +518,16 @@ std::optional<EDA_ITEM*> API_HANDLER_SCH::getItemFromDocument( const DocumentSpe
      if( !validateDocument( aDocument ) )
          return std::nullopt;
  
@@ -677,7 +706,7 @@ index e8330b93..7cb8b735 100644
  
  
 diff --git a/eeschema/sch_symbol.cpp b/eeschema/sch_symbol.cpp
-index 5d88ad9f..e82ace62 100644
+index 5d88ad9f..1893ff5f 100644
 --- a/eeschema/sch_symbol.cpp
 +++ b/eeschema/sch_symbol.cpp
 @@ -48,6 +48,8 @@
@@ -689,7 +718,7 @@ index 5d88ad9f..e82ace62 100644
  
  
  std::unordered_map<TRANSFORM, int> SCH_SYMBOL::s_transformToOrientationCache;
-@@ -71,6 +73,57 @@ std::string toUTFTildaText( const wxString& txt )
+@@ -71,6 +73,68 @@ std::string toUTFTildaText( const wxString& txt )
  }
  
  
@@ -711,6 +740,17 @@ index 5d88ad9f..e82ace62 100644
 +        kiapi::schematic::types::Field* f = symbol.add_fields();
 +        f->set_name( field.GetName().ToStdString() );
 +        f->set_value( field.GetText().ToStdString() );
++    }
++
++    // (kicad-mcp patch) Expose the symbol's pin absolute positions as computed
++    // by KiCad, so clients can route wires exactly onto the pins (avoids
++    // 1-IU mismatches that make ERC report pins as unconnected).
++    for( const SCH_PIN* pin : GetPins() )
++    {
++        kiapi::schematic::types::Pin* p = symbol.add_pins();
++        p->set_number( pin->GetNumber().ToStdString() );
++        p->set_name( pin->GetName().ToStdString() );
++        kiapi::common::PackVector2( *p->mutable_position(), pin->GetPosition() );
 +    }
 +
 +    aContainer.PackFrom( symbol );

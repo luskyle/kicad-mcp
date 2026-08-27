@@ -96,6 +96,14 @@ HANDLER_RESULT<GetOpenDocumentsResponse> API_HANDLER_SCH::handleGetOpenDocuments
     doc.set_type( DocumentType::DOCTYPE_SCHEMATIC );
     doc.set_board_filename( fn.GetFullName() );
 
+    // (kicad-mcp patch) Fill project info so clients can resolve the full
+    // path to the .kicad_sch file (needed e.g. to run ERC via kicad-cli).
+    if( !fn.GetPath().IsEmpty() )
+    {
+        doc.mutable_project()->set_name( fn.GetName() );
+        doc.mutable_project()->set_path( fn.GetPath().ToStdString() );
+    }
+
     response.mutable_documents()->Add( std::move( doc ) );
     return response;
 }

@@ -93,6 +93,17 @@ void SCH_SYMBOL::Serialize( google::protobuf::Any& aContainer ) const
         f->set_value( field.GetText().ToStdString() );
     }
 
+    // (kicad-mcp patch) Expose the symbol's pin absolute positions as computed
+    // by KiCad, so clients can route wires exactly onto the pins (avoids
+    // 1-IU mismatches that make ERC report pins as unconnected).
+    for( const SCH_PIN* pin : GetPins() )
+    {
+        kiapi::schematic::types::Pin* p = symbol.add_pins();
+        p->set_number( pin->GetNumber().ToStdString() );
+        p->set_name( pin->GetName().ToStdString() );
+        kiapi::common::PackVector2( *p->mutable_position(), pin->GetPosition() );
+    }
+
     aContainer.PackFrom( symbol );
 }
 

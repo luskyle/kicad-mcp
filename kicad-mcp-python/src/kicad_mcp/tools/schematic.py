@@ -8,6 +8,11 @@ GetItems/SaveDocument handler、多元素创建修复）。
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import tempfile
+from pathlib import Path
 from typing import Optional
 
 from .. import symbols as symbols_mod
@@ -55,6 +60,42 @@ def _sch_context() -> tuple:
     return url, header
 
 
+def _snap_grid(v_mm: float, grid_mm: float = 1.27) -> float:
+    """把毫米坐标吸附到标准网格（默认 1.27mm），保证引脚落在 ERC 连接网格上。"""
+    return round(v_mm / grid_mm) * grid_mm
+
+
+def _current_sch_path() -> str:
+    """从当前打开的 eeschema 文档推断 .kicad_sch 完整路径。"""
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        docs = kc.get_open_documents(DOCTYPE_SCHEMATIC)
+    if not docs:
+        raise RuntimeError("当前没有打开的 .kicad_sch 文档")
+    doc = docs[0]
+    fname = doc.board_filename or ""
+    proj_path = doc.project.path if doc.project and doc.project.path else ""
+    if proj_path:
+        return str(Path(proj_path) / fname)
+    return fname
+
+
+def _find_kicad_cli() -> str:
+    """定位 kicad-cli：优先环境变量，其次常见编译路径，最后 PATH。"""
+    env = os.environ.get("KICAD_CLI")
+    if env:
+        return env
+    candidates = [
+        "/media/luskyle/DATA/project/kicad-mcp/build/kicad/kicad-cli",
+        "/usr/local/bin/kicad-cli",
+        "/usr/bin/kicad-cli",
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return "kicad-cli"
+
+
 def _check_create_resp(resp) -> None:
     if resp.status != 1:
         raise RuntimeError(f"KiCad 返回整体状态码 {resp.status}")
@@ -81,10 +122,10 @@ def kicad_sch_add_text(
     注意: 需要已打补丁的 KiCad（10.0.5 会崩溃）。
     """
     sch_text = schematic_types_pb2.Text()
-    sch_text.text.position.x_nm = round(x_mm * MM)
-    sch_text.text.position.y_nm = round(y_mm * MM)
-    sch_text.text.attributes.size.x_nm = round(height_mm * MM)
-    sch_text.text.attributes.size.y_nm = round(height_mm * MM)
+    sch_text.text.position.x_nm = int(x_mm * MM)
+    sch_text.text.position.y_nm = int(y_mm * MM)
+    sch_text.text.attributes.size.x_nm = int(height_mm * MM)
+    sch_text.text.attributes.size.y_nm = int(height_mm * MM)
     sch_text.text.text = text
 
     url, header = _sch_context()
@@ -118,10 +159,10 @@ def kicad_sch_add_line(
         raise ValueError(f"不支持的层: {layer}，可选: {sorted(layers)}")
 
     line = schematic_types_pb2.Line()
-    line.start.x_nm = round(x1_mm * MM)
-    line.start.y_nm = round(y1_mm * MM)
-    line.end.x_nm = round(x2_mm * MM)
-    line.end.y_nm = round(y2_mm * MM)
+    line.start.x_nm = int(x1_mm * MM)
+    line.start.y_nm = int(y1_mm * MM)
+    line.end.x_nm = int(x2_mm * MM)
+    line.end.y_nm = int(y2_mm * MM)
     line.layer = layers[layer.lower()]
 
     url, header = _sch_context()
@@ -142,6 +183,7 @@ def kicad_sch_add_symbol(
     reference: Optional[str] = None,
     value: Optional[str] = None,
     orientation_degrees: int = 0,
+    snap_to_grid: bool = True,
 ) -> str:
     """在原理图上放置一个符号（SCH_SYMBOL）。
 
@@ -152,9 +194,16 @@ def kicad_sch_add_symbol(
         reference: 可选，参考位号（如 "R1"）。
         value: 可选，值（如 "10k"）。
         orientation_degrees: 旋转角度（0/90/180/270，默认 0）。
+        snap_to_grid: 是否把中心吸附到 1.27mm 网格（默认 True）。
+            标准 KiCad 符号的引脚都在 1.27mm 网格上，中心在网格上时引脚也
+            在网格上，ERC 才不会报 "off connection grid"。
 
     注意: 需要已打补丁的 KiCad（10.0.5 会崩溃）。
     """
+    if snap_to_grid:
+        x_mm = _snap_grid(x_mm)
+        y_mm = _snap_grid(y_mm)
+
     symbol = schematic_types_pb2.Symbol()
     symbol.position.x_nm = round(x_mm * MM)
     symbol.position.y_nm = round(y_mm * MM)
@@ -194,7 +243,10 @@ def kicad_sch_add_symbol(
 
 
 def _read_symbols() -> dict:
-    """读回原理图中所有符号：{reference: {lib, entry, pos_mm, orientation}}。"""
+    """读回原理图中所有符号：{reference: {lib, entry, pos_mm, orientation, pins}}。
+
+    pins 是 KiCad 计算出的每个引脚绝对位置（IU 整数），用于精确连线。
+    """
     url, header = _sch_context()
     with KiCadClient(url, client_name="kicad-mcp") as kc:
         got = kc.get_items(header, [KOT_MAP["symbol"]])
@@ -208,12 +260,16 @@ def _read_symbols() -> dict:
         ref = fields.get("Reference", "")
         if not ref:
             continue
+        pins = {}
+        for p in s.pins:
+            pins[p.number] = (p.position.x_nm, p.position.y_nm)
         out[ref] = {
             "lib": s.lib_id.library_nickname,
             "entry": s.lib_id.entry_name,
             "x_mm": s.position.x_nm / MM,
             "y_mm": s.position.y_nm / MM,
             "orientation": s.orientation_degrees,
+            "pins": pins,
         }
     return out
 
@@ -228,13 +284,12 @@ def kicad_sch_get_symbol_pins(reference: str) -> str:
     if reference not in syms:
         raise RuntimeError(f"未找到符号 ref={reference}（当前图中有: {sorted(syms)}）")
     info = syms[reference]
-    pins = get_pins(info["lib"], info["entry"])
+    pins = info.get("pins") or {}
     if not pins:
         return f"符号 {reference} 无引脚信息"
     lines = [f"{reference} ({info['lib']}:{info['entry']}) @({info['x_mm']:.1f},{info['y_mm']:.1f})mm 旋转{info['orientation']}°"]
-    for p in pins:
-        ax, ay = absolute_pin(info["x_mm"], info["y_mm"], info["orientation"], p)
-        lines.append(f"  引脚 {p.number}({p.name}) = ({ax:.2f}, {ay:.2f})mm")
+    for num, (ix, iy) in sorted(pins.items()):
+        lines.append(f"  引脚 {num} = ({ix / MM:.2f}, {iy / MM:.2f})mm")
     return "\n".join(lines)
 
 
@@ -248,9 +303,9 @@ def kicad_sch_connect(
 ) -> str:
     """连接两个符号的引脚（自动对齐引脚坐标，画直角折线）。
 
-    这是引脚感知的连线：先读回两个符号的实际位置与旋转，再结合符号库的
-    引脚定义算出两个引脚的绝对坐标，最后画 wire 把两点连起来（Z 形折线，
-    可选 via 点控制走线路径）。
+    这是引脚感知的连线：读取 KiCad 计算的每个引脚绝对位置（与符号库引脚
+    偏移、旋转完全一致），把 wire 端点精确落在引脚上；走线为直角折线
+    （Z 形，可选 via 点控制轨道位置）。
 
     Args:
         ref_a / pin_a: 起点符号的 Reference 与引脚号（如 "BAT1","1"）。
@@ -262,37 +317,55 @@ def kicad_sch_connect(
         if ref not in syms:
             raise RuntimeError(f"未找到符号 ref={ref}（当前图中有: {sorted(syms)}）")
 
-    def pin_abs(ref, pin_no):
-        info = syms[ref]
-        pins = get_pins(info["lib"], info["entry"])
-        for p in pins:
-            if p.number == str(pin_no):
-                return absolute_pin(info["x_mm"], info["y_mm"], info["orientation"], p)
-        raise RuntimeError(f"符号 {ref} 没有引脚 {pin_no}（可用引脚: {[p.number for p in pins]}）")
+    def pin_iu(ref, pin_no):
+        pins = syms[ref].get("pins") or {}
+        if str(pin_no) in pins:
+            return pins[str(pin_no)]           # (iu_x, iu_y)，KiCad 精确值
+        raise RuntimeError(
+            f"符号 {ref} 没有引脚 {pin_no}（可用引脚: {sorted(pins)}）")
 
-    p1 = pin_abs(ref_a, pin_a)
-    p2 = pin_abs(ref_b, pin_b)
+    p1 = pin_iu(ref_a, pin_a)
+    p2 = pin_iu(ref_b, pin_b)
 
-    # 布线路径（直角折线）
-    segments = _route_wire(p1, p2, via_x_mm, via_y_mm)
+    # via 转 IU（整数）
+    via_ix = round(via_x_mm * MM) if via_x_mm is not None else None
+    via_iy = round(via_y_mm * MM) if via_y_mm is not None else None
+
+    segments = _route_wire_iu(p1, p2, via_ix, via_iy)
 
     url, header = _sch_context()
     lines = []
     with KiCadClient(url, client_name="kicad-mcp") as kc:
         for (x1, y1), (x2, y2) in segments:
             line = schematic_types_pb2.Line()
-            line.start.x_nm = round(x1 * MM)
-            line.start.y_nm = round(y1 * MM)
-            line.end.x_nm = round(x2 * MM)
-            line.end.y_nm = round(y2 * MM)
+            line.start.x_nm = x1
+            line.start.y_nm = y1
+            line.end.x_nm = x2
+            line.end.y_nm = y2
             line.layer = schematic_types_pb2.SL_WIRE
             resp = kc.create_items(header, [line])
             _check_create_resp(resp)
         lines.append(
-            f"已连接 {ref_a}.{pin_a} ({p1[0]:.2f},{p1[1]:.2f}) -> "
-            f"{ref_b}.{pin_b} ({p2[0]:.2f},{p2[1]:.2f})，共 {len(segments)} 段"
+            f"已连接 {ref_a}.{pin_a} ({p1[0] / MM:.2f},{p1[1] / MM:.2f}) -> "
+            f"{ref_b}.{pin_b} ({p2[0] / MM:.2f},{p2[1] / MM:.2f})，共 {len(segments)} 段"
         )
     return "\n".join(lines)
+
+
+def _route_wire_iu(p1, p2, via_x=None, via_y=None):
+    """IU 整数版直角布线（段列表，去除退化段）。"""
+    (x1, y1), (x2, y2) = p1, p2
+    if via_x is not None or via_y is not None:
+        mx = x1 if via_x is None else via_x
+        my = y2 if via_y is None else via_y
+        segs = [((x1, y1), (mx, y1)), ((mx, y1), (mx, my)),
+                ((mx, my), (x2, my)), ((x2, my), (x2, y2))]
+        return [s for s in segs if s[0] != s[1]]
+    if y1 == y2:
+        return [((x1, y1), (x2, y2))]
+    if x1 == x2:
+        return [((x1, y1), (x2, y2))]
+    return [((x1, y1), (x2, y1)), ((x2, y1), (x2, y2))]
 
 
 def _route_wire(p1, p2, via_x=None, via_y=None):
@@ -317,6 +390,77 @@ def _route_wire(p1, p2, via_x=None, via_y=None):
     return [((x1, y1), (x2, y1)), ((x2, y1), (x2, y2))]
 
 
+def kicad_sch_erc(sch_file: Optional[str] = None,
+                  severity: str = "error,warning") -> str:
+    """对当前原理图运行 KiCad 官方 ERC（电气规则检查）。
+
+    通过 kicad-cli 对 .kicad_sch 文件执行 ERC 并报告违规项。用于验证
+    绘制结果「真正无误」：未连接引脚、悬空线头、引脚/线端偏离连接网格等
+    都会被检查出来。
+
+    Args:
+        sch_file: 原理图 .kicad_sch 路径；不传则使用当前 eeschema 打开的文档。
+                  （建议先调用 kicad_save_document 保存，再运行 ERC。）
+        severity: 报告级别，逗号分隔: error / warning / exclusion。
+
+    Returns:
+        ERC 结果文本；无违规返回 "ERC 通过"。
+    """
+    if not sch_file:
+        sch_file = _current_sch_path()
+    if not os.path.exists(sch_file):
+        raise RuntimeError(f"原理图文件不存在: {sch_file}")
+
+    kicad_cli = _find_kicad_cli()
+
+    # 隔离 conda 环境 + 指向资源目录（与运行 eeschema 一致）
+    env = dict(os.environ)
+    env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    for k in ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONHOME", "PYTHONPATH"):
+        env.pop(k, None)
+    env.setdefault("KICAD_STOCK_DATA_HOME", "/tmp/squashfs-root/share/kicad")
+
+    tmp = tempfile.mktemp(suffix=".json")
+    try:
+        proc = subprocess.run(
+            [kicad_cli, "sch", "erc", "--format", "json", "--severity-all",
+             sch_file, "-o", tmp],
+            capture_output=True, text=True, env=env, timeout=180,
+        )
+        if not os.path.exists(tmp):
+            return (f"ERC 运行失败 (exit {proc.returncode}): "
+                    f"{(proc.stderr or proc.stdout).strip()[:400]}")
+        data = json.load(open(tmp, encoding='utf-8'))
+    except Exception as exc:
+        return f"ERC 运行异常: {exc}"
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+    violations = []
+    for sheet in data.get("sheets", []):
+        violations += sheet.get("violations", [])
+
+    sev_set = {s.strip().lower() for s in severity.split(",")}
+    errs = [v for v in violations if v.get("severity", "").lower() in sev_set]
+
+    if not errs:
+        return "✅ ERC 通过：无违规项"
+
+    lines = [f"❌ ERC 发现 {len(errs)} 条违规："]
+    for v in errs:
+        sev = v.get("severity", "?")
+        desc = v.get("description", "")
+        items = v.get("items", [])
+        loc = items[0].get("description", "") if items else ""
+        lines.append(f"  [{sev}] {desc}")
+        if loc:
+            lines.append(f"        -> {loc}")
+    return "\n".join(lines)
+
+
 def kicad_sch_add_label(
     label_type: str,
     text: str,
@@ -338,13 +482,13 @@ def kicad_sch_add_label(
         raise ValueError(f"不支持的标签类型: {label_type}，可选: {sorted(LABEL_TYPE_MAP)}")
 
     label = LABEL_TYPE_MAP[label_type.lower()]()
-    label.position.x_nm = round(x_mm * MM)
-    label.position.y_nm = round(y_mm * MM)
+    label.position.x_nm = int(x_mm * MM)
+    label.position.y_nm = int(y_mm * MM)
     label.text.text.text = text
-    label.text.text.position.x_nm = round(x_mm * MM)
-    label.text.text.position.y_nm = round(y_mm * MM)
-    label.text.text.attributes.size.x_nm = round(height_mm * MM)
-    label.text.text.attributes.size.y_nm = round(height_mm * MM)
+    label.text.text.position.x_nm = int(x_mm * MM)
+    label.text.text.position.y_nm = int(y_mm * MM)
+    label.text.text.attributes.size.x_nm = int(height_mm * MM)
+    label.text.text.attributes.size.y_nm = int(height_mm * MM)
 
     url, header = _sch_context()
     with KiCadClient(url, client_name="kicad-mcp") as kc:
@@ -444,9 +588,9 @@ def kicad_sch_update_text(
             if text is not None:
                 t.text.text = text
             if x_mm is not None:
-                t.text.position.x_nm = round(x_mm * MM)
+                t.text.position.x_nm = int(x_mm * MM)
             if y_mm is not None:
-                t.text.position.y_nm = round(y_mm * MM)
+                t.text.position.y_nm = int(y_mm * MM)
             resp = kc.update_items(header, [t])
             for r in resp.updated_items:
                 if r.status.code != 1:
@@ -483,4 +627,5 @@ ALL_TOOLS = [
     kicad_sch_delete_item,
     kicad_sch_get_symbol_pins,
     kicad_sch_connect,
+    kicad_sch_erc,
 ]

@@ -1,6 +1,6 @@
 # 补丁：让 AI 能通过 API 创建/查询/修改/删除原理图元素
 
-补丁文件：`patches/kicad-schematic-api.patch`（890 行，12 个源文件）
+补丁文件：`patches/kicad-schematic-api.patch`（930 行，12 个源文件）
 
 ## 解决的问题
 
@@ -26,14 +26,14 @@ KiCad 源码的 API 基础设施（`common/api/`）只实现了 **PCB** 元素�
 
 | 文件 | 改动 |
 |---|---|
-| `api/proto/schematic/schematic_types.proto` | 补全 `SchematicLayer` 枚举（SL_WIRE/SL_BUS/SL_NOTES）；新增 `Symbol`/`Field` 消息；`Text` 加 `id` 字段；`Symbol` 加 `orientation_degrees` 字段 |
+| `api/proto/schematic/schematic_types.proto` | 补全 `SchematicLayer` 枚举（SL_WIRE/SL_BUS/SL_NOTES）；新增 `Symbol`/`Field`/`Pin` 消息；`Text` 加 `id`；`Symbol` 加 `orientation_degrees`、`pins`（KiCad 计算的引脚绝对位置） |
 | `common/api/api_enums.cpp` | 实现 `SchematicLayer` ↔ `SCH_LAYER_ID` 双向映射 |
 | `common/api/api_utils.cpp` | `TypeNameFromAny` 增加 7 个 schematic 类型映射（Text/Line/Local/Global/Hierarchical/Directive Label/Symbol） |
 | `common/api/api_handler_editor.cpp` | **修复 `handleDeleteItems`**：把每个删除结果加入 `response.deleted_items`（原代码漏掉，响应永远为空） |
 | `eeschema/sch_text.h/.cpp` | `SCH_TEXT::Serialize/Deserialize`（Text 消息，含 **id**） |
-| `eeschema/sch_symbol.h/.cpp` | `SCH_SYMBOL::Serialize/Deserialize`（Symbol 消息：LIB_ID+位置+字段+**orientation_degrees 角度**） |
+| `eeschema/sch_symbol.h/.cpp` | `SCH_SYMBOL::Serialize/Deserialize`（Symbol 消息：LIB_ID+位置+字段+**orientation_degrees 角度**+**pins 引脚绝对位置**，供客户端精确连线） |
 | `eeschema/sch_label.h/.cpp` | **补全 4 个 Label 类（Local/Global/Hierarchical/Directive）的序列化**：官方 3 个是 `UNIMPLEMENTED_FOR`、1 个只写 id+position；补全为含**标签文本**（网络名） |
-| `eeschema/api/api_handler_sch.h/.cpp` | ① `createSymbolFromAny`：从项目符号库表加载 `LIB_SYMBOL`，**并传入当前 sheet path 创建符号实例（否则 KiCad 不渲染符号图形！）**；② **修复构造器**：`API_HANDLER_EDITOR( aFrame )`；③ 无 container 时默认 `m_frame->GetScreen()->Schematic()`；④ **`SaveDocument` handler**；⑤ **`GetItems` handler**（读回 Text/Symbol/Line/Label，带 id）；⑥ **实现 `deleteItemsInternal`/`getItemFromDocument`**（删除按 KIID 走 commit）；⑦ **修复多元素创建崩溃**：`pushCurrentCommit` 移出循环、循环后统一提交 |
+| `eeschema/api/api_handler_sch.h/.cpp` | ① `createSymbolFromAny`：从项目符号库表加载 `LIB_SYMBOL`，**并传入当前 sheet path 创建符号实例（否则 KiCad 不渲染符号图形！）**；② **修复构造器**：`API_HANDLER_EDITOR( aFrame )`；③ 无 container 时默认 `m_frame->GetScreen()->Schematic()`；④ **`SaveDocument` handler**；⑤ **`GetItems` handler**（读回 Text/Symbol/Line/Label，带 id）；⑥ **实现 `deleteItemsInternal`/`getItemFromDocument`**；⑦ **修复多元素创建崩溃**（`pushCurrentCommit` 移出循环）；⑧ **`GetOpenDocuments` 补全 project.path**（客户端可解析完整文件路径，用于 ERC 等） |
 | `pcbnew/exporters/step/step_pcb_model.cpp` | **编译兼容**：OCC 7.7+ 的 `XCAFDoc_Editor::Extract` 在 OCC 7.5 不存在，用 `#if OCC_VERSION_HEX >= 0x070700` 分支回退到 `TDocStd_XLinkTool::Copy` |
 
 ## 补丁后支持的元素（`CreateItems` / `GetItems` / `UpdateItems` / `DeleteItems`）
@@ -119,6 +119,12 @@ print(kicad_sch_add_symbol('Device', 'R', 130, 90, reference='R1', value='10k'))
 ```
 
 **符号图形不渲染的修复**：`createSymbolFromAny` 之前把 `aSheet` 传 `nullptr`，而 `SCH_SYMBOL` 构造只在 `aSheet != nullptr` 时调 `SetRef()` 建立 sheet 实例——导致 `.kicad_sch` 里符号实例**缺 `(instances)` 段**，KiCad 只画连线/文本、**不画元件符号 body**。修复：传入 `m_frame->GetCurrentSheet()` 并对 Reference 字段调 `SetRef` 同步实例。修复后 `kicad-cli sch export svg` 渲染出 1871 个图形 path（符号 body+引脚+连线）与 BAT1/SW1/LAMP1 引用文本，符号正常显示。
+
+**ERC 通过的关键（2026-08-27 实测）**：
+1. **元件中心放 1.27mm 网格**（符号引脚都是 1.27 倍数），否则 ERC 报 "off connection grid"；
+2. **用 KiCad 计算的引脚位置连线**（`Symbol.pins`，与符号库文件坐标可能有 1 IU 甚至符号级差异），否则 wire 端点与引脚不重合，ERC 报 "Pin not connected"；
+3. **避免共线 wire 重叠**：竖直元件的上下引脚连线在同一竖线上会被 KiCad 合并成贯穿线、引脚被"埋"→ ERC 未连接。旋转元件（如电池横放）让引脚在左右可避免。
+验证：单回路（电池横放+开关+灯泡横放）`kicad-cli sch erc` **无违规**。
 
 **实测结果（本机，2026-08-27）**：
 - 创建：文本、连线、符号（含 **orientation_degrees=90 旋转**）全部 `ISC_OK(1)`；

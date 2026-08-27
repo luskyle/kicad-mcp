@@ -94,6 +94,18 @@ message Field
   string value = 2;
 }
 
+// (kicad-mcp patch) A pin of a placed symbol, with its ABSOLUTE position as
+// computed by KiCad (symbol origin + library pin offset, after rotation).
+// Using these coordinates for wires guarantees the endpoints land exactly on
+// the pins (KiCad's own pin positions, which can differ by 1 IU from a
+// client-side recomputation) so ERC reports no unconnected pins.
+message Pin
+{
+  string number = 1;
+  string name = 2;
+  kiapi.common.types.Vector2 position = 3;
+}
+
 /// Represents a schematic symbol (component instance) placed on a schematic.
 /// The library symbol is resolved by lib_id when the item is created.
 message Symbol
@@ -112,4 +124,8 @@ message Symbol
   // (kicad-mcp patch) Symbol rotation/mirror state as stored by
   // SCH_SYMBOL::GetOrientation() (0/90/180/270 plus mirror flags).
   int32 orientation_degrees = 5;
+
+  // (kicad-mcp patch) Absolute positions of the symbol's pins, as computed by
+  // KiCad (read back via GetItems).  Clients use these for exact wire routing.
+  repeated Pin pins = 6;
 }
