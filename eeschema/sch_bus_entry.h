@@ -61,6 +61,10 @@ public:
         }
     }
 
+    // (kicad-mcp patch) API serialization (see SCH_LINE::Serialize)
+    void Serialize( google::protobuf::Any& aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any& aContainer ) override;
+
     /**
      * Return true for items which are moved with the anchor point at mouse cursor
      *  and false for items moved with no reference to anchor

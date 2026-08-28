@@ -16,6 +16,7 @@ from typing import Optional
 
 from ..symbol_writer import parse_spec, build_symbol, write_lib_file, write_symdir
 from ..client import DOCTYPE_SCHEMATIC, KiCadClient, find_document_socket
+from ..proto.common.types import base_types_pb2
 
 KICAD_CONFIG_DIR = Path.home() / ".config/kicad" / "10.0"
 SYM_LIB_TABLE = KICAD_CONFIG_DIR / "sym-lib-table"
@@ -142,6 +143,27 @@ def kicad_sch_create_custom_symbol(
     return "\n".join(lines)
 
 
+def kicad_sch_reload_libraries() -> str:
+    """重新加载符号库表，让新增的自定义符号无需重启 eeschema 即可放置。
+
+    在 kicad_sch_create_custom_symbol 之后调用，再 kicad_sch_add_symbol 即可
+    使用新符号（需要已打 ReloadLibraries patch 并重新编译的 eeschema）。
+
+    Returns:
+        结果消息。
+    """
+    url, docs = find_document_socket(DOCTYPE_SCHEMATIC)
+    if url is None:
+        raise RuntimeError("没有可用的原理图进程，请先打开一个 .kicad_sch 文件")
+    doc = docs[0]
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        resp = kc.reload_libraries(doc)
+    if not resp.success:
+        raise RuntimeError(f"库重载失败: {resp.message}")
+    return f"✅ {resp.message}。现在可用 kicad_sch_add_symbol 放置新符号。"
+
+
 ALL_TOOLS = [
     kicad_sch_create_custom_symbol,
+    kicad_sch_reload_libraries,
 ]

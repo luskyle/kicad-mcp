@@ -60,6 +60,7 @@ KICOMMON_API std::optional<KICAD_T> TypeNameFromAny( const google::protobuf::Any
         { "type.googleapis.com/kiapi.schematic.types.NoConnect", SCH_NO_CONNECT_T },
         { "type.googleapis.com/kiapi.schematic.types.Junction", SCH_JUNCTION_T },
         { "type.googleapis.com/kiapi.schematic.types.Image", SCH_BITMAP_T },
+        { "type.googleapis.com/kiapi.schematic.types.BusEntry", SCH_BUS_WIRE_ENTRY_T },
     };
 
     auto it = s_types.find( aMessage.type_url() );

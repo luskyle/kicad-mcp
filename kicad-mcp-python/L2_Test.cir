@@ -1,0 +1,5 @@
+.title KiCad schematic
+R3 Net-_R1-Pad1_ Net-_R1-Pad2_ 4k
+R2 unconnected-_R2-Pad1_ unconnected-_R2-Pad2_ 2k
+R1 Net-_R1-Pad1_ Net-_R1-Pad2_ 10k
+.end

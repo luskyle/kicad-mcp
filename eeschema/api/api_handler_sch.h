@@ -88,6 +88,11 @@ private:
     HANDLER_RESULT<commands::SimulateResponse> handleSimulate(
             const HANDLER_CONTEXT<commands::Simulate>& aCtx );
 
+    // (kicad-mcp patch) Reload the symbol library tables so newly-added custom
+    // symbols are available without restarting eeschema.
+    HANDLER_RESULT<commands::ReloadLibrariesResponse> handleReloadLibraries(
+            const HANDLER_CONTEXT<commands::ReloadLibraries>& aCtx );
+
     /**
      * Create a schematic symbol, resolving its LIB_SYMBOL from the project's
      * symbol library table.  The library symbol cannot be resolved by the item

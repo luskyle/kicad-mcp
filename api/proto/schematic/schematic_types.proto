@@ -50,6 +50,16 @@ message Line
   SchematicLayer layer = 4;
 }
 
+// (kicad-mcp patch) A bus entry: short diagonal segment connecting a signal
+// wire (or bus) to a bus line.  `position` is the end on the signal side,
+// `end` is the end on the bus side.  Maps to SCH_BUS_WIRE_ENTRY (wire->bus).
+message BusEntry
+{
+  kiapi.common.types.KIID    id       = 1;
+  kiapi.common.types.Vector2 position = 2;
+  kiapi.common.types.Vector2 end      = 3;
+}
+
 message Text
 {
   // (kicad-mcp patch) ID was added so text items can be updated/deleted via

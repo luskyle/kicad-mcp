@@ -75,6 +75,20 @@ message SimulateResponse
   string message = 2;
 }
 
+// (kicad-mcp patch) Reload the symbol library tables so newly-added custom
+// symbols become available WITHOUT restarting eeschema.  This re-reads the
+// global/project sym-lib-table and invalidates cached library entries.
+message ReloadLibraries
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message ReloadLibrariesResponse
+{
+  bool success = 1;
+  string message = 2;
+}
+
 // Saves the given document to a new location and opens the new copy
 // Note, this is not going to be implemented anytime soon as we don't currently
 // want to allow API access to changing which project is open

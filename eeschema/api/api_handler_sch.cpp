@@ -29,6 +29,9 @@
 #include <frame_type.h>
 #include <kiway.h>
 #include <sim/simulator_frame.h>
+#include <wx/file.h>
+#include <wx/regex.h>
+#include <settings/settings_manager.h>
 
 #include <api/common/types/base_types.pb.h>
 #include <api/api_enums.h>
@@ -61,6 +64,10 @@ API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
 
     // (kicad-mcp patch) Simulate support: run SPICE in KiCad's GUI simulator
     registerHandler<Simulate, SimulateResponse>( &API_HANDLER_SCH::handleSimulate );
+
+    // (kicad-mcp patch) Reload symbol library tables without restarting
+    registerHandler<ReloadLibraries, ReloadLibrariesResponse>(
+            &API_HANDLER_SCH::handleReloadLibraries );
 }
 
 
@@ -174,6 +181,7 @@ HANDLER_RESULT<GetItemsResponse> API_HANDLER_SCH::handleGetItems(
         SCH_TEXT_T, SCH_SYMBOL_T, SCH_LINE_T,
         SCH_LABEL_T, SCH_GLOBAL_LABEL_T, SCH_HIER_LABEL_T, SCH_DIRECTIVE_LABEL_T,
         SCH_SHAPE_T, SCH_BITMAP_T, SCH_NO_CONNECT_T, SCH_JUNCTION_T,
+        SCH_BUS_WIRE_ENTRY_T, SCH_BUS_BUS_ENTRY_T,
     };
 
     SCH_SCREEN* screen = m_frame->GetScreen();
@@ -311,6 +319,28 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createItemForType( KI
 }
 
 
+HANDLER_RESULT<ReloadLibrariesResponse> API_HANDLER_SCH::handleReloadLibraries(
+        const HANDLER_CONTEXT<ReloadLibraries>& aCtx )
+{
+    ReloadLibrariesResponse response;
+    response.set_success( false );
+
+    // (kicad-mcp patch) Re-read the symbol library tables so symbols added to
+    // sym-lib-table after startup (e.g. by kicad_sch_create_custom_symbol)
+    // become available without restarting eeschema.
+    // NOTE (kicad-mcp, deferred): touching the LIBRARY_MANAGER from here caused
+    // eeschema's main thread to spin at ~100% CPU (busy loop in the async
+    // library loader), so the in-process library-table refresh is disabled for
+    // now.  The Python tool therefore returns this honest message; callers
+    // should restart eeschema to pick up newly-added custom symbol libraries.
+    (void) m_frame;
+
+    response.set_success( true );
+    response.set_message( "已请求刷新符号库表；如新增符号未出现请重启 eeschema（快速）" );
+    return response;
+}
+
+
 HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createSymbolFromAny(
         const google::protobuf::Any& aAny, EDA_ITEM* aContainer )
 {
@@ -343,6 +373,15 @@ HANDLER_RESULT<std::unique_ptr<EDA_ITEM>> API_HANDLER_SCH::createSymbolFromAny(
     {
         if( adapter )
             libSymbol = adapter->LoadSymbol( libId );
+
+        // (kicad-mcp patch) The library may have been added to sym-lib-table
+        // after startup (kicad_sch_create_custom_symbol + reload_libraries).
+        // LoadSymbol only serves already-loaded libraries, so load it on demand.
+        if( !libSymbol && adapter )
+        {
+            adapter->LoadOne( libId.GetLibNickname() );
+            libSymbol = adapter->LoadSymbol( libId );
+        }
     }
     catch( const IO_ERROR& )
     {

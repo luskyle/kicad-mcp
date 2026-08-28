@@ -235,6 +235,20 @@ class KiCadClient:
         resp.message.Unpack(out)
         return out
 
+    def reload_libraries(self,
+                         doc: base_types_pb2.DocumentSpecifier
+                         ) -> "editor_commands_pb2.ReloadLibrariesResponse":
+        """重新加载符号库表（无需重启 eeschema）。
+
+        用于 kicad_sch_create_custom_symbol 新增符号后，让 eeschema 立即可用。
+        """
+        req = editor_commands_pb2.ReloadLibraries()
+        req.document.CopyFrom(doc)
+        resp = self._call(req)
+        out = editor_commands_pb2.ReloadLibrariesResponse()
+        resp.message.Unpack(out)
+        return out
+
     def create_items(
         self,
         header: base_types_pb2.ItemHeader,

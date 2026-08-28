@@ -39,10 +39,47 @@
 #include <trigo.h>
 #include <board_item.h>
 #include <connection_graph.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
 #include "sch_painter.h"
 #include "plotters/plotter.h"
 #include <properties/property.h>
 #include <properties/property_mgr.h>
+
+
+// (kicad-mcp patch) API serialization for SCH_BUS_ENTRY_BASE (covers both
+// SCH_BUS_WIRE_ENTRY and SCH_BUS_BUS_ENTRY).  Mirrors SCH_LINE::Serialize.
+void SCH_BUS_ENTRY_BASE::Serialize( google::protobuf::Any &aContainer ) const
+{
+    kiapi::schematic::types::BusEntry entry;
+
+    entry.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *entry.mutable_position(), GetPosition() );
+    kiapi::common::PackVector2( *entry.mutable_end(), GetEnd() );
+
+    aContainer.PackFrom( entry );
+}
+
+
+// (kicad-mcp patch) API deserialization for SCH_BUS_ENTRY_BASE.
+bool SCH_BUS_ENTRY_BASE::Deserialize( const google::protobuf::Any &aContainer )
+{
+    kiapi::schematic::types::BusEntry entry;
+
+    if( !aContainer.UnpackTo( &entry ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( entry.id().value() );
+
+    VECTOR2I pos = kiapi::common::UnpackVector2( entry.position() );
+    VECTOR2I end = kiapi::common::UnpackVector2( entry.end() );
+
+    SetPosition( pos );
+    SetSize( end - pos );
+
+    return true;
+}
 
 
 SCH_BUS_ENTRY_BASE::SCH_BUS_ENTRY_BASE( KICAD_T aType, const VECTOR2I& pos, bool aFlipY ) :
