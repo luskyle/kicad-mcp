@@ -139,6 +139,57 @@
 - **bus entry 语义**：`at`(m_pos) 落在总线上、`GetEnd`(pos+size) 接导线（对照官方
   qa/data/eeschema/issue19646/Resolver.kicad_sch 验证）。
 
+### keyboard-89 重绘验证（2026-08-28）—— 用新工具重画 4 页 + 逐页验证
+
+**结果**：flash ✅ / power ✅ / matrix ✅ / main ⚠️（RP2040 引脚 API 连接 bug，见下）。
+
+| 页 | 工具 | 验证 |
+|---|---|---|
+| flash | draw_circuit（keep_power+轨道） | ERC 只剩跨页"not driven"（FLASH_* 由 main 驱动）✅ |
+| power | draw_circuit（横排+轨道） | ERC **0 error**（只剩 USB_DM/DP 跨页 label）✅ |
+| matrix | 网格放置 15 键 + 全局标签 | ERC **无违规** ✅ |
+| main | 显式布局 + 物理电源轨道 + auto_route | ⚠️ RP2040 引脚无法 API 连接（见下） |
+
+**跨页一致性 ✅**：4 页全局标签（`3V3`/`0`/`FLASH_*`/`USB_DM|DP`/`C1..C5`/`R1..R3`）全部匹配。
+
+**本轮对 draw_circuit/auto_route 的算法修复（已编入 circuit.py）**：
+1. 多引脚同列 → 用 **collector**（竖直收集线 + 水平 stub），不用简单竖直 stub
+   （会共线合并、中段引脚连不上、且穿过列内其他网络的引脚 → 短路）。
+2. trunk/stub 必须避开**其他网络的引脚**（`_foreign_pins` 精确避让）。
+3. bbox 检查用**本体包围盒**（收缩 2.54mm），3.81mm padding 误挡干净通道。
+4. 兜底 lane 吸附 1.27mm 网格（否则 off-grid）。
+5. `_power_rail_lanes` 单位 bug（y_mm 已是 mm）；keep_power 用 rail_refs 让 3V3 顶轨/0 底轨。
+6. 手动画轨道 wire 两端都吸附网格。
+7. draw_circuit 新增：`label_type`（global 跨页）、`keep_power_symbols`、`label_only`
+   （矩阵类不拉线只放标签）、`layout.positions`（显式布局）、`route:false`（只放符号+标签）。
+
+**已知限制：RP2040 引脚 API 连接 bug**——导线精确落在 `_read_symbols` 报告的引脚位置
+（含 Junction、换候选位置）仍报 "Pin not connected"，而 GD25Q16E 等其他符号正常。
+疑似 C++ `SCH_SYMBOL::Serialize` 的 `GetPosition()` 返回图形位置，与 KiCad 连通性用的
+位置不一致。**待 C++ 侧修复（暂缓）**；main 页其余部分（布局/标签/轨道/信号网）已画好。
+
+### 标签尺寸与摆放修复（2026-08-28）—— 用户反馈"标签的尺寸与摆放一直是问题"
+
+**根因**：默认字高 2.54mm（KiCad 标准 1.27 的两倍），且标签直接放在引脚位置、叠在符号上
+（矩阵页同侧两脚各放一个重复标签 → 文字互相压）。
+
+**工具层修复（`circuit.py`/`schematic.py`）**：
+1. **尺寸**：标签默认字高 → **1.27mm**（KiCad 标准）；`label_size_mm`（整图）/
+   `nets[].label_size_mm`（单网）可覆盖。
+2. **摆放规则**：
+   - trunk 标签 → 放 trunk **左端外侧 2.54mm 引出段（tab）**上，避开第一条竖直 stub；
+   - 无 trunk 的标签（单引脚跨页 / label_only）→ 放**引脚外侧短 stub** 上（stub 长度按
+     文本宽度自适应 `max(2.54, len*size*0.62+1.27)` 并吸附 1.27 网格），文字落在 stub
+     上、不压符号本体（尤其左侧引脚）；
+   - label_only（矩阵）→ 按（符号,网络）分组：同侧同网多引脚先短导线短接，只放
+     **一个**标签（矩阵开关每侧 2 脚同网，标签 60→30 去重）。
+3. **外侧方向**由 `_pin_outward_dir`（引脚相对符号中心）判定，不依赖库旋转矩阵。
+
+**验证**：flash(6)/power(5)/matrix(30)/main(22) 标签互相重叠 **0**；flash/power/matrix
+标签压符号本体 **0**（距最近引脚 ≥0.97mm）；matrix ERC **无违规**；flash/power ERC 与
+之前一致（仅跨页 label 警告 + 封装库警告）。main 页 5 处标签仍压 RP2040 本体 = 已知
+RP2040 引脚读回 bug 的连带（引脚位置都偏，标签跟随）。
+
 ### L4 — 质量与工程化
 
 - [ ] **DRC/ERC 门禁**：L1/L2 工具内部自动跑 ERC/DRC，违规自修复重试，保证"交付即通过"。

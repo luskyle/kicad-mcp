@@ -227,7 +227,9 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
     opts:
         mode: "auto"|"flow"（按信号流排布，电源符号放上/下轨道）| "grid"（普通网格）。
         x0_mm / y0_mm / gap_mm / columns：网格参数。
+        positions: {ref: [x_mm, y_mm, orient]} 显式坐标覆盖（复杂 MCU 页人工布局）。
     """
+    positions = opts.get("positions") or {}
     x0 = float(opts.get("x0_mm", 50.0))
     y0 = float(opts.get("y0_mm", 50.0))
     gap = float(opts.get("gap_mm", 0.0) or 0.0)
@@ -235,6 +237,19 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
 
     non_power = [s for s in symbols if not _is_power_spec(s)]
     power = [s for s in symbols if _is_power_spec(s)]
+
+    # 显式坐标：直接返回（仍吸附网格），跳过自动布局
+    if positions:
+        out: dict = {}
+        for s in symbols:
+            ref = s.get("ref")
+            if ref in positions:
+                px, py = positions[ref][0], positions[ref][1]
+                po = positions[ref][2] if len(positions[ref]) > 2 else int(s.get("orient", 0))
+                out[ref] = (_snap_grid(px), _snap_grid(py), po)
+            else:
+                out[ref] = (_snap_grid(x0), _snap_grid(y0), int(s.get("orient", 0)))
+        return out
 
     # 间距：按最大符号尺寸自适应（gap 为最小值）。行间距要留出 trunk 布线通道，
     # 否则同一行所有水平导线会因共线被 KiCad 合并成一条贯穿线（短路）。
@@ -267,10 +282,12 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
             y = _snap_grid(y0 + (st % 2) * row_gap + row * row_gap)
             out[s.get("ref")] = (x, y, int(s.get("orient", 0)))
 
-    # 电源符号放上/下轨道（GND 下轨，VCC 类上轨），x 对齐其网络锚点列
+    # 电源符号放上/下轨道（GND 下轨，VCC 类上轨），x 对齐其网络锚点列。
+    # 多条同轨电源符号要横向错开，避免叠在同一位置。
     if power:
         gnd_y = _snap_grid(y0 + 2 * row_gap + max_h)   # 所有行下方
         vcc_y = _snap_grid(y0 - row_gap)               # 所有行上方
+        used_x: dict = {}                              # y -> 已占用的 x 集合
         for s in power:
             name = s.get("symbol", "").upper()
             anchor = _net_anchor(s.get("ref"), nets, non_power)
@@ -280,7 +297,22 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
             elif name in ("+3V3", "+5V", "+12V", "-12V", "VCC", "VDD"):
                 y = vcc_y
             else:
-                y = _snap_grid(y0)  # PWR_FLAG 等：放网格起点附近
+                # PWR_FLAG 等：按其网络的名称决定轨道（GND/0 → 下轨，
+                # 其余电源 → 上轨），避免落在主符号位置导致重叠。
+                net_name = ""
+                for net in nets:
+                    if any(r == s.get("ref") for r, _ in net.get("pins", [])):
+                        net_name = net.get("name", "")
+                        break
+                if net_name.upper() in ("GND", "0"):
+                    y = gnd_y
+                else:
+                    y = vcc_y
+            # 同轨多个电源符号横向错开（2.54mm 步进），防重叠
+            taken = used_x.setdefault(y, set())
+            while ax in taken:
+                ax = _snap_grid(ax + 2.54)
+            taken.add(ax)
             out[s.get("ref")] = (ax, y, int(s.get("orient", 0)))
     return out
 
@@ -308,13 +340,20 @@ def _place_symbols(symbols: list, layout: dict) -> list:
 def _pick_trunk_lane(pins_iu: list, obstacles_mm: list,
                      used_lanes_iu: list, owner_bboxes: Optional[list] = None,
                      preferred_lane: Optional[int] = None,
-                     margin_mm: float = 2.54) -> int:
+                     margin_mm: float = 2.54,
+                     foreign_pins_iu: Optional[list] = None,
+                     trunk_obstacles_mm: Optional[list] = None) -> int:
     """为网络选一条水平 trunk 道（IU），不与符号/已用道/引脚 stub 冲突。
 
     owner_bboxes: 与 pins_iu 等长的列表，每个引脚所属符号的包围盒；
     检查该引脚 stub 时排除自己符号的包围盒（侧边引脚竖直 stub 本就不穿过
     本体，只是被 bbox 的 3.81mm padding 误判）。
     preferred_lane: 首选道（如电源轨道 GND 底部 / VCC 顶部），先尝试它。
+    foreign_pins_iu: 其他所有符号的引脚绝对坐标。trunk/stub 绝不能穿过别的
+    网络的引脚（否则该引脚会连到本网络 → 短路），选道时精确避让。
+    trunk_obstacles_mm: 供 trunk 线段用的「本体」包围盒（比 obstacles_mm 收缩
+    ~2.54mm）。trunk 只需避开符号本体（引脚由 foreign_pins_iu 精确避让），
+    否则 3.81mm padding 会把密集布局里的干净通道全挡掉。
     """
     ys = [p[1] for p in pins_iu]
     y_min, y_max = min(ys), max(ys)
@@ -327,28 +366,81 @@ def _pick_trunk_lane(pins_iu: list, obstacles_mm: list,
         """吸附到 1.27mm 网格（否则导线端点 off grid，ERC 报错）。"""
         return round(_snap_grid(y_iu / MM) * MM)
 
+    def _foreign_hits_trunk(x1, x2, y_iu):
+        """trunk 线段是否穿过某个外部引脚（引脚连到本网络=短路）。"""
+        if not foreign_pins_iu:
+            return False
+        for fx, fy in foreign_pins_iu:
+            if fy == y_iu and x1 <= fx <= x2:
+                return True
+        return False
+
+    def _foreign_hits_stub(px, py1, py2):
+        """竖直 stub 是否穿过某个外部引脚。"""
+        if not foreign_pins_iu:
+            return False
+        lo, hi = (py1, py2) if py1 < py2 else (py2, py1)
+        for fx, fy in foreign_pins_iu:
+            if fx == px and lo <= fy <= hi:
+                return True
+        return False
+
+    # 候选道：优先 preferred / base 附近，然后在整个引脚 y 范围上下密集扫描
+    # （2.54mm 步进、上下各扩 ~30mm），保证几乎总能找到干净通道，避免
+    # 兜底返回与别的网络共道的 trunk（短路）。
     cands = []
     if preferred_lane is not None:
         cands.append(_on_grid(preferred_lane))
     cands.append(_on_grid(base))
-    for k in range(1, 12):
-        cands.append(_on_grid(base - k * m))
-        cands.append(_on_grid(base + k * m))
+    span = round(30.0 * MM)
+    lo_y = min(ys) - span
+    hi_y = max(ys) + span
+    y = lo_y
+    while y <= hi_y:
+        cands.append(_on_grid(y))
+        y += round(2.54 * MM)
     seen = set()
     cands = [c for c in cands if not (c in seen or seen.add(c))]
+    if trunk_obstacles_mm is None:
+        trunk_obstacles_mm = obstacles_mm
+    # 评分兜底：找不到完全干净的道时，选「foreign 命中最少 + 尽量接近 base」
+    # 的候选，而不是盲选 base（否则 trunk 压在别的网络引脚上=短路）。
+    best_score = None
+    best_y = None
     for y_iu in cands:
         trunk = ((x_min, y_iu), (x_max, y_iu))
-        if any(_seg_hits_bbox(trunk, o) for o in obstacles_mm):
+        if any(_seg_hits_bbox(trunk, o) for o in trunk_obstacles_mm):
             continue
         if any(abs(y_iu - u) < m for u in used_lanes_iu):
             continue
+        fhits = 0
+        if foreign_pins_iu:
+            fhits = sum(1 for fx, fy in foreign_pins_iu
+                        if fy == y_iu and x_min <= fx <= x_max)
+        if fhits:
+            score = (fhits, abs(y_iu - base))
+            if best_score is None or score < best_score:
+                best_score = score
+                best_y = y_iu
+            continue
         ok = True
+        # 多引脚列用 collector（水平 stub 不穿列内其他引脚），只有单引脚列
+        # 才是简单竖直 stub，才对它做 foreign-pin / bbox 检查。
+        col_counts: dict = {}
+        for _, (px, py) in enumerate(pins_iu):
+            if py != y_iu:
+                col_counts[px] = col_counts.get(px, 0) + 1
         for i, (px, py) in enumerate(pins_iu):
             if py == y_iu:
                 continue
+            if col_counts.get(px, 0) > 1:
+                continue
             stub = ((px, min(py, y_iu)), (px, max(py, y_iu)))
             own = owner_bboxes[i] if owner_bboxes else None
-            for o in obstacles_mm:
+            if _foreign_hits_stub(px, min(py, y_iu), max(py, y_iu)):
+                ok = False
+                break
+            for o in trunk_obstacles_mm:
                 if own is not None and o == own:
                     continue  # 忽略自己符号的包围盒（padding 误判）
                 if _seg_hits_bbox(stub, o):
@@ -358,12 +450,36 @@ def _pick_trunk_lane(pins_iu: list, obstacles_mm: list,
                 break
         if ok:
             return y_iu
-    return base
+    if best_y is not None:
+        return best_y
+    # 兜底也要吸附到 1.27mm 网格，否则 trunk 端点 off-grid 报错/连不上。
+    return _on_grid(base)
+
+
+def _foreign_pins(pin_refs: list) -> list:
+    """返回本网络之外所有符号的引脚绝对坐标（IU），用于避让防短路。
+
+    pin_refs 形如 [(ref, (x_iu, y_iu)), ...]（无引脚号），故用 (ref, 坐标) 匹配
+    本网络的引脚，其余视为外部引脚。
+    """
+    own = {(r, (x, y)) for r, (x, y) in pin_refs}
+    out = []
+    try:
+        from .schematic import _read_symbols
+        for ref, info in _read_symbols().items():
+            for num, (ix, iy) in (info.get("pins") or {}).items():
+                if (ref, (ix, iy)) in own:
+                    continue
+                out.append((ix, iy))
+    except Exception:
+        pass
+    return out
 
 
 def _route_net_trunk(pin_refs: list, obstacles_mm: list,
                      used_lanes_iu: list, owner_bbox_map: dict,
-                     preferred_lane: Optional[int] = None) -> tuple:
+                     preferred_lane: Optional[int] = None,
+                     used_collector_xs: Optional[list] = None) -> tuple:
     """用独立 trunk 道连接网络的所有引脚（每网络一条专属水平道）。
 
     设计要点（防止 KiCad 把共线导线合并短路）:
@@ -381,17 +497,73 @@ def _route_net_trunk(pin_refs: list, obstacles_mm: list,
     """
     pins_iu = [p for _, p in pin_refs]
     owner_bboxes = [owner_bbox_map.get(r) for r, _ in pin_refs]
-    y_lane = _pick_trunk_lane(pins_iu, obstacles_mm, used_lanes_iu, owner_bboxes,
-                              preferred_lane)
+    # 其他所有符号的引脚（本网络之外）作为避让障碍：trunk/stub 穿过别的
+    # 网络的引脚会把它连进来 → 短路。
+    foreign_pins_iu = _foreign_pins(pin_refs)
+    # trunk/stub 只用「本体」包围盒（收缩 2.54mm），避免 3.81mm padding 挡掉
+    # 通道。注意 owner 排除也要用本体版（padded 与 body 不相等，own 排除
+    # 会失效导致自己被自己的符号挡住）。
+    body = []
+    for (bx1, by1, bx2, by2) in obstacles_mm:
+        body.append((bx1 + 2.54, by1 + 2.54, bx2 - 2.54, by2 - 2.54))
+    body_owners = []
+    for ob in owner_bboxes:
+        if ob is None:
+            body_owners.append(None)
+        else:
+            bx1, by1, bx2, by2 = ob
+            body_owners.append((bx1 + 2.54, by1 + 2.54, bx2 - 2.54, by2 - 2.54))
+    y_lane = _pick_trunk_lane(pins_iu, obstacles_mm, used_lanes_iu,
+                              body_owners, preferred_lane,
+                              foreign_pins_iu=foreign_pins_iu,
+                              trunk_obstacles_mm=body)
     used_lanes_iu.append(y_lane)
-    x_min = min(p[0] for p in pins_iu)
-    x_max = max(p[0] for p in pins_iu)
+
+    # 每个引脚都要是导线端点才保证连接。同列（同 x）多引脚时，竖直 stub 会
+    # 共线合并成一条线、中段引脚连不上，且简单 stub 会穿过列内其他网络的引脚
+    # （如 USBC 左侧 8 个同 x 引脚分属多网络 → 短路）。解法：**多引脚列一律用
+    # 竖直「收集线」（collector，x 偏离引脚列）**——每个引脚水平 stub 落到
+    # 收集线上（引脚是端点、stub 端点落在收集线= T 连接，Junction 可存活；
+    # 水平 stub 不穿过列内其他引脚），收集线再与水平 trunk 相交。
+    # 只有单引脚列才用简单竖直 stub（lane 选择时已按 foreign pin 避让）。
+    cols: dict = {}                       # px -> [(py, idx), ...]
+    for idx, (px, py) in enumerate(pins_iu):
+        if py != y_lane:
+            cols.setdefault(px, []).append((py, idx))
     segs = []
     junctions = []
-    for (px, py) in pins_iu:
-        if py != y_lane:
-            segs.append(((px, py), (px, y_lane)))
-            junctions.append((px, y_lane))
+    JOG = round(2.54 * MM)
+    # 收集线 x 要跨网络全局唯一（不同网络的同列收集线共线会合并→短路）。
+    # 调用方传入共享列表（draw_circuit/auto_route 各建一个）。
+    if used_collector_xs is None:
+        used_collector_xs = []
+    used_collectors: list = []
+
+    for px, entries in cols.items():
+        if len(entries) < 2:
+            for py, _ in entries:
+                segs.append(((px, py), (px, y_lane)))
+                junctions.append((px, y_lane))
+            continue
+        # collector 方案
+        owner = owner_bboxes[entries[0][1]]
+        cx = (owner[0] + owner[2]) / 2.0 * MM if owner else px
+        direction = 1 if px >= cx else -1
+        ccol = px + direction * JOG
+        while any(abs(ccol - e) < JOG
+                  for e in used_collector_xs + used_collectors + [px]):
+            ccol = ccol + direction * JOG
+        used_collectors.append(ccol)
+        used_collector_xs.append(ccol)
+        ys = [py for py, _ in entries] + [y_lane]
+        segs.append(((ccol, min(ys)), (ccol, max(ys))))
+        for py, _ in entries:
+            segs.append(((px, py), (ccol, py)))
+            junctions.append((ccol, py))
+        junctions.append((ccol, y_lane))
+
+    x_min = min([p[0] for p in pins_iu] + used_collectors)
+    x_max = max([p[0] for p in pins_iu] + used_collectors)
     segs.append(((x_min, y_lane), (x_max, y_lane)))
     return [s for s in segs if s[0] != s[1]], y_lane, junctions
 
@@ -411,8 +583,9 @@ def _power_rail_lanes(syms: dict, nets: list, power_refs: set,
     y_min, y_max = min(ys), max(ys)
     step = round(2.54 * MM)
     margin = round(6.0 * MM)
-    bottom = round((y_max / MM + 6.0) * MM)     # 底部轨道：最大 y 以下
-    top = round((y_min / MM - 6.0) * MM)        # 顶部轨道：最小 y 以上
+    # 注意: _read_symbols 的 y_mm 已是 mm（float），直接乘 MM 转 IU。
+    bottom = round((y_max + 6.0) * MM)          # 底部轨道：最大 y 以下
+    top = round((y_min - 6.0) * MM)             # 顶部轨道：最小 y 以上
     # 已用道作为已知占位，让多个电源网络错开
     occupied = set(used_lanes_iu)
     out: dict = {}
@@ -579,6 +752,73 @@ def _pin_iu(syms: dict, ref: str, pin: str):
 
 
 # ============================================================
+# 标签：尺寸与摆放（IEC 61082：标签清晰、不压符号/导线）
+# ============================================================
+
+def _pin_outward_dir(syms: dict, ref: str, pin: str) -> tuple:
+    """引脚的外侧方向（远离符号中心）单位向量 (dx, dy)。"""
+    px, py = _pin_iu(syms, ref, pin)
+    info = syms[ref]
+    cx, cy = info["x_mm"] * MM, info["y_mm"] * MM
+    rx, ry = px - cx, py - cy
+    if abs(rx) >= abs(ry):
+        return (1 if rx > 0 else -1), 0
+    return 0, (1 if ry > 0 else -1)
+
+
+def _label_stub(syms: dict, ref: str, pin: str, text: str,
+                size_mm: float) -> tuple:
+    """引脚外侧短 stub。返回 ((起,止)IU, (标签锚点)IU)。
+
+    标签文字默认朝右（KiCad 标签方向 0°），stub 长度按文本宽度自适应，
+    让文字落在 stub 上、不压到符号本体（尤其左侧引脚）。
+    """
+    px, py = _pin_iu(syms, ref, pin)
+    dx, dy = _pin_outward_dir(syms, ref, pin)
+    text_w = max(size_mm, len(text) * size_mm * 0.62)
+    stub_mm = max(2.54, text_w + 1.27)
+    stub_mm = round(stub_mm / 1.27) * 1.27            # 吸附 1.27 网格
+    off = round(stub_mm * MM)
+    ex, ey = px + dx * off, py + dy * off
+    return ((px, py), (ex, ey)), (ex, ey)
+
+
+def _group_wire_segments(syms: dict, ref: str, pins: list) -> list:
+    """同一符号内同一网络的多个引脚用一段水平/竖直导线短接。
+
+    返回线段 IU 列表；不共线时返回 []（调用方退回逐引脚标签）。
+    """
+    pts = [_pin_iu(syms, ref, p) for p in pins]
+    if len(pts) < 2:
+        return []
+    xs = {p[0] for p in pts}
+    ys = {p[1] for p in pts}
+    if len(xs) == 1:
+        x = xs.pop()
+        return [((x, min(p[1] for p in pts)), (x, max(p[1] for p in pts)))]
+    if len(ys) == 1:
+        y = ys.pop()
+        return [((min(p[0] for p in pts), y), (max(p[0] for p in pts), y))]
+    return []
+
+
+def _group_primary_pin(syms: dict, ref: str, pins: list) -> str:
+    """选组内最外侧的引脚放标签（给标签留出空间）。"""
+    if len(pins) == 1:
+        return pins[0]
+    info = syms[ref]
+    cx, cy = info["x_mm"] * MM, info["y_mm"] * MM
+    best, best_val = pins[0], None
+    for p in pins:
+        px, py = _pin_iu(syms, ref, p)
+        rx, ry = px - cx, py - cy
+        val = abs(rx) if abs(rx) >= abs(ry) else abs(ry)
+        if best_val is None or val > best_val:
+            best, best_val = p, val
+    return best
+
+
+# ============================================================
 # 公开工具
 # ============================================================
 
@@ -655,6 +895,7 @@ def kicad_sch_auto_route(
     summary = []
     all_segs = []
     all_junctions = []
+    collector_xs: list = []
     for net in nets:
         name = net.get("name", "?")
         pins = net.get("pins", [])
@@ -663,7 +904,8 @@ def kicad_sch_auto_route(
             continue
         pin_refs = [(r, _pin_iu(syms, r, p)) for r, p in pins]
         segs, y_lane, junctions = _route_net_trunk(
-            pin_refs, obstacles, used_lanes_iu, owner_bbox_map)
+            pin_refs, obstacles, used_lanes_iu, owner_bbox_map,
+            used_collector_xs=collector_xs)
         all_segs += segs
         all_junctions += junctions
         summary.append(f"  {name}: 连接 {len(pins)} 个引脚，{len(segs)} 段导线")
@@ -698,12 +940,16 @@ def kicad_sch_draw_circuit(
                        {"name":"GND","pins":[["C1","2"],["V1","2"],["G1","1"]]}],
               "labels": [{"net":"VIN","text":"VIN"},{"net":"OUT","text":"OUT"}],
               "layout": {"mode":"auto","x0_mm":50,"y0_mm":50,"gap_mm":0},
+              "label_size_mm": 1.27,
               "clear": true, "run_erc": true, "render": true,
               "max_fix_attempts": 3
             }
             说明: nets[].pins 顺序隐含信号方向（p0 输入 → pn 输出）；电源网络
             （如 3V3/5V/VCC）ERC 报 "Input Power pin not driven" 时会自动补
             PWR_FLAG。symbols[].orient=90 表示水平放置（引脚在左右），默认 0。
+            label_size_mm 控制标签字高（默认 1.27mm，KiCad 标准）；可按网络
+            nets[].label_size_mm 覆盖。label_only 网络（如矩阵）每个符号同侧
+            同网引脚自动短接并只放一个标签（放引脚外侧 stub，不压符号）。
         clear: 画之前清空当前图纸（默认 true，来自 JSON 的 clear 字段）。
         run_erc: 画完后跑 ERC（默认 true）。
         render: 画完后渲染 SVG（默认 true）。
@@ -733,15 +979,25 @@ def kicad_sch_draw_circuit(
     for s in symbols:
         s["lib"], s["symbol"] = _resolve_symbol(s)
 
-    # 电源符号不实际放置：电源网络改用「本地标签」表示（经踩坑验证：
-    # power 符号引脚是 power_in 需要额外驱动、还会让 SPICE netlist 产生
-    # 占位行；本地标签既满足 ERC 又让 netlist 干净，适合仿真）。
-    power_syms = [s for s in symbols if _is_power_spec(s)]
-    power_refs = {s.get("ref") for s in power_syms}
-    real_symbols = [s for s in symbols if s not in power_syms]
-    if power_syms:
-        lines.append(f"  · ℹ️ 电源符号 {', '.join(s.get('ref') for s in power_syms)} "
-                     f"改为用网络标签表示（不放置 power:GND/+3V3 等符号）")
+    # 电源符号：默认不放置，电源网络用标签表示（L2 结论：power 符号的
+    # power_in 引脚需要额外驱动、SPICE netlist 有占位行；标签既满足 ERC
+    # 又让 netlist 干净）。但含 IC（power_in 引脚）的电路必须用 PWR_FLAG
+    # 驱动，此时设 keep_power_symbols=true 保留电源符号并物理连接。
+    keep_power = data.get("keep_power_symbols", False)
+    if keep_power:
+        power_syms = []
+        power_refs = set()
+        # 电源轨道判定用这些电源符号（PWR_FLAG 等）：让 3V3 走上轨、0 走下轨
+        rail_refs = {s.get("ref") for s in symbols if _is_power_spec(s)}
+        real_symbols = symbols
+    else:
+        power_syms = [s for s in symbols if _is_power_spec(s)]
+        power_refs = {s.get("ref") for s in power_syms}
+        rail_refs = power_refs
+        real_symbols = [s for s in symbols if s not in power_syms]
+        if power_syms:
+            lines.append(f"  · ℹ️ 电源符号 {', '.join(s.get('ref') for s in power_syms)} "
+                         f"改为用网络标签表示（不放置 power:GND/+3V3 等符号）")
 
     # 布局 + 放置（只放非电源符号）。流向计算用完整符号列表，让电源网络
     # （含已跳过的电源符号）不参与 stage，否则会成环全挤到同一列。
@@ -756,51 +1012,107 @@ def kicad_sch_draw_circuit(
     owner_bbox_map = {ref: _symbol_bbox_mm(info) for ref, info in syms.items()}
     obstacles = list(owner_bbox_map.values())
     used_lanes_iu: list = []
+    collector_xs: list = []
     net_lanes: dict = {}   # net 名 -> trunk y_iu（标签放 trunk 上）
     routed = []
     all_junctions = []
 
+    # route=false：只放符号+标签，不自动布线（留给调用方手动画电源轨道等）。
+    if data.get("route", True) is False:
+        lines.append("  · ℹ️ 已跳过自动布线（route=false，等待手动接线）")
+
     # 电源轨道（行业惯例 IEC 61082：电源在上、地在下）：给电源网络首选
     # 底部/顶部轨道道。基于已放置符号的 y 范围计算。
-    power_lanes = _power_rail_lanes(syms, nets, power_refs, used_lanes_iu,
+    power_lanes = _power_rail_lanes(syms, nets, rail_refs, used_lanes_iu,
                                     obstacles)
-    for net in nets:
-        name = net.get("name", "")
-        pins = [(r, p) for r, p in net.get("pins", []) if r not in power_refs]
-        if len(pins) < 2:
-            continue
-        pin_refs = [(r, _pin_iu(syms, r, p)) for r, p in pins]
-        preferred = power_lanes.get(name)
-        segs, y_lane, junctions = _route_net_trunk(
-            pin_refs, obstacles, used_lanes_iu, owner_bbox_map,
-            preferred_lane=preferred)
-        routed.append((name, len(pins), segs))
-        net_lanes[name] = y_lane
-        all_junctions += junctions
-    _create_lines([s for _, _, segs in routed for s in segs], all_junctions)
-    lines.append("  · 布线完成: " + ", ".join(
-        f"{n}({p}pin/{len(s)}seg)" for n, p, s in routed))
+    do_route = data.get("route", True) is not False
+    if do_route:
+        for net in nets:
+            name = net.get("name", "")
+            # label_only 网络（如键盘矩阵）：不拉线，靠同名全局标签连接
+            if net.get("label_only"):
+                continue
+            pins = [(r, p) for r, p in net.get("pins", []) if r not in power_refs]
+            if len(pins) < 2:
+                continue
+            pin_refs = [(r, _pin_iu(syms, r, p)) for r, p in pins]
+            preferred = power_lanes.get(name)
+            segs, y_lane, junctions = _route_net_trunk(
+                pin_refs, obstacles, used_lanes_iu, owner_bbox_map,
+                preferred_lane=preferred, used_collector_xs=collector_xs)
+            routed.append((name, len(pins), segs))
+            net_lanes[name] = y_lane
+            all_junctions += junctions
+        _create_lines([s for _, _, segs in routed for s in segs], all_junctions)
+        lines.append("  · 布线完成: " + ", ".join(
+            f"{n}({p}pin/{len(s)}seg)" for n, p, s in routed))
 
     # 标签：电源网络 + 用户显式要求的 label，都放在 trunk 上（并入网络）。
     # GND/0 网络标签用 "0"（SPICE 地），让 netlist 输出节点 0，仿真才正确。
+    # label_type 支持 local/global/hier（多页工程用 global 跨页连接）。
+    # 尺寸默认 1.27mm（KiCad 标准字高），可按网络/整图覆盖。
+    default_label_type = data.get("default_label_type", "local")
+    default_label_size = float(data.get("label_size_mm", 1.27))
+    label_wires: list = []   # 标签引出 stub / trunk 左端 tab（随标签一起连线）
     n_labels = 0
     for net in nets:
         name = net.get("name", "")
         pins = net.get("pins", [])
         has_power = any(r in power_refs for r, _ in pins)
-        text = net.get("label") or (name if has_power else "")
+        # 单引脚网络（跨页 label 型连接，如 GPIO→矩阵、FLASH_*）也要默认用
+        # 网络名做标签，否则引脚悬空报 "Pin not connected"。
+        single_pin = len(pins) == 1
+        # label_only 网络（矩阵）即使没显式 label 也用网络名做标签。
+        text = net.get("label") or (name if (has_power or single_pin
+                                             or net.get("label_only")) else "")
         if name.upper() in ("GND", "0"):
             text = "0"
         if not text or not pins:
             continue
+        label_type = net.get("label_type", default_label_type).lower()
+        if label_type not in ("local", "global", "hier", "directive"):
+            label_type = "local"
+        size = float(net.get("label_size_mm", default_label_size))
+        # 只对"已放置"的引脚计算位置（keep_power=false 时电源符号未放置）。
+        placed = [(r, p) for r, p in pins if r in syms]
+        if not placed:
+            continue
+        # label_only 网络（键盘矩阵）：同一符号的多个同网引脚先用一段导线
+        # 短接（矩阵开关每侧 2 脚同网），再在该侧"外侧"引脚放一个标签 ——
+        # 标签放在引脚外侧短 stub 上，不叠在符号上、也不重复。
+        if net.get("label_only"):
+            groups: dict = {}
+            for r, p in placed:
+                groups.setdefault(r, []).append(p)
+            for r, ps in groups.items():
+                label_wires += _group_wire_segments(syms, r, ps)
+                primary = _group_primary_pin(syms, r, ps)
+                stub, tip = _label_stub(syms, r, primary, text, size)
+                label_wires.append(stub)
+                kicad_sch_add_label(label_type, text, tip[0] / MM, tip[1] / MM,
+                                    height_mm=size)
+                n_labels += 1
+            continue
         y_lane = net_lanes.get(name)
-        ix, iy = _pin_iu(syms, pins[0][0], pins[0][1])
         if y_lane is not None:
-            lx, ly = ix / MM, y_lane / MM
+            # trunk 标签：放 trunk 左端外侧 2.54mm 引出段上，避开第一条竖直
+            # stub（文字压在 stub 上是老问题）。
+            pins_iu = [_pin_iu(syms, r, p) for r, p in placed]
+            x_min = min(p[0] for p in pins_iu)
+            x_tab = round(_snap_grid((x_min - round(2.54 * MM)) / MM) * MM)
+            label_wires.append(((x_tab, y_lane),
+                                (x_tab + round(2.54 * MM), y_lane)))
+            lx, ly = x_tab / MM, y_lane / MM
         else:
-            lx, ly = ix / MM, iy / MM
-        kicad_sch_add_label("local", text, lx, ly)
+            # 无 trunk（单引脚跨页标签）：引脚外侧短 stub + 标签，避免文字
+            # 压在符号本体上（尤其左侧引脚）。
+            stub, tip = _label_stub(syms, placed[0][0], placed[0][1], text, size)
+            label_wires.append(stub)
+            lx, ly = tip[0] / MM, tip[1] / MM
+        kicad_sch_add_label(label_type, text, lx, ly, height_mm=size)
         n_labels += 1
+    if label_wires:
+        _create_lines([s for s in label_wires if s[0] != s[1]], [])
     if n_labels:
         lines.append(f"  · 已放置 {n_labels} 个网络标签")
 

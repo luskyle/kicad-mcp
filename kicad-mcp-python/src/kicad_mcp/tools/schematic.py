@@ -856,7 +856,7 @@ def kicad_sch_add_label(
     text: str,
     x_mm: float,
     y_mm: float,
-    height_mm: float = 2.54,
+    height_mm: float = 1.27,
 ) -> str:
     """在原理图上创建一个网络标签（Global/Local/Hier/Directive）。
 
@@ -864,7 +864,7 @@ def kicad_sch_add_label(
         label_type: 标签类型 "global" | "local" | "hier" | "directive"。
         text: 标签文本（即网络名，如 "VCC" / "NET_A"）。
         x_mm, y_mm: 标签位置（毫米）。
-        height_mm: 字高（毫米）。
+        height_mm: 字高（毫米），默认 1.27mm（KiCad 标准字高）。
 
     需要已打补丁的 KiCad（Label 文本序列化补丁）。
     """
