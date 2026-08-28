@@ -428,9 +428,23 @@ def kicad_sch_connect(
 
     note = ""
     if auto_avoid and via_ix is None and via_iy is None:
-        obstacles = [_symbol_bbox_mm(i) for r, i in syms.items()
-                     if r not in (ref_a, ref_b)]
-        segments, track = _route_avoiding(p1, p2, obstacles)
+        # 障碍 = 所有符号（含起终点）的本体（收缩 padding），但允许从引脚
+        # 引出的贴边段穿过自己符号（endpoint_owners 标记引脚→所属本体）。
+        # 之前排除 ref_a/ref_b 导致连线可横穿目标符号本体（如 K8→R2 时
+        # 水平段穿过 R2 body）—— 现在整条线不能穿过任何本体中部。
+        obstacles = []
+        endpoint_owners = {}
+        for r, info in syms.items():
+            b = _symbol_bbox_mm(info)
+            # 收缩 3.81 padding → 本体（避免 padding 过度挡贴边 stub）
+            bx0, by0, bx1, by1 = b
+            body = (bx0 + 2.54, by0 + 2.54, bx1 - 2.54, by1 - 2.54)
+            obstacles.append(body)
+            if r in (ref_a, ref_b):
+                for pin_no, (ix, iy) in (info.get("pins") or {}).items():
+                    endpoint_owners[(ix, iy)] = body
+        segments, track = _route_avoiding(p1, p2, obstacles,
+                                          endpoint_owners=endpoint_owners)
         if track is not None:
             note = f" (自动避让, 经 y={track}mm 轨道)"
     else:
@@ -488,12 +502,36 @@ def _seg_hits_bbox(seg_iu, bbox_mm) -> bool:
     return False
 
 
-def _route_avoiding(p1_iu, p2_iu, obstacles_mm, margin_mm: float = 3.0):
+def _route_avoiding(p1_iu, p2_iu, obstacles_mm, margin_mm: float = 3.0,
+                    endpoint_owners: Optional[dict] = None):
     """找一条不穿过任何障碍的正交走线。
+
+    endpoint_owners: {引脚坐标_iu: 所属符号 bbox_mm}。线段若有一个端点是某
+    符号的引脚，则允许贴边穿过该符号（引脚引出处贴本体是正常现象，不应
+    视为"穿过本体"）；但整条线仍不能横穿本体中部（如连接 K8→R2 时水平
+    段横穿 R2 body）。中间段（两端都不是引脚）必须避开所有符号本体。
 
     Returns: (segments_iu, track_mm 或 None)
     track_mm 非空表示用了中间水平轨道避让 (便于提示)。
     """
+    if endpoint_owners is None:
+        endpoint_owners = {}
+
+    def _seg_ok(seg):
+        (sx1, sy1), (sx2, sy2) = seg
+        # 本段任一端点属于某符号引脚 → 该符号本体不挡（贴边 stub 允许）
+        skip = set()
+        for ep, owner in endpoint_owners.items():
+            if (abs(sx1 - ep[0]) < 0.1 * MM and abs(sy1 - ep[1]) < 0.1 * MM) or \
+               (abs(sx2 - ep[0]) < 0.1 * MM and abs(sy2 - ep[1]) < 0.1 * MM):
+                skip.add(id(owner))
+        for o in obstacles_mm:
+            if id(o) in skip:
+                continue
+            if _seg_hits_bbox(seg, o):
+                return False
+        return True
+
     (x1, y1), (x2, y2) = p1_iu, p2_iu
     candidates = []
     candidates.append((None, _route_wire_iu(p1_iu, p2_iu)))              # 先横后竖
@@ -506,7 +544,7 @@ def _route_avoiding(p1_iu, p2_iu, obstacles_mm, margin_mm: float = 3.0):
         segs = [s for s in segs if s[0] != s[1]]
         candidates.append((y_mid, segs))
     for y_mid, segs in candidates:
-        if not any(_seg_hits_bbox(s, o) for s in segs for o in obstacles_mm):
+        if all(_seg_ok(s) for s in segs):
             track = round(y_mid / MM, 1) if y_mid is not None else None
             return segs, track
     return candidates[0][1], None

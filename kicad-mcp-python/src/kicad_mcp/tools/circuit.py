@@ -42,7 +42,7 @@ from .schematic import (
     kicad_sch_connect,
     kicad_sch_erc,
 )
-from ..symbols import get_pins
+from ..symbols import get_pins, rotate_xy
 
 # 电源符号判定：库名为 power，或符号名命中这些电源名
 _POWER_LIBS = {"power"}
@@ -120,6 +120,8 @@ def _flow_stages(refs: list, nets: list, power_refs: set = frozenset()) -> dict:
             continue  # 含电源符号的网络走轨道，不定义左右流向
         for i in range(len(pins) - 1):
             a, b = pins[i][0], pins[i + 1][0]
+            if a == b:
+                continue  # 同符号相邻引脚（如按键 1/2 同列短接）不算自环
             if a in out and b in out and b not in out[a]:
                 out[a].add(b)
                 indeg[b] += 1
@@ -264,6 +266,87 @@ def _auto_orient(spec: dict, stages: dict, adj: dict) -> Optional[int]:
     return None
 
 
+def _orient_toward_pins(layout: dict, symbols: list, nets: list) -> dict:
+    """布局后微调：2 引脚无源元件的引脚朝向指向其连接目标。
+
+    `_auto_orient` 只判断"邻居在左右列→水平(90)"，但不知道应该 90 还是 270：
+    例如 R2.pin1 连左侧的 K6、pin2 连右侧标签，则 R2 应 orient 90（pin1 朝左
+    指向 K6），而不是 270（pin1 朝右远离 K6）。否则引脚朝向反了，导线要从
+    元件另一侧绕，穿本体或绕远。
+
+    依据（IEC 61082 信号流左→右）：
+      - 对 2 引脚元件，看每个引脚连到的网络里其他符号在哪一侧（用布局坐标）
+      - 让"有信号邻居"的引脚朝向邻居侧；两侧都有邻居则水平放置
+        （信号流左侧邻居 → 该端朝左；右侧邻居 → 该端朝右）
+      - 竖直放置（orient 0/180）时两侧邻居无法满足 → 改水平（90/270）
+      - 用户显式指定 orient 或非 2 引脚元件不动
+
+    注意：需要在 `_center_layout` 之前调用（用未居中的相对坐标即可判断方向，
+    居中是整体平移，不改变左右关系）。仅 auto/flow 布局模式生效。
+    """
+    # pin 库坐标 → 各 orient 下引脚偏移方向（原理图 x 轴：orient 90 时
+    # pin1(-3.81,0)、pin2(3.81,0)，即 pin1 左 pin2 右；orient 270 相反）。
+    for s in symbols:
+        ref = s.get("ref")
+        if ref not in layout:
+            continue
+        if s.get("orient"):
+            continue                       # 用户显式指定，不自动改
+        try:
+            pins = get_pins(s.get("lib", ""), s.get("symbol", ""))
+            two_pin = pins is not None and len(pins) == 2
+        except Exception:
+            two_pin = (s.get("symbol") or "").upper() in _TWO_PIN_ENTRIES
+        if not two_pin:
+            continue
+        my_x, my_y, cur = layout[ref]
+        # 每个引脚连到的邻居符号 x 坐标（该引脚所在网络的其它符号）
+        pin_nb_x: dict = {}                # pin 号 -> 邻居 x 列表
+        pin_net = {}                       # pin 号 -> 网络名（判断是否电源标签）
+        for net in nets:
+            pname = net.get("name", "")
+            for r, p in net.get("pins", []):
+                if r != ref:
+                    continue
+                pin_nb_x.setdefault(str(p), [])
+                pin_net.setdefault(str(p), pname)
+                for r2, _ in net.get("pins", []):
+                    if r2 != ref and r2 in layout:
+                        pin_nb_x[str(p)].append(layout[r2][0])
+        if not pin_nb_x:
+            continue
+        # 评分 4 个 orient：每端引脚"该朝左时在左、该朝右时在右"得 1 分。
+        # 水平放置(90/270)默认比竖直(0/180)更适合左右邻居（引脚可指左右）。
+        best = (cur, -1)
+        for orient in (0, 90, 180, 270):
+            score = 0
+            for p in pins:
+                pn = str(p.number)
+                if pn not in pin_nb_x:
+                    continue
+                nbs = pin_nb_x[pn]
+                if not nbs:
+                    continue
+                avg_nb = sum(nbs) / len(nbs)
+                should_left = avg_nb < my_x
+                # 该 orient 下引脚在原理图 x 的偏移（rotate_xy 后取 x）
+                rx, ry = rotate_xy(p.x_mm, p.y_mm, orient)
+                pin_x = rx                     # 原理图 x 偏移（y 取反不影响 x）
+                if should_left and pin_x < 0:
+                    score += 1
+                elif not should_left and pin_x > 0:
+                    score += 1
+                elif abs(pin_x) < 1e-6:
+                    pass                       # 竖直放置（引脚在 x=0），不贡献
+                else:
+                    score -= 1                 # 朝向反了
+            if score > best[1]:
+                best = (orient, score)
+        if best[1] > 0 and best[0] != cur:
+            layout[ref] = (my_x, my_y, best[0])
+    return layout
+
+
 def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
     """计算每个符号的放置 (x_mm, y_mm, orient)。纯计算，不落盘。
 
@@ -292,6 +375,10 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
                 out[ref] = (_snap_grid(px), _snap_grid(py), po)
             else:
                 out[ref] = (_snap_grid(x0), _snap_grid(y0), int(s.get("orient", 0)))
+        # 布局后微调：2 引脚无源元件引脚朝向指向连接目标（若未显式指定 orient）。
+        # positions 里给 orient 的尊重用户；没给 orient 的自动朝向邻居。
+        if mode in ("auto", "flow"):
+            out = _orient_toward_pins(out, symbols, nets)
         return out
 
     # 间距：按最大符号尺寸自适应（gap 为最小值）。行间距要留出 trunk 布线通道，
@@ -368,6 +455,10 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
                 ax = _snap_grid(ax + 2.54)
             taken.add(ax)
             out[s.get("ref")] = (ax, y, int(s.get("orient", 0)))
+    # 布局后微调：2 引脚无源元件引脚朝向指向连接目标（如 R2.pin1 朝左指向
+    # 左侧的按键 K6，而不是朝右绕线）。仅 auto/flow 模式自动，grid 不干预。
+    if mode in ("auto", "flow"):
+        out = _orient_toward_pins(out, symbols, nets)
     return out
 
 
@@ -434,6 +525,50 @@ def _place_symbols(symbols: list, layout: dict) -> list:
 # ============================================================
 # 布线：多网络链式自动布线
 # ============================================================
+
+def _stub_pierces_own(stub_iu, bbox_mm) -> bool:
+    """判断 stub 是否深穿自己符号本体（用于竖直元件防 stub 穿 body）。
+
+    竖直放置的元件（如 Device:R/C 引脚上下、同 x）body 窄，引脚在 body
+    中心线；竖直 stub 从引脚伸向 body 内部会深穿本体（如 R2 顶部 pin1 的
+    stub 向下穿 R2 body）。而侧边引脚元件（IC 引脚左右）body 宽、引脚在
+    body 边缘，竖直 stub 沿边缘走只是「贴边」正常现象（如 U2/LDO pin 左）。
+
+    判据（用收缩后的本体 bbox）：
+      - 竖直 stub：若 stub 的 x 在 body 中心线附近（|x-cx| <= 半宽/2），
+        且与 body 的 y 重叠 > 1.27mm → 深穿；否则贴边（返回 False）。
+      - 水平 stub：对称（用 y 与 body 中心线 + x 重叠）。
+    单引脚小符号（如 PWR_FLAG）body 接近点状，重叠 ≈ 1.27 不判深穿。
+    """
+    (x1, y1), (x2, y2) = stub_iu
+    x1 /= MM; y1 /= MM; x2 /= MM; y2 /= MM
+    bx0, by0, bx1, by1 = bbox_mm
+    bw = bx1 - bx0
+    bh = by1 - by0
+    if bw <= 0 or bh <= 0:
+        return False
+    # 点状小符号（单引脚电源符号如 PWR_FLAG）：本体收缩后≈2.54mm 见方，
+    # stub 从引脚引出重叠≈1.27mm 是贴边正常现象，无本体可"深穿"。
+    if max(bw, bh) <= 2.54 + 0.1:
+        return False
+    if abs(y1 - y2) < 1e-6:                 # 水平 stub
+        if not (by0 <= y1 <= by1):
+            return False
+        cy = (by0 + by1) / 2
+        if abs(y1 - cy) > bh / 4:           # 不在中心线 → 贴边
+            return False
+        lo, hi = sorted((x1, x2))
+        return min(hi, bx1) - max(lo, bx0) > 1.27
+    if abs(x1 - x2) < 1e-6:                 # 竖直 stub
+        if not (bx0 <= x1 <= bx1):
+            return False
+        cx = (bx0 + bx1) / 2
+        if abs(x1 - cx) > bw / 4:           # 不在中心线 → 贴边
+            return False
+        lo, hi = sorted((y1, y2))
+        return min(hi, by1) - max(lo, by0) > 1.27
+    return False
+
 
 def _pick_trunk_lane(pins_iu: list, obstacles_mm: list,
                      used_lanes_iu: list, owner_bboxes: Optional[list] = None,
@@ -540,7 +675,14 @@ def _pick_trunk_lane(pins_iu: list, obstacles_mm: list,
                 break
             for o in trunk_obstacles_mm:
                 if own is not None and o == own:
-                    continue  # 忽略自己符号的包围盒（padding 误判）
+                    # 自己符号：允许 stub 贴边（引脚在 body 边缘沿边引出），
+                    # 拒绝深穿本体（竖直元件如 R/C 的 pin 在 body 顶/底，
+                    # stub 从引脚伸向 body 内部会穿过本体 —— 如 R2 顶部
+                    # pin1 的 stub 向下穿 R2 body）。
+                    if _stub_pierces_own(stub, o):
+                        ok = False
+                        break
+                    continue
                 if _seg_hits_bbox(stub, o):
                     ok = False
                     break
@@ -1061,6 +1203,33 @@ def _label_stub(syms: dict, ref: str, pin: str, text: str,
     return ((px, py), (ex, ey)), (ex, ey)
 
 
+def _auto_label_spin(syms: dict, ref: str, pin: str,
+                     explicit: Optional[str] = None) -> str:
+    """标签 spin 自动匹配引脚朝外方向（连接点指向引脚）。
+
+    标签放在引脚外侧 stub 上，其连接点（spin）必须朝向引脚，文字才在
+    stub 外侧展开、不压符号本体。按 `_pin_outward_dir` 自动选:
+      - 引脚朝左 → "left"（连接点向左，文字在右）
+      - 引脚朝右 → "right"
+      - 引脚朝上 → "up"
+      - 引脚朝下 → "down"
+    用户显式指定 spin 时尊重用户（不自动改）。
+
+    Returns:
+        spin 值（left/right/up/down）。
+    """
+    if explicit and explicit != "auto":
+        return explicit
+    dx, dy = _pin_outward_dir(syms, ref, pin)
+    if dx < 0:
+        return "left"
+    if dx > 0:
+        return "right"
+    if dy < 0:
+        return "up"
+    return "down"
+
+
 def _group_wire_segments(syms: dict, ref: str, pins: list) -> list:
     """同一符号内同一网络的多个引脚用一段水平/竖直导线短接。
 
@@ -1346,7 +1515,7 @@ def kicad_sch_draw_circuit(
     default_label_size = float(data.get("label_size_mm", 1.27))
     # 标签形状/方向/指令形状（可整体默认，也可按网络覆盖）
     default_label_shape = data.get("default_label_shape", "unspecified")
-    default_label_spin = data.get("default_label_spin", "left")
+    default_label_spin = data.get("default_label_spin", "auto")
     default_directive_shape = data.get("default_directive_shape", "point")
     label_wires: list = []   # 标签引出 stub / trunk 左端 tab（随标签一起连线）
     n_labels = 0
@@ -1391,9 +1560,11 @@ def kicad_sch_draw_circuit(
                 stub, tip = _label_stub(syms, r, primary, text, size,
                                         wires_iu=stub_wires)
                 label_wires.append(stub)
+                # 标签 spin 自动匹配引脚朝外方向（连接点指向引脚）
+                auto_spin = _auto_label_spin(syms, r, primary, explicit=spin)
                 kicad_sch_add_label(label_type, text, tip[0] / MM, tip[1] / MM,
-                                    height_mm=size, shape=shape, spin=spin,
-                                    directive_shape=ds)
+                                    height_mm=size, shape=shape,
+                                    spin=auto_spin, directive_shape=ds)
                 n_labels += 1
             continue
         y_lane = net_lanes.get(name)
@@ -1413,8 +1584,17 @@ def kicad_sch_draw_circuit(
                                     wires_iu=stub_wires)
             label_wires.append(stub)
             lx, ly = tip[0] / MM, tip[1] / MM
+        # trunk 标签连接点在 trunk 左端（朝左）；单引脚 stub 标签 spin 自动
+        # 匹配引脚朝外方向。用户显式指定 spin 时尊重用户。
+        if spin and spin != "auto":
+            final_spin = spin
+        elif y_lane is not None:
+            final_spin = "left"          # trunk 左端 tab，连接点朝左
+        else:
+            final_spin = _auto_label_spin(syms, placed[0][0], placed[0][1],
+                                          explicit=None)
         kicad_sch_add_label(label_type, text, lx, ly, height_mm=size,
-                            shape=shape, spin=spin, directive_shape=ds)
+                            shape=shape, spin=final_spin, directive_shape=ds)
         n_labels += 1
     if label_wires:
         _create_lines([s for s in label_wires if s[0] != s[1]], [])
