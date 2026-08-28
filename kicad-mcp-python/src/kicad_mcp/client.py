@@ -249,6 +249,26 @@ class KiCadClient:
         resp.message.Unpack(out)
         return out
 
+    def get_title_block(self,
+                        doc: base_types_pb2.DocumentSpecifier
+                        ) -> "base_types_pb2.TitleBlockInfo":
+        """读取文档图纸信息（title/date/revision/company/comments）。"""
+        req = editor_commands_pb2.GetTitleBlockInfo()
+        req.document.CopyFrom(doc)
+        resp = self._call(req)
+        out = base_types_pb2.TitleBlockInfo()
+        resp.message.Unpack(out)
+        return out
+
+    def set_title_block(self,
+                        doc: base_types_pb2.DocumentSpecifier,
+                        info: "base_types_pb2.TitleBlockInfo") -> None:
+        """写入文档图纸信息（title/date/revision/company/comments）。"""
+        req = editor_commands_pb2.SetTitleBlockInfo()
+        req.document.CopyFrom(doc)
+        req.title_block.CopyFrom(info)
+        self._call(req)
+
     def create_items(
         self,
         header: base_types_pb2.ItemHeader,

@@ -93,6 +93,14 @@ private:
     HANDLER_RESULT<commands::ReloadLibrariesResponse> handleReloadLibraries(
             const HANDLER_CONTEXT<commands::ReloadLibraries>& aCtx );
 
+    // (kicad-mcp patch) Title block (drawing sheet info) read/write, mirrors
+    // pcbnew.  Lets AI fill in Title / Date / Revision / Company / Comments
+    // so every sheet carries its metadata.
+    HANDLER_RESULT<types::TitleBlockInfo> handleGetTitleBlockInfo(
+            const HANDLER_CONTEXT<commands::GetTitleBlockInfo>& aCtx );
+    HANDLER_RESULT<google::protobuf::Empty> handleSetTitleBlockInfo(
+            const HANDLER_CONTEXT<commands::SetTitleBlockInfo>& aCtx );
+
     /**
      * Create a schematic symbol, resolving its LIB_SYMBOL from the project's
      * symbol library table.  The library symbol cannot be resolved by the item

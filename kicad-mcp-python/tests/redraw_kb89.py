@@ -260,6 +260,14 @@ def matrix_json():
         "nets": nets,
         "layout": {"mode": "positions", "positions": positions},
         "default_label_type": "global",
+        # 图纸信息（右下角标题栏自动填充；draw_circuit 会自动居中到可用区、
+        # 避开右下角标题栏）
+        "sheet": {
+            "title": "Keyboard-89 Matrix",
+            "revision": "1.0",
+            "company": "luskyle",
+            "comment1": "15-key 3x5 keyboard matrix",
+        },
     }
 
 

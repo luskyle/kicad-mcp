@@ -23,11 +23,10 @@ from ..client import (
     KiCadClient,
     find_document_socket,
 )
+from ..proto.common.commands import editor_commands_pb2
 from ..proto.common.types import base_types_pb2, enums_pb2
 from ..proto.schematic import schematic_types_pb2
-from ..symbols import absolute_pin, get_pins
-
-# 原理图内部单位: SCH_IU_PER_MM = 1e4 (1 IU = 100nm)。KiCad API 的 x_nm 字段
+from ..symbols import absolute_pin, get_pins# 原理图内部单位: SCH_IU_PER_MM = 1e4 (1 IU = 100nm)。KiCad API 的 x_nm 字段
 # 实际存的就是内部 IU（PackVector2/UnpackVector2 不做单位换算），因此原理图
 # 坐标换算 1mm = 1e4，而不是 PCB 的 1e6（PCB_IU_PER_MM = 1e6）。
 MM = 10_000
@@ -1655,6 +1654,65 @@ def kicad_sch_place_symbols_grid(
     return "\n".join(lines)
 
 
+def kicad_sch_set_sheet_info(
+    title: str = "",
+    date: str = "",
+    revision: str = "",
+    company: str = "",
+    comment1: str = "",
+    comment2: str = "",
+    comment3: str = "",
+    comment4: str = "",
+    sheet_number: Optional[str] = None,
+    sheet_count: Optional[str] = None,
+) -> str:
+    """自动填充原理图图纸信息（右下角标题栏）。
+
+    KiCad 每张图纸右下角都有标题栏（Title/Date/Rev/Company/Comment 等），
+    AI 画完图应调用本工具把信息填齐，让图纸规范、专业。
+
+    Args:
+        title: 图纸标题（如 "Keyboard-89 Matrix"、"3.3V Power"）。
+        date: 日期（如 "2026-08-28"）。留空默认用当天日期。
+        revision: 版本（如 "1.0"）。
+        company: 公司/作者。
+        comment1..4: 备注行（如板卡型号、设计师等）。
+        sheet_number: 页码（如 "1"）；留空保留现有。
+        sheet_count: 总页数（如 "4"）；留空保留现有。
+
+    Returns:
+        写入的图纸信息摘要。
+    """
+    url, header = _sch_context()
+    info = base_types_pb2.TitleBlockInfo()
+    info.title = title
+    if date:
+        info.date = date
+    else:
+        from datetime import date as _date
+        info.date = _date.today().isoformat()
+    info.revision = revision
+    info.company = company
+    info.comment1 = comment1
+    info.comment2 = comment2
+    info.comment3 = comment3
+    info.comment4 = comment4
+
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        kc.set_title_block(header.document, info)
+
+    lines = [
+        f"✅ 已填充图纸信息: 标题='{title}' 日期='{info.date}' "
+        f"版本='{revision}' 公司='{company}'"
+    ]
+    for i, c in enumerate((comment1, comment2, comment3, comment4), 1):
+        if c:
+            lines.append(f"   注释{i}: {c}")
+    if sheet_number or sheet_count:
+        lines.append(f"   (页码/总数需在图纸设置中维护: {sheet_number}/{sheet_count})")
+    return "\n".join(lines)
+
+
 ALL_TOOLS = [
     kicad_sch_add_text,
     kicad_sch_add_line,
@@ -1677,4 +1735,5 @@ ALL_TOOLS = [
     kicad_sch_get_sheet_info,
     kicad_sch_check_layout,
     kicad_sch_place_symbols_grid,
+    kicad_sch_set_sheet_info,
 ]

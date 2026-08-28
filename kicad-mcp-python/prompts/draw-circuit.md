@@ -22,9 +22,15 @@
        {"name": "OUT", "pins": [["R1","2"], ["C1","1"]], "label": "OUT"}
      ],
      "layout": {"mode": "auto"},
+     "sheet": {"title": "RC 电路", "revision": "1.0", "company": "xxx", "comment1": "..."},
      "clear": true, "run_erc": true, "render": true
    }
    ```
+
+> **图纸信息（sheet）**：`sheet` 字段会自动填充右下角标题栏
+> （Title / Date / Revision / Company / Comment1-4）；Date 不填则用当天日期。
+> draw_circuit 还会自动把布局**居中到可用绘制区并避开右下角标题栏**（不会
+> 再被元件/标签遮挡图纸信息）。
 
 ## 标签选型规则（重要）
 

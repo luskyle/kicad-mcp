@@ -33,6 +33,7 @@ from .schematic import (
     _route_avoiding,
     _sch_context,
     _seg_hits_bbox,
+    _sheet_size_mm,
     _snap_grid,
     _symbol_bbox_mm,
     kicad_sch_add_label,
@@ -367,6 +368,50 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
                 ax = _snap_grid(ax + 2.54)
             taken.add(ax)
             out[s.get("ref")] = (ax, y, int(s.get("orient", 0)))
+    return out
+
+
+def _center_layout(layout: dict, symbols: list, opts: dict) -> dict:
+    """把符号布局整体平移到"可用绘制区"中心，避开右下角标题栏。
+
+    让原理图在页面内居中、充分利用空白、不遮挡右下角标题栏（KiCad 图纸
+    信息 Title/Date/Rev 等）。所有布局模式（auto/flow/positions）都生效，
+    除非 opts.auto_center=False 显式关闭。
+
+    平移量按 1.27mm 网格吸附；平移后布线/标签会基于新位置，电气连接不变。
+    """
+    if opts.get("auto_center") is False:
+        return layout
+    xs, ys = [], []
+    for s in symbols:
+        ref = s.get("ref")
+        if ref not in layout:
+            continue
+        x, y, _ = layout[ref]
+        w, h = _sym_size_mm(s)
+        xs += [x - w / 2, x + w / 2]
+        ys += [y - h / 2, y + h / 2]
+    if not xs:
+        return layout
+    pw, ph = _sheet_size_mm()
+    margin = 12.0
+    title_h = 30.0                      # 右下角标题栏高度（含边距）
+    ax0, ay0 = margin, margin
+    ax1, ay1 = pw - margin, ph - title_h - margin
+    if ax1 <= ax0 or ay1 <= ay0:
+        return layout
+    cx = (min(xs) + max(xs)) / 2
+    cy = (min(ys) + max(ys)) / 2
+    acx = (ax0 + ax1) / 2
+    acy = (ay0 + ay1) / 2
+    # 平移量吸附到 1.27mm 网格
+    dx = round((acx - cx) / 1.27) * 1.27
+    dy = round((acy - cy) / 1.27) * 1.27
+    if abs(dx) < 0.1 and abs(dy) < 0.1:
+        return layout
+    out = {}
+    for ref, (x, y, o) in layout.items():
+        out[ref] = (_snap_grid(x + dx), _snap_grid(y + dy), o)
     return out
 
 
@@ -986,15 +1031,20 @@ def _label_stub(syms: dict, ref: str, pin: str, text: str,
     dx, dy = _pin_outward_dir(syms, ref, pin)
     offset = 1.43                       # KiCad label 文字中心相对锚点的偏移
     half = max(size_mm / 2, len(text) * size_mm * 0.55)
+    # 实际文字宽度近似（KiCad 全局标签为 end-anchor：文字右缘≈锚点，文字
+    # 整体在锚点左侧，左缘 = 锚点 - 文字宽）。实测 2 字符 'R1' 宽约 2.6mm，
+    # len*size*0.55 低估了 → 用 0.9 系数。
+    text_w = len(text) * size_mm * 0.9
     if dx < 0:
-        # 左侧引脚：文字朝右，可能碰符号本体 → 长 stub 保证文字与本体有间隙
-        stub_mm = max(2.54, offset + half + 1.5)   # +0.5 本体余量 +1.0 间隙
+        # 左侧引脚：文字在锚点左侧（end-anchor），锚点在 pin 外侧 stub 端。
+        # stub 需 ≥ 文字宽 + 间隙，让文字整体在符号左侧。
+        stub_mm = max(2.54, text_w + 1.5)
         stub_mm = math.ceil(stub_mm / 1.27) * 1.27 # 向上吸附网格（保证够长）
     elif dx > 0:
-        # 右侧引脚：文字朝右，但宽文字左缘（锚点+1.43-half）会越过锚点碰到
-        # 符号本体（如 FLASH_SCLK 9 字符半宽 6.29 > 2.54+1.43）→ 同样按文字
-        # 宽度给足 stub，让文字左缘离开符号右缘。
-        stub_mm = max(2.54, half - offset + 1.5)   # 文字左缘离 pin 1.5mm
+        # 右侧引脚：文字在锚点左侧（end-anchor），文字左缘 = 锚点 - 文字宽
+        # = pin + stub - 文字宽。stub 需 ≥ 文字宽 + 间隙，否则文字左缘覆盖
+        # 引脚本身（如 R1 文字框 x153.1-155.7 压 K1-pin3@153.7）。
+        stub_mm = max(2.54, text_w + 1.0)          # 文字左缘离 pin 1.0mm
         stub_mm = math.ceil(stub_mm / 1.27) * 1.27
     else:
         # 上下引脚：stub 垂直，不影响文字水平位置 → 短 stub（2.54）即可
@@ -1236,6 +1286,8 @@ def kicad_sch_draw_circuit(
     # 布局 + 放置（只放非电源符号）。流向计算用完整符号列表，让电源网络
     # （含已跳过的电源符号）不参与 stage，否则会成环全挤到同一列。
     layout = _compute_layout(symbols, nets, data.get("layout", {}))
+    # 智能摆放：整体居中到可用绘制区、避开右下角标题栏（除非 auto_center=false）
+    layout = _center_layout(layout, real_symbols, data.get("layout", {}))
     place_msgs = _place_symbols(real_symbols, layout)
     lines.append(f"  · 已放置 {len(real_symbols)} 个符号")
     for s, m in zip(real_symbols, place_msgs):
@@ -1375,6 +1427,27 @@ def kicad_sch_draw_circuit(
         n_x = _mark_unused_pins(nets, syms)
         if n_x:
             lines.append(f"  · 已为 {n_x} 个未用引脚放置 NoConnect(X) 标记")
+
+    # 图纸信息（右下角标题栏 Title/Date/Rev/Company/注释）自动填充。
+    # circuit_json 可带 "sheet": {"title":"...","revision":"1.0","company":"...",
+    # "comment1":"..."}；不传则用默认（标题取电路名/缺省、日期当天）。
+    sheet = data.get("sheet") or {}
+    if sheet or data.get("auto_sheet_info", True):
+        from .schematic import kicad_sch_set_sheet_info
+        try:
+            sheet_msg = kicad_sch_set_sheet_info(
+                title=sheet.get("title", ""),
+                date=sheet.get("date", ""),
+                revision=sheet.get("revision", ""),
+                company=sheet.get("company", ""),
+                comment1=sheet.get("comment1", ""),
+                comment2=sheet.get("comment2", ""),
+                comment3=sheet.get("comment3", ""),
+                comment4=sheet.get("comment4", ""),
+            )
+            lines.append(sheet_msg)
+        except Exception as exc:
+            lines.append(f"  ⚠️ 图纸信息填充失败: {exc}")
 
     # 保存 + ERC 门禁（L4：自动修复 + 交付即通过）
     kicad_save_document()

@@ -68,6 +68,12 @@ API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
     // (kicad-mcp patch) Reload symbol library tables without restarting
     registerHandler<ReloadLibraries, ReloadLibrariesResponse>(
             &API_HANDLER_SCH::handleReloadLibraries );
+
+    // (kicad-mcp patch) Title block (drawing sheet info) read/write
+    registerHandler<GetTitleBlockInfo, types::TitleBlockInfo>(
+            &API_HANDLER_SCH::handleGetTitleBlockInfo );
+    registerHandler<SetTitleBlockInfo, google::protobuf::Empty>(
+            &API_HANDLER_SCH::handleSetTitleBlockInfo );
 }
 
 
@@ -338,6 +344,87 @@ HANDLER_RESULT<ReloadLibrariesResponse> API_HANDLER_SCH::handleReloadLibraries(
     response.set_success( true );
     response.set_message( "已请求刷新符号库表；如新增符号未出现请重启 eeschema（快速）" );
     return response;
+}
+
+
+HANDLER_RESULT<types::TitleBlockInfo> API_HANDLER_SCH::handleGetTitleBlockInfo(
+        const HANDLER_CONTEXT<GetTitleBlockInfo>& aCtx )
+{
+    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() );
+
+    if( !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    SCH_SCREEN* screen = m_frame->GetScreen();
+    const TITLE_BLOCK& block = screen ? screen->GetTitleBlock() : TITLE_BLOCK();
+
+    types::TitleBlockInfo response;
+    response.set_title( block.GetTitle().ToUTF8() );
+    response.set_date( block.GetDate().ToUTF8() );
+    response.set_revision( block.GetRevision().ToUTF8() );
+    response.set_company( block.GetCompany().ToUTF8() );
+    response.set_comment1( block.GetComment( 0 ).ToUTF8() );
+    response.set_comment2( block.GetComment( 1 ).ToUTF8() );
+    response.set_comment3( block.GetComment( 2 ).ToUTF8() );
+    response.set_comment4( block.GetComment( 3 ).ToUTF8() );
+    response.set_comment5( block.GetComment( 4 ).ToUTF8() );
+    response.set_comment6( block.GetComment( 5 ).ToUTF8() );
+    response.set_comment7( block.GetComment( 6 ).ToUTF8() );
+    response.set_comment8( block.GetComment( 7 ).ToUTF8() );
+    response.set_comment9( block.GetComment( 8 ).ToUTF8() );
+    return response;
+}
+
+
+HANDLER_RESULT<google::protobuf::Empty> API_HANDLER_SCH::handleSetTitleBlockInfo(
+        const HANDLER_CONTEXT<SetTitleBlockInfo>& aCtx )
+{
+    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() );
+
+    if( !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( !aCtx.Request.has_title_block() )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "SetTitleBlockInfo requires title_block" );
+        return tl::unexpected( e );
+    }
+
+    SCH_SCREEN* screen = m_frame->GetScreen();
+
+    if( !screen )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "no active schematic screen" );
+        return tl::unexpected( e );
+    }
+
+    TITLE_BLOCK block = screen->GetTitleBlock();
+    const types::TitleBlockInfo& request = aCtx.Request.title_block();
+
+    block.SetTitle( wxString::FromUTF8( request.title() ) );
+    block.SetDate( wxString::FromUTF8( request.date() ) );
+    block.SetRevision( wxString::FromUTF8( request.revision() ) );
+    block.SetCompany( wxString::FromUTF8( request.company() ) );
+    block.SetComment( 0, wxString::FromUTF8( request.comment1() ) );
+    block.SetComment( 1, wxString::FromUTF8( request.comment2() ) );
+    block.SetComment( 2, wxString::FromUTF8( request.comment3() ) );
+    block.SetComment( 3, wxString::FromUTF8( request.comment4() ) );
+    block.SetComment( 4, wxString::FromUTF8( request.comment5() ) );
+    block.SetComment( 5, wxString::FromUTF8( request.comment6() ) );
+    block.SetComment( 6, wxString::FromUTF8( request.comment7() ) );
+    block.SetComment( 7, wxString::FromUTF8( request.comment8() ) );
+    block.SetComment( 8, wxString::FromUTF8( request.comment9() ) );
+
+    screen->SetTitleBlock( block );
+
+    if( m_frame )
+        m_frame->OnModify();
+
+    return google::protobuf::Empty();
 }
 
 
