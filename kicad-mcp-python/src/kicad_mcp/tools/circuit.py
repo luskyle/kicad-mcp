@@ -221,6 +221,48 @@ def _barycenter_order(by_stage: dict, adj: dict) -> None:
         pos = newpos
 
 
+# 2 引脚无源元件白名单（库解析不到引脚时兜底用，如系统库符号）
+_TWO_PIN_ENTRIES = {"R", "C", "L", "D", "LED", "Y", "FB", "TVS", "DZ",
+                    "CRYSTAL", "XTAL", "SW", "SW_SPST", "SW_PUSH", "J", "JP"}
+
+
+def _auto_orient(spec: dict, stages: dict, adj: dict) -> Optional[int]:
+    """2 引脚无源元件自动朝向：主要邻居在左右列 → 水平放置(orient 90)。
+
+    智能摆放的核心: 电阻/电容/二极管等 2 引脚元件默认竖直（引脚上下），但
+    在"信号流左→右"的串联链里它们应该水平放置（引脚朝左右），配合同行布局
+    让相邻引脚水平相对 → 触发智能直连（一条水平线直接连上），连线最短最直。
+
+    判定:
+      - 只对 2 引脚元件（get_pins 判断，库解析不到时用 entry 白名单兜底）
+      - 元件的网络邻居若全部在不同列（左右连接）→ orient 90
+      - 邻居在同列（上下连接）→ 保持竖直（orient 0）
+      - 用户显式指定了 orient → 尊重用户，不自动改
+    多引脚 IC（>2 引脚）一律不动，避免破坏引脚分布。
+
+    Returns:
+        orient 建议值，或 None（不改，用默认/显式值）。
+    """
+    if spec.get("orient"):
+        return None                       # 用户显式指定
+    ref = spec.get("ref")
+    try:
+        pins = get_pins(spec.get("lib", ""), spec.get("symbol", ""))
+        two_pin = pins is not None and len(pins) == 2
+    except Exception:
+        two_pin = (spec.get("symbol") or "").upper() in _TWO_PIN_ENTRIES
+    if not two_pin:
+        return None
+    my = stages.get(ref)
+    nbs = {stages.get(n) for n in adj.get(ref, ()) if n != ref and n in stages}
+    if not nbs:
+        return None
+    # 所有邻居都在不同列 → 左右连接 → 水平放置；否则保持竖直（上下连接）
+    if all(n != my for n in nbs):
+        return 90
+    return None
+
+
 def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
     """计算每个符号的放置 (x_mm, y_mm, orient)。纯计算，不落盘。
 
@@ -267,20 +309,31 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
         columns = max(1, int(opts.get("columns", 3)))
         stages = {s.get("ref"): i // columns for i, s in enumerate(non_power)}
 
-    # 列内行序：barycenter 减交叉 + zigzag（st%2 让相邻列交替上下行，
-    # 避免所有水平导线落在同一 y 被 KiCad 合并短路）。
+    # 列内行序：barycenter 减交叉。**不再 zigzag 错行**：早期用 (st%2) 让相邻列
+    # 上下错行防"同排不同网络水平导线共线合并短路"，但那把串联元件拉离同一行、
+    # 连线绕远。现在不同网络的 trunk 道已由 used_lanes_iu 逐网络隔离（间距
+    # 2.54mm），共线风险已消除，故让同 stage 串联元件同一行 → 引脚水平相对，
+    # 触发"智能直连"（相邻引脚一条水平线直接连上）。
     by_stage: dict = {}
     for s in non_power:
         by_stage.setdefault(stages[s.get("ref")], []).append(s)
-    _barycenter_order(by_stage, _build_adjacency(non_power, nets, power_refs))
+    adj = _build_adjacency(non_power, nets, power_refs)
+    _barycenter_order(by_stage, adj)
 
     out: dict = {}
     for st in sorted(by_stage):
         row_objs = by_stage[st]
         for row, s in enumerate(row_objs):
             x = _snap_grid(x0 + st * col_gap)
-            y = _snap_grid(y0 + (st % 2) * row_gap + row * row_gap)
-            out[s.get("ref")] = (x, y, int(s.get("orient", 0)))
+            y = _snap_grid(y0 + row * row_gap)
+            # 智能摆放：2 引脚元件在信号流水平串联时自动水平放置（orient 90），
+            # 让相邻引脚水平相对触发直连（仅 auto/flow 模式自动，grid/显式不干预）。
+            orient = int(s.get("orient", 0))
+            if mode in ("auto", "flow") and not s.get("orient"):
+                auto = _auto_orient(s, stages, adj)
+                if auto is not None:
+                    orient = auto
+            out[s.get("ref")] = (x, y, orient)
 
     # 电源符号放上/下轨道（GND 下轨，VCC 类上轨），x 对齐其网络锚点列。
     # 多条同轨电源符号要横向错开，避免叠在同一位置。
@@ -476,24 +529,127 @@ def _foreign_pins(pin_refs: list) -> list:
     return out
 
 
+def _try_direct_connect(pin_refs: list, body_obstacles_mm: list,
+                        foreign_pins_iu: list, used_segs_iu: list,
+                        allow_bodies: Optional[set] = None,
+                        max_gap_mm: float = 25.0, allow_l_shape: bool = True
+                        ) -> tuple:
+    """尝试把 2 引脚网络直接短接（一条线或 L 形两条线），跳过 trunk。
+
+    "智能连线"的核心: 电路里最常见的网络就是两个元件引脚相连（电阻串联、
+    RC、元件对）。若能用一条直线（同 y / 同 x）或 L 形两段直接连上，就不走
+    trunk —— 连线更短、更直、更专业（避免 U 形绕线）。
+
+    连线方案按顺序尝试（取第一条路径干净者）:
+      1) 水平直线（两引脚同 y）
+      2) 垂直直线（两引脚同 x）
+      3) L 形：先水平后垂直
+      4) L 形：先垂直后水平
+    L 形拐角是两段端点相接，KiCad 自动连接，无需 Junction。
+
+    路径干净 = 每条线段:
+      - 不穿过任何"第三方"符号本体（body 包围盒带 padding，引脚被包含在
+        自身符号的 body 内，从引脚引出的导线贴着自身符号是正常现象 → 用
+        allow_bodies 跳过本网络符号的 body，只挡其他元件）。
+      - 不穿过其他网络引脚
+      - 不与已布导线（used_segs_iu）共线重叠（防 KiCad 共线合并短路）
+
+    Args:
+        pin_refs: [(ref, (x_iu, y_iu)), ...]，长度必须为 2。
+        body_obstacles_mm: 收缩后的符号本体包围盒列表（mm）。
+        foreign_pins_iu: 其他网络所有引脚绝对坐标（IU）。
+        used_segs_iu: 已画出的所有导线段（跨网络共享，防共线重叠）。
+        allow_bodies: 允许导线穿过的符号 body 集合（本网络两个引脚所属符号）。
+        max_gap_mm: 直连允许的最大曼哈顿距离。
+        allow_l_shape: 是否允许 L 形两段连接（默认 True）。
+
+    Returns:
+        (segments_iu, covered_idx_set)：可直连时 segments 为 1~2 条线段、
+        covered={0,1}；否则 ([], set())。
+
+    注意：调用方须在直连段生成后把线段追加到 used_segs_iu（防后续网络共线），
+    由 _route_net_trunk 统一管理。
+    """
+    if len(pin_refs) != 2:
+        return [], set()
+    (_, (x1, y1)), (_, (x2, y2)) = pin_refs
+    if x1 == x2 and y1 == y2:
+        return [], set()
+    if abs(x1 - x2) + abs(y1 - y2) > max_gap_mm * MM:
+        return [], set()
+    if allow_bodies is None:
+        allow_bodies = set()
+
+    def _segs_clean(segs):
+        for (sx1, sy1), (sx2, sy2) in segs:
+            # 不穿过第三方符号本体（本网络符号 body 允许，引脚引出必经）
+            for o in body_obstacles_mm:
+                if o in allow_bodies:
+                    continue
+                if _seg_hits_bbox(((sx1, sy1), (sx2, sy2)), o):
+                    return False
+            # 不穿过其他网络引脚（本网络 2 个引脚在端点，允许）
+            if sy1 == sy2:
+                for fx, fy in foreign_pins_iu:
+                    if fy == sy1 and min(sx1, sx2) < fx < max(sx1, sx2):
+                        return False
+            else:
+                for fx, fy in foreign_pins_iu:
+                    if fx == sx1 and min(sy1, sy2) < fy < max(sy1, sy2):
+                        return False
+            # 不与已布导线共线重叠（防合并短路）
+            for (ux1, uy1), (ux2, uy2) in used_segs_iu:
+                if sy1 == sy2 and uy1 == uy2 and uy1 == sy1:
+                    if (max(min(sx1, sx2), min(ux1, ux2))
+                            < min(max(sx1, sx2), max(ux1, ux2))):
+                        return False
+                if sx1 == sx2 and ux1 == ux2 and ux1 == sx1:
+                    if (max(min(sy1, sy2), min(uy1, uy2))
+                            < min(max(sy1, sy2), max(uy1, uy2))):
+                        return False
+        return True
+
+    candidates = []
+    if y1 == y2:
+        candidates.append([((x1, y1), (x2, y2))])          # 水平直线
+    elif x1 == x2:
+        candidates.append([((x1, y1), (x2, y2))])          # 垂直直线
+    if allow_l_shape:
+        candidates.append([((x1, y1), (x2, y1)),           # 先水平后垂直
+                           ((x2, y1), (x2, y2))])
+        candidates.append([((x1, y1), (x1, y2)),           # 先垂直后水平
+                           ((x1, y2), (x2, y2))])
+
+    for segs in candidates:
+        if _segs_clean(segs):
+            return [s for s in segs if s[0] != s[1]], {0, 1}
+    return [], set()
+
+
 def _route_net_trunk(pin_refs: list, obstacles_mm: list,
                      used_lanes_iu: list, owner_bbox_map: dict,
                      preferred_lane: Optional[int] = None,
-                     used_collector_xs: Optional[list] = None) -> tuple:
+                     used_collector_xs: Optional[list] = None,
+                     used_segs_iu: Optional[list] = None) -> tuple:
     """用独立 trunk 道连接网络的所有引脚（每网络一条专属水平道）。
 
     设计要点（防止 KiCad 把共线导线合并短路）:
       - 每个网络独占一条水平 trunk 道（used_lanes_iu 隔离，不同网络 y 不同）
       - 每个引脚在自身 x 处垂直接到 trunk —— 引脚 x 各不同，垂直 stub 不重叠
       - 侧边引脚（orient 90 的左右引脚）垂直 stub 不穿过符号本体
+      - (智能连线) 2 引脚网络若可直接短接（同 y / 同 x、路径干净），跳过
+        trunk 一条线连上，避免 U 形绕线。
 
     Args:
         pin_refs: [(ref, (x_iu, y_iu)), ...]（ref 用于排除自身符号包围盒）
         owner_bbox_map: {ref: bbox_mm}，符号包围盒（与 obstacles_mm 同源）
+        used_segs_iu: 可选，跨网络共享的已画导线段列表（防共线重叠）。
+            传 None 则不做智能直连（保持纯 trunk 布线）。
 
     Returns: (wire_segments_iu, trunk_y_iu, junctions_iu)
         junctions_iu: [(x_iu, y_iu), ...] —— stub 与 trunk 的汇合点。
         KiCad 中导线端点落在另一条导线**中部**不会自动连接，必须放 Junction。
+        trunk_y_iu 为 None 表示该网络走了智能直连（无 trunk）。
     """
     pins_iu = [p for _, p in pin_refs]
     owner_bboxes = [owner_bbox_map.get(r) for r, _ in pin_refs]
@@ -507,6 +663,25 @@ def _route_net_trunk(pin_refs: list, obstacles_mm: list,
     for (bx1, by1, bx2, by2) in obstacles_mm:
         body.append((bx1 + 2.54, by1 + 2.54, bx2 - 2.54, by2 - 2.54))
     body_owners = []
+
+    # (智能连线) 2 引脚网络优先直连：一条线或 L 形两段直接短接，跳过 trunk。
+    # 避免两个元件引脚各自绕 stub + trunk 的 U 形线。used_segs_iu 跨网络防共线。
+    if used_segs_iu is not None and len(pin_refs) == 2:
+        # 本网络两个引脚所属符号的 body 允许导线穿过（引脚引出处贴自身符号
+        # 是正常现象，body 的 padding 会把引脚包进去 → 需排除）。注意此处
+        # body_owners 尚未填充，须从 owner_bboxes 直接算。
+        allow_bodies = set()
+        for ob in owner_bboxes:
+            if ob is not None:
+                allow_bodies.add((ob[0] + 2.54, ob[1] + 2.54,
+                                  ob[2] - 2.54, ob[3] - 2.54))
+        dsegs, covered = _try_direct_connect(
+            pin_refs, body, foreign_pins_iu, used_segs_iu,
+            allow_bodies=allow_bodies)
+        if covered:
+            final = [s for s in dsegs if s[0] != s[1]]
+            used_segs_iu.extend(final)
+            return final, None, []
     for ob in owner_bboxes:
         if ob is None:
             body_owners.append(None)
@@ -565,7 +740,10 @@ def _route_net_trunk(pin_refs: list, obstacles_mm: list,
     x_min = min([p[0] for p in pins_iu] + used_collectors)
     x_max = max([p[0] for p in pins_iu] + used_collectors)
     segs.append(((x_min, y_lane), (x_max, y_lane)))
-    return [s for s in segs if s[0] != s[1]], y_lane, junctions
+    final = [s for s in segs if s[0] != s[1]]
+    if used_segs_iu is not None:
+        used_segs_iu.extend(final)
+    return final, y_lane, junctions
 
 
 def _power_rail_lanes(syms: dict, nets: list, power_refs: set,
@@ -812,8 +990,14 @@ def _label_stub(syms: dict, ref: str, pin: str, text: str,
         # 左侧引脚：文字朝右，可能碰符号本体 → 长 stub 保证文字与本体有间隙
         stub_mm = max(2.54, offset + half + 1.5)   # +0.5 本体余量 +1.0 间隙
         stub_mm = math.ceil(stub_mm / 1.27) * 1.27 # 向上吸附网格（保证够长）
+    elif dx > 0:
+        # 右侧引脚：文字朝右，但宽文字左缘（锚点+1.43-half）会越过锚点碰到
+        # 符号本体（如 FLASH_SCLK 9 字符半宽 6.29 > 2.54+1.43）→ 同样按文字
+        # 宽度给足 stub，让文字左缘离开符号右缘。
+        stub_mm = max(2.54, half - offset + 1.5)   # 文字左缘离 pin 1.5mm
+        stub_mm = math.ceil(stub_mm / 1.27) * 1.27
     else:
-        # 右侧/上下引脚：文字朝远离符号方向 → 短 stub（2.54）即可
+        # 上下引脚：stub 垂直，不影响文字水平位置 → 短 stub（2.54）即可
         stub_mm = 2.54
     # 避让：若端点落在已有竖直导线上（其它网络 collector），缩短 stub（1.27 步进）
     while wires_iu and stub_mm > 1.27:
@@ -940,6 +1124,8 @@ def kicad_sch_auto_route(
     all_segs = []
     all_junctions = []
     collector_xs: list = []
+    used_segs_iu: list = []   # 已画全部导线段（跨网络防共线）
+    n_direct = 0
     for net in nets:
         name = net.get("name", "?")
         pins = net.get("pins", [])
@@ -949,10 +1135,14 @@ def kicad_sch_auto_route(
         pin_refs = [(r, _pin_iu(syms, r, p)) for r, p in pins]
         segs, y_lane, junctions = _route_net_trunk(
             pin_refs, obstacles, used_lanes_iu, owner_bbox_map,
-            used_collector_xs=collector_xs)
+            used_collector_xs=collector_xs, used_segs_iu=used_segs_iu)
+        if y_lane is None:
+            n_direct += 1
         all_segs += segs
         all_junctions += junctions
         summary.append(f"  {name}: 连接 {len(pins)} 个引脚，{len(segs)} 段导线")
+    if n_direct:
+        summary.append(f"  ⚡ 智能直连 {n_direct} 个两引脚网络（直接短接，免绕线）")
 
     _create_lines(all_segs, all_junctions)
     return "✅ 自动布线完成:\n" + "\n".join(summary)
@@ -1057,6 +1247,7 @@ def kicad_sch_draw_circuit(
     obstacles = list(owner_bbox_map.values())
     used_lanes_iu: list = []
     collector_xs: list = []
+    used_segs_iu: list = []   # 已画全部导线段（跨网络防共线重叠）
     net_lanes: dict = {}   # net 名 -> trunk y_iu（标签放 trunk 上）
     routed = []
     all_junctions = []
@@ -1083,13 +1274,17 @@ def kicad_sch_draw_circuit(
             preferred = power_lanes.get(name)
             segs, y_lane, junctions = _route_net_trunk(
                 pin_refs, obstacles, used_lanes_iu, owner_bbox_map,
-                preferred_lane=preferred, used_collector_xs=collector_xs)
+                preferred_lane=preferred, used_collector_xs=collector_xs,
+                used_segs_iu=used_segs_iu)
             routed.append((name, len(pins), segs))
             net_lanes[name] = y_lane
             all_junctions += junctions
         _create_lines([s for _, _, segs in routed for s in segs], all_junctions)
+        n_direct = sum(1 for _, y in net_lanes.items() if y is None)
         lines.append("  · 布线完成: " + ", ".join(
             f"{n}({p}pin/{len(s)}seg)" for n, p, s in routed))
+        if n_direct:
+            lines.append(f"  · ⚡ 智能直连 {n_direct} 个两引脚网络（直接短接，免 U 形绕线）")
 
     # 标签：电源网络 + 用户显式要求的 label，都放在 trunk 上（并入网络）。
     # GND/0 网络标签用 "0"（SPICE 地），让 netlist 输出节点 0，仿真才正确。
