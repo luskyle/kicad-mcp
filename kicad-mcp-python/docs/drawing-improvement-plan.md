@@ -190,6 +190,28 @@
 之前一致（仅跨页 label 警告 + 封装库警告）。main 页 5 处标签仍压 RP2040 本体 = 已知
 RP2040 引脚读回 bug 的连带（引脚位置都偏，标签跟随）。
 
+### 标签文字/框与重叠修复（2026-08-28）—— 用户反馈"左侧标签重叠 + 文字与框重叠"
+
+**根因**：
+1. **左侧标签与元件重叠**：左侧引脚标签文字朝右（`text-anchor=middle`，以「锚点+1.43mm」
+   为中心），文字右缘会贴/压到符号本体 —— 因为 stub 太短。
+2. **文字与框重叠**：KiCad 的 label 文字以「锚点+1.43mm（GetSchematicTextOffset/L_BIDI）」
+   为中心绘制，**宽文字左缘会越过锚点盖到框左侧**（手写标准 "LONGNET" 7 字符左缘=
+   锚点-2.47mm）—— 这是 KiCad 正常行为，非我们创建方式的 bug。
+
+**修复（`circuit.py` / `overlaps.py`）**：
+1. **`_label_stub` 按方向定长**：左侧引脚（文字朝右可能碰符号）→ stub = max(2.54,
+   offset+半宽+1.5) 向上吸附网格（如 5.08mm）；右侧/上下引脚 → 短 stub（2.54mm）。
+2. **stub 端点避让竖直导线**：单引脚跨页标签 stub 端点若落在其它网络竖直 collector
+   上（同列多引脚网络，如 flash 3V3 右侧 4 引脚）会**短路**。`_label_stub(wires_iu)`
+   检查端点是否落在已有竖直 wire 上，落则缩短 stub（1.27 步进）。flash 已验证：
+   3V3 恢复 4 节点、FLASH_SCLK/SD0 各归其位、golden 通过。
+3. **check_overlaps 文字框用真实几何**：旧 len*size*0.62 低估文字宽会漏报真实重叠；
+   改为 `(锚点-1.5, y±size/2, 锚点+1.43+len*size*0.55)`。
+4. **matrix 重做**：间距 20.32→**27.94mm**（22 格，居中 420x297），真实几何下
+   45 元素（15 键 + 30 标签）**0 重叠**，最小间距 **1.04mm**，ERC 门禁 PASS，
+   golden 连通性通过。
+
 ### L4 — 质量与工程化（已完成 ✅ 2026-08-28，工具共 44）
 
 - [x] **DRC/ERC 门禁** ✅：`tools/quality.py` 新增 `kicad_sch_erc_gate`
@@ -215,6 +237,23 @@ RP2040 引脚读回 bug 的连带（引脚位置都偏，标签跟随）。
   - 模板：draw-circuit（通用）/ draw-power（USBC/LDO）/ draw-mcu（大芯片）/
     draw-matrix（label_only 矩阵）/ verify-simulate（门禁+标准+仿真+golden）。
   - 每个模板含 circuit_json 例子、关键约定（踩坑）、交付检查清单。
+- [x] **重叠/越界检查与自动重摆（L4 增强，工具共 46）**：`tools/overlaps.py`
+  - `kicad_sch_check_overlaps`：读回符号（本体 bbox）+ 标签（文字框）+ 导线，
+    检查符号-符号 / 符号-标签 / 标签-标签重叠 + 越界（默认 5mm 边距），只报告。
+  - `kicad_sch_fix_overlaps`：自动重摆 ——
+    * **越界标签**：沿连接 stub/线向页内收；沿线收不进（文字太长/stub 太短）→
+      移到页内空位并**延伸 stub**（删旧线+画新线，保持连通）
+    * **重叠标签**：无线→自由找空位；有线→沿线移动（保持连通）
+    * **重叠/越界符号**：未连线→移页内空位；已连线→报告（避免断线）
+    * 有线标签压大符号（如 RP2040 引脚读回 bug 连带）默认**不自动移**（防振荡），
+      可 `move_label_on_symbol=True` 强制移开；振荡防护（问题数未减少即停）。
+  - 符号 bbox 用**本体**（引脚 ±0.5mm），不用 3.81mm padding（相邻键 20.32 间距
+    会被 padding 误判重叠）。标签文字框 = 锚点向右 len*size*0.62 + 左侧 0.5 图形余量。
+  - draw_circuit 集成：画完自动跑重叠检查（`overlap_check` 默认 true；
+    `auto_fix_overlaps` 可开自动重摆）。
+  - 验证：matrix/flash/power fix **0 误动**；构造的越界/重叠（孤立标签、
+    长文字标签延伸 stub）均被正确修复且 ERC 无 label not connected；
+    main 页 6 处 RP2040 标签压本体 → 报告不移动（已知 bug 连带）。
 
 ## 4. 落地顺序与理由
 

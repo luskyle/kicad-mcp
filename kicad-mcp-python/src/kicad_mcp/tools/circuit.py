@@ -766,18 +766,62 @@ def _pin_outward_dir(syms: dict, ref: str, pin: str) -> tuple:
     return 0, (1 if ry > 0 else -1)
 
 
+def _read_wires_iu() -> list:
+    """读回当前原理图所有 wire 线段（IU），供标签 stub 避让已有线。"""
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        got = kc.get_items(header, [KOT_MAP["line"]])
+    out = []
+    for a in got.items:
+        if not a.Is(schematic_types_pb2.Line.DESCRIPTOR):
+            continue
+        ln = schematic_types_pb2.Line()
+        a.Unpack(ln)
+        if ln.layer == schematic_types_pb2.SL_WIRE:
+            out.append(((ln.start.x_nm, ln.start.y_nm),
+                        (ln.end.x_nm, ln.end.y_nm)))
+    return out
+
+
+def _stub_endpoint_hits_wire(ex: int, ey: int, wires_iu: list) -> bool:
+    """端点 (ex,ey) 是否落在某条竖直 wire 中部（会形成意外连接/短路）。"""
+    for (ax, ay), (bx, by) in wires_iu:
+        if ax == bx and ex == ax:   # 竖直 wire，端点 x 相同
+            if min(ay, by) - 100 <= ey <= max(ay, by) + 100:
+                return True
+    return False
+
+
 def _label_stub(syms: dict, ref: str, pin: str, text: str,
-                size_mm: float) -> tuple:
+                size_mm: float, wires_iu: Optional[list] = None) -> tuple:
     """引脚外侧短 stub。返回 ((起,止)IU, (标签锚点)IU)。
 
-    标签文字默认朝右（KiCad 标签方向 0°），stub 长度按文本宽度自适应，
-    让文字落在 stub 上、不压到符号本体（尤其左侧引脚）。
+    KiCad 标签文字以「锚点+1.43mm」为中心绘制（GetSchematicTextOffset，L_BIDI），
+    文字半宽 ≈ len*size*0.55。stub 长度需保证：文字最外缘不碰符号本体
+    （本体余量 0.5mm + 间隙 1.0mm），否则左侧标签文字会贴/压到符号。
+
+    若 wires_iu 给定，stub 端点会**避让已有竖直导线**（如同列其它网络的
+    collector），避免端点落在别人的竖直线上造成短路（密集 IC 页常见）。
     """
+    import math
     px, py = _pin_iu(syms, ref, pin)
     dx, dy = _pin_outward_dir(syms, ref, pin)
-    text_w = max(size_mm, len(text) * size_mm * 0.62)
-    stub_mm = max(2.54, text_w + 1.27)
-    stub_mm = round(stub_mm / 1.27) * 1.27            # 吸附 1.27 网格
+    offset = 1.43                       # KiCad label 文字中心相对锚点的偏移
+    half = max(size_mm / 2, len(text) * size_mm * 0.55)
+    if dx < 0:
+        # 左侧引脚：文字朝右，可能碰符号本体 → 长 stub 保证文字与本体有间隙
+        stub_mm = max(2.54, offset + half + 1.5)   # +0.5 本体余量 +1.0 间隙
+        stub_mm = math.ceil(stub_mm / 1.27) * 1.27 # 向上吸附网格（保证够长）
+    else:
+        # 右侧/上下引脚：文字朝远离符号方向 → 短 stub（2.54）即可
+        stub_mm = 2.54
+    # 避让：若端点落在已有竖直导线上（其它网络 collector），缩短 stub（1.27 步进）
+    while wires_iu and stub_mm > 1.27:
+        off = round(stub_mm * MM)
+        ex, ey = px + dx * off, py + dy * off
+        if not _stub_endpoint_hits_wire(ex, ey, wires_iu):
+            break
+        stub_mm -= 1.27
     off = round(stub_mm * MM)
     ex, ey = px + dx * off, py + dy * off
     return ((px, py), (ex, ey)), (ex, ey)
@@ -1055,6 +1099,8 @@ def kicad_sch_draw_circuit(
     default_label_size = float(data.get("label_size_mm", 1.27))
     label_wires: list = []   # 标签引出 stub / trunk 左端 tab（随标签一起连线）
     n_labels = 0
+    # 读现有 wire 供标签 stub 避让（防端点落在别的网络竖直 collector 上短路）
+    stub_wires = _read_wires_iu()
     for net in nets:
         name = net.get("name", "")
         pins = net.get("pins", [])
@@ -1087,7 +1133,8 @@ def kicad_sch_draw_circuit(
             for r, ps in groups.items():
                 label_wires += _group_wire_segments(syms, r, ps)
                 primary = _group_primary_pin(syms, r, ps)
-                stub, tip = _label_stub(syms, r, primary, text, size)
+                stub, tip = _label_stub(syms, r, primary, text, size,
+                                        wires_iu=stub_wires)
                 label_wires.append(stub)
                 kicad_sch_add_label(label_type, text, tip[0] / MM, tip[1] / MM,
                                     height_mm=size)
@@ -1106,7 +1153,8 @@ def kicad_sch_draw_circuit(
         else:
             # 无 trunk（单引脚跨页标签）：引脚外侧短 stub + 标签，避免文字
             # 压在符号本体上（尤其左侧引脚）。
-            stub, tip = _label_stub(syms, placed[0][0], placed[0][1], text, size)
+            stub, tip = _label_stub(syms, placed[0][0], placed[0][1], text, size,
+                                    wires_iu=stub_wires)
             label_wires.append(stub)
             lx, ly = tip[0] / MM, tip[1] / MM
         kicad_sch_add_label(label_type, text, lx, ly, height_mm=size)
@@ -1140,6 +1188,16 @@ def kicad_sch_draw_circuit(
         lines.append("── 标准审查 ──")
         lines.append(kicad_sch_standards_check(sch_file=_current_sch_path(),
                                                include_erc=False))
+
+    # 重叠/越界检查（L4：元素放置后检查重叠/越界，可自动重摆）
+    if data.get("overlap_check", True):
+        from .overlaps import (kicad_sch_check_overlaps,
+                               kicad_sch_fix_overlaps)
+        lines.append("── 重叠/越界检查 ──")
+        if data.get("auto_fix_overlaps", False):
+            lines.append(kicad_sch_fix_overlaps())
+        else:
+            lines.append(kicad_sch_check_overlaps())
 
     # 渲染 SVG 反馈
     if render:

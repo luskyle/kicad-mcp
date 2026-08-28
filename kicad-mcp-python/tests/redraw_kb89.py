@@ -219,48 +219,24 @@ async def redraw_matrix(session) -> str:
     """矩阵页：15 键 3×5，每键每侧一个全局标签（Cx 列 / Rx 行）。
 
     走 kicad_sch_draw_circuit 的 label_only：同侧两脚自动短接、标签放外侧
-    stub（不压符号）。键半宽 6.35 + stub，间距取 20.32mm（16 格）保证相邻
-    标签互不碰撞。
+    stub（不压符号）。间距 25.4mm（20 格）保证相邻标签互不碰撞、整体居中。
     """
-    # 键: K1..K15, 行 R1={1..5} R2={6..10} R3={11..15}, 列 Cx = {Kx, Kx+5, Kx+10}
-    col_of = {k: f"C{((k - 1) % 5) + 1}" for k in range(1, 16)}
-    row_of = {k: f"R{(k - 1) // 5 + 1}" for k in range(1, 16)}
-    x0, y0, dx, dy = 60.0, 100.0, 20.32, 20.32
-    symbols = []
-    positions = {}
-    for k in range(1, 16):
-        r = (k - 1) // 5      # 0..2
-        c = (k - 1) % 5       # 0..4
-        x, y = _g(x0 + c * dx), _g(y0 + r * dy)
-        symbols.append({"ref": f"K{k}", "lib": "keyboard-89_local",
-                        "symbol": "TC-6601-5-160G", "value": f"K{k}"})
-        positions[f"K{k}"] = [x, y, 0]
-    nets = []
-    for c in range(1, 6):
-        ks = [k for k in range(1, 16) if ((k - 1) % 5) + 1 == c]
-        nets.append({"name": f"C{c}", "label_only": True,
-                     "pins": [[f"K{k}", p] for k in ks for p in ("1", "2")]})
-    for r in range(1, 4):
-        ks = [k for k in range(1, 16) if (k - 1) // 5 + 1 == r]
-        nets.append({"name": f"R{r}", "label_only": True,
-                     "pins": [[f"K{k}", p] for k in ks for p in ("3", "4")]})
-    j = {
-        "symbols": symbols,
-        "nets": nets,
-        "layout": {"mode": "positions", "positions": positions},
-        "default_label_type": "global",
-        "clear": True, "run_erc": True, "render": True,
-    }
+    j = matrix_json()
+    j.update(clear=True, run_erc=True, render=True)
     res = await call(session, "kicad_sch_draw_circuit",
                      {"circuit_json": json.dumps(j)})
     return res
 
 
 def matrix_json():
-    """矩阵页电路 spec（供 golden 回归复用；run_erc/render 由调用方覆盖）。"""
+    """矩阵页电路 spec（供 golden 回归复用；run_erc/render 由调用方覆盖）。
+
+    间距 27.94mm（22 格）让相邻键的标签文字之间保持 ~3mm 净空（真实文字几何
+    下 45 元素零重叠），布局整体居中在 420x297 页面。
+    """
     col_of = {k: f"C{((k - 1) % 5) + 1}" for k in range(1, 16)}
     row_of = {k: f"R{(k - 1) // 5 + 1}" for k in range(1, 16)}
-    x0, y0, dx, dy = 60.0, 100.0, 20.32, 20.32
+    x0, y0, dx, dy = 147.0, 118.0, 27.94, 27.94
     symbols = []
     positions = {}
     for k in range(1, 16):
