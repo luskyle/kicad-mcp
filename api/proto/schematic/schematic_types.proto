@@ -69,11 +69,53 @@ message Text
   kiapi.common.types.Text text = 2;
 }
 
+// (kicad-mcp patch) Label arrow shape (input/output/bidirectional/tri-state).
+// Maps to SCH_LABEL_BASE::LABEL_FLAG_SHAPE (L_UNSPECIFIED=4, L_INPUT=0, ...).
+enum LabelShape
+{
+  LS_UNSPECIFIED   = 0;
+  LS_INPUT         = 1;
+  LS_OUTPUT        = 2;
+  LS_BIDIRECTIONAL = 3;
+  LS_TRISTATE      = 4;
+}
+
+// (kicad-mcp patch) Label connection-point direction (text side).
+// Maps to SPIN_STYLE::SPIN (LEFT=0, UP=1, RIGHT=2, BOTTOM=3).
+enum LabelSpin
+{
+  LSPIN_LEFT  = 0;
+  LSPIN_UP    = 1;
+  LSPIN_RIGHT = 2;
+  LSPIN_DOWN  = 3;
+}
+
+// (kicad-mcp patch) Directive (flag) label shape: point/circle/diamond/rect.
+// Maps to FLAG_SHAPE (F_DOT, F_ROUND, F_DIAMOND, F_RECTANGLE).
+enum DirectiveShape
+{
+  DS_POINT    = 0;
+  DS_CIRCLE   = 1;
+  DS_DIAMOND  = 2;
+  DS_RECTANGLE = 3;
+}
+
+// (kicad-mcp patch) Symbol mirror state (horizontal X / vertical Y flip).
+// Maps to SCH_SYMBOL SYM_MIRROR_X / SYM_MIRROR_Y.
+enum SymbolMirror
+{
+  SM_NONE = 0;
+  SM_X    = 1;   // horizontal mirror (flip across X axis)
+  SM_Y    = 2;   // vertical mirror (flip across Y axis)
+}
+
 message LocalLabel
 {
   kiapi.common.types.KIID    id       = 1;
   kiapi.common.types.Vector2 position = 2;
   Text                       text     = 3;
+  LabelShape                 shape    = 4;
+  LabelSpin                  spin     = 5;
 }
 
 message GlobalLabel
@@ -81,6 +123,8 @@ message GlobalLabel
   kiapi.common.types.KIID    id       = 1;
   kiapi.common.types.Vector2 position = 2;
   Text                       text     = 3;
+  LabelShape                 shape    = 4;
+  LabelSpin                  spin     = 5;
 }
 
 message HierarchicalLabel
@@ -88,13 +132,17 @@ message HierarchicalLabel
   kiapi.common.types.KIID    id       = 1;
   kiapi.common.types.Vector2 position = 2;
   Text                       text     = 3;
+  LabelShape                 shape    = 4;
+  LabelSpin                  spin     = 5;
 }
 
 message DirectiveLabel
 {
-  kiapi.common.types.KIID    id       = 1;
-  kiapi.common.types.Vector2 position = 2;
-  Text                       text     = 3;
+  kiapi.common.types.KIID    id             = 1;
+  kiapi.common.types.Vector2 position       = 2;
+  Text                       text           = 3;
+  DirectiveShape             directive_shape = 4;
+  LabelSpin                  spin           = 5;
 }
 
 /// A name/value pair for a schematic symbol field (e.g. "Reference", "Value")
@@ -134,6 +182,9 @@ message Symbol
   // (kicad-mcp patch) Symbol rotation/mirror state as stored by
   // SCH_SYMBOL::GetOrientation() (0/90/180/270 plus mirror flags).
   int32 orientation_degrees = 5;
+
+  // (kicad-mcp patch) Mirror state (horizontal X / vertical Y flip).
+  SymbolMirror mirror = 7;
 
   // (kicad-mcp patch) Absolute positions of the symbol's pins, as computed by
   // KiCad (read back via GetItems).  Clients use these for exact wire routing.

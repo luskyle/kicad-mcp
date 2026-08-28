@@ -1653,6 +1653,50 @@ static bool unpackLabelText( const kiapi::schematic::types::Text& aText, SCH_TEX
 }
 
 
+// (kicad-mcp patch) Label arrow shape <-> proto 映射
+static kiapi::schematic::types::LabelShape toProtoShape( LABEL_FLAG_SHAPE aShape )
+{
+    switch( aShape )
+    {
+    case L_INPUT:    return kiapi::schematic::types::LS_INPUT;
+    case L_OUTPUT:   return kiapi::schematic::types::LS_OUTPUT;
+    case L_BIDI:     return kiapi::schematic::types::LS_BIDIRECTIONAL;
+    case L_TRISTATE: return kiapi::schematic::types::LS_TRISTATE;
+    default:         return kiapi::schematic::types::LS_UNSPECIFIED;
+    }
+}
+static LABEL_FLAG_SHAPE toCppShape( kiapi::schematic::types::LabelShape aShape )
+{
+    switch( aShape )
+    {
+    case kiapi::schematic::types::LS_INPUT:         return L_INPUT;
+    case kiapi::schematic::types::LS_OUTPUT:        return L_OUTPUT;
+    case kiapi::schematic::types::LS_BIDIRECTIONAL: return L_BIDI;
+    case kiapi::schematic::types::LS_TRISTATE:      return L_TRISTATE;
+    default:                                        return L_UNSPECIFIED;
+    }
+}
+static kiapi::schematic::types::DirectiveShape toProtoDirectiveShape( FLAG_SHAPE aShape )
+{
+    switch( aShape )
+    {
+    case FLAG_CIRCLE:    return kiapi::schematic::types::DS_CIRCLE;
+    case FLAG_DIAMOND:   return kiapi::schematic::types::DS_DIAMOND;
+    case FLAG_RECTANGLE: return kiapi::schematic::types::DS_RECTANGLE;
+    default:             return kiapi::schematic::types::DS_POINT;
+    }
+}
+static FLAG_SHAPE toCppDirectiveShape( kiapi::schematic::types::DirectiveShape aShape )
+{
+    switch( aShape )
+    {
+    case kiapi::schematic::types::DS_CIRCLE:    return FLAG_CIRCLE;
+    case kiapi::schematic::types::DS_DIAMOND:   return FLAG_DIAMOND;
+    case kiapi::schematic::types::DS_RECTANGLE: return FLAG_RECTANGLE;
+    default:                                    return FLAG_DOT;
+    }
+}
+
 void SCH_LABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
     kiapi::schematic::types::LocalLabel label;
@@ -1660,6 +1704,8 @@ void SCH_LABEL::Serialize( google::protobuf::Any& aContainer ) const
     label.mutable_id()->set_value( m_Uuid.AsStdString() );
     kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
     packLabelText( label.mutable_text(), *this );
+    label.set_shape( toProtoShape( GetShape() ) );
+    label.set_spin( (kiapi::schematic::types::LabelSpin)(int)GetSpinStyle() );
 
     aContainer.PackFrom( label );
 }
@@ -1679,6 +1725,8 @@ bool SCH_LABEL::Deserialize( const google::protobuf::Any& aContainer )
 
     if( label.has_text() )
         unpackLabelText( label.text(), *this );
+    SetShape( toCppShape( label.shape() ) );
+    SetSpinStyle( SPIN_STYLE( (SPIN_STYLE::SPIN) label.spin() ) );
 
     return true;
 }
@@ -1769,6 +1817,8 @@ void SCH_DIRECTIVE_LABEL::Serialize( google::protobuf::Any& aContainer ) const
     label.mutable_id()->set_value( m_Uuid.AsStdString() );
     kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
     packLabelText( label.mutable_text(), *this );
+    label.set_directive_shape( toProtoDirectiveShape( GetFlagShape() ) );
+    label.set_spin( (kiapi::schematic::types::LabelSpin)(int)GetSpinStyle() );
 
     aContainer.PackFrom( label );
 }
@@ -1788,6 +1838,10 @@ bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any& aContainer )
 
     if( label.has_text() )
         unpackLabelText( label.text(), *this );
+    // directive_shape 值 0(DS_POINT) 视为“未指定”，保持默认 F_ROUND
+    if( label.directive_shape() != kiapi::schematic::types::DS_POINT )
+        SetFlagShape( toCppDirectiveShape( label.directive_shape() ) );
+    SetSpinStyle( SPIN_STYLE( (SPIN_STYLE::SPIN) label.spin() ) );
 
     return true;
 }
@@ -2107,6 +2161,8 @@ void SCH_GLOBALLABEL::Serialize( google::protobuf::Any& aContainer ) const
     label.mutable_id()->set_value( m_Uuid.AsStdString() );
     kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
     packLabelText( label.mutable_text(), *this );
+    label.set_shape( toProtoShape( GetShape() ) );
+    label.set_spin( (kiapi::schematic::types::LabelSpin)(int)GetSpinStyle() );
 
     aContainer.PackFrom( label );
 }
@@ -2126,6 +2182,8 @@ bool SCH_GLOBALLABEL::Deserialize( const google::protobuf::Any& aContainer )
 
     if( label.has_text() )
         unpackLabelText( label.text(), *this );
+    SetShape( toCppShape( label.shape() ) );
+    SetSpinStyle( SPIN_STYLE( (SPIN_STYLE::SPIN) label.spin() ) );
 
     return true;
 }
@@ -2342,6 +2400,8 @@ void SCH_HIERLABEL::Serialize( google::protobuf::Any& aContainer ) const
     label.mutable_id()->set_value( m_Uuid.AsStdString() );
     kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
     packLabelText( label.mutable_text(), *this );
+    label.set_shape( toProtoShape( GetShape() ) );
+    label.set_spin( (kiapi::schematic::types::LabelSpin)(int)GetSpinStyle() );
 
     aContainer.PackFrom( label );
 }
@@ -2361,6 +2421,8 @@ bool SCH_HIERLABEL::Deserialize( const google::protobuf::Any& aContainer )
 
     if( label.has_text() )
         unpackLabelText( label.text(), *this );
+    SetShape( toCppShape( label.shape() ) );
+    SetSpinStyle( SPIN_STYLE( (SPIN_STYLE::SPIN) label.spin() ) );
 
     return true;
 }

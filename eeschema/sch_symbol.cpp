@@ -86,6 +86,15 @@ void SCH_SYMBOL::Serialize( google::protobuf::Any& aContainer ) const
     symbol.set_orientation_degrees(
             ( ( GetOrientation() - SYM_ORIENT_0 ) & 0x3 ) * 90 );
 
+    // (kicad-mcp patch) Expose mirror state (horizontal X / vertical Y flip)
+    int orient = GetOrientation();
+    if( orient & SYM_MIRROR_X )
+        symbol.set_mirror( kiapi::schematic::types::SM_X );
+    else if( orient & SYM_MIRROR_Y )
+        symbol.set_mirror( kiapi::schematic::types::SM_Y );
+    else
+        symbol.set_mirror( kiapi::schematic::types::SM_NONE );
+
     for( const SCH_FIELD& field : m_fields )
     {
         kiapi::schematic::types::Field* f = symbol.add_fields();
@@ -122,6 +131,12 @@ bool SCH_SYMBOL::Deserialize( const google::protobuf::Any& aContainer )
     // safe even when the client omitted the field.  Convert plain angle in
     // degrees (0/90/180/270) back to the internal enum value (SYM_ORIENT_0=3).
     SetOrientation( SYM_ORIENT_0 + ( ( symbol.orientation_degrees() / 90 ) % 4 ) );
+
+    // (kicad-mcp patch) Apply mirror state (incremental transform)
+    if( symbol.mirror() == kiapi::schematic::types::SM_X )
+        SetOrientation( SYM_MIRROR_X );
+    else if( symbol.mirror() == kiapi::schematic::types::SM_Y )
+        SetOrientation( SYM_MIRROR_Y );
 
     for( const kiapi::schematic::types::Field& f : symbol.fields() )
     {

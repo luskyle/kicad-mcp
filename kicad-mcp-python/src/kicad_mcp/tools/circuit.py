@@ -1097,6 +1097,10 @@ def kicad_sch_draw_circuit(
     # 尺寸默认 1.27mm（KiCad 标准字高），可按网络/整图覆盖。
     default_label_type = data.get("default_label_type", "local")
     default_label_size = float(data.get("label_size_mm", 1.27))
+    # 标签形状/方向/指令形状（可整体默认，也可按网络覆盖）
+    default_label_shape = data.get("default_label_shape", "unspecified")
+    default_label_spin = data.get("default_label_spin", "left")
+    default_directive_shape = data.get("default_directive_shape", "point")
     label_wires: list = []   # 标签引出 stub / trunk 左端 tab（随标签一起连线）
     n_labels = 0
     # 读现有 wire 供标签 stub 避让（防端点落在别的网络竖直 collector 上短路）
@@ -1119,6 +1123,10 @@ def kicad_sch_draw_circuit(
         if label_type not in ("local", "global", "hier", "directive"):
             label_type = "local"
         size = float(net.get("label_size_mm", default_label_size))
+        # 每个网络可覆盖默认标签形状/方向/指令形状
+        shape = net.get("label_shape", default_label_shape)
+        spin = net.get("label_spin", default_label_spin)
+        ds = net.get("directive_shape", default_directive_shape)
         # 只对"已放置"的引脚计算位置（keep_power=false 时电源符号未放置）。
         placed = [(r, p) for r, p in pins if r in syms]
         if not placed:
@@ -1137,7 +1145,8 @@ def kicad_sch_draw_circuit(
                                         wires_iu=stub_wires)
                 label_wires.append(stub)
                 kicad_sch_add_label(label_type, text, tip[0] / MM, tip[1] / MM,
-                                    height_mm=size)
+                                    height_mm=size, shape=shape, spin=spin,
+                                    directive_shape=ds)
                 n_labels += 1
             continue
         y_lane = net_lanes.get(name)
@@ -1157,7 +1166,8 @@ def kicad_sch_draw_circuit(
                                     wires_iu=stub_wires)
             label_wires.append(stub)
             lx, ly = tip[0] / MM, tip[1] / MM
-        kicad_sch_add_label(label_type, text, lx, ly, height_mm=size)
+        kicad_sch_add_label(label_type, text, lx, ly, height_mm=size,
+                            shape=shape, spin=spin, directive_shape=ds)
         n_labels += 1
     if label_wires:
         _create_lines([s for s in label_wires if s[0] != s[1]], [])

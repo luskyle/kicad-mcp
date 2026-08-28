@@ -851,25 +851,99 @@ def kicad_sch_simulate_gui(
     return "\n".join(lines)
 
 
+# 标签箭头/连接形状映射（LABEL_FLAG_SHAPE）
+LABEL_SHAPE_MAP = {
+    "unspecified": schematic_types_pb2.LS_UNSPECIFIED,
+    "input": schematic_types_pb2.LS_INPUT,
+    "output": schematic_types_pb2.LS_OUTPUT,
+    "bidirectional": schematic_types_pb2.LS_BIDIRECTIONAL,
+    "bidi": schematic_types_pb2.LS_BIDIRECTIONAL,
+    "tri_state": schematic_types_pb2.LS_TRISTATE,
+    "tristate": schematic_types_pb2.LS_TRISTATE,
+}
+
+# 连接点方向（SPIN_STYLE: LEFT=0/UP=1/RIGHT=2/BOTTOM=3）
+LABEL_SPIN_MAP = {
+    "left": schematic_types_pb2.LSPIN_LEFT,
+    "up": schematic_types_pb2.LSPIN_UP,
+    "right": schematic_types_pb2.LSPIN_RIGHT,
+    "down": schematic_types_pb2.LSPIN_DOWN,
+}
+
+# 指令标签形状（FLAG_SHAPE: DOT/CIRCLE/DIAMOND/RECTANGLE）
+DIRECTIVE_SHAPE_MAP = {
+    "point": schematic_types_pb2.DS_POINT,
+    "circle": schematic_types_pb2.DS_CIRCLE,
+    "diamond": schematic_types_pb2.DS_DIAMOND,
+    "rectangle": schematic_types_pb2.DS_RECTANGLE,
+}
+
+_LABEL_SHAPE_NAME = {
+    schematic_types_pb2.LS_UNSPECIFIED: "unspecified",
+    schematic_types_pb2.LS_INPUT: "input",
+    schematic_types_pb2.LS_OUTPUT: "output",
+    schematic_types_pb2.LS_BIDIRECTIONAL: "bidirectional",
+    schematic_types_pb2.LS_TRISTATE: "tri_state",
+}
+_LABEL_SPIN_NAME = {
+    schematic_types_pb2.LSPIN_LEFT: "left",
+    schematic_types_pb2.LSPIN_UP: "up",
+    schematic_types_pb2.LSPIN_RIGHT: "right",
+    schematic_types_pb2.LSPIN_DOWN: "down",
+}
+_DIRECTIVE_SHAPE_NAME = {
+    schematic_types_pb2.DS_POINT: "point",
+    schematic_types_pb2.DS_CIRCLE: "circle",
+    schematic_types_pb2.DS_DIAMOND: "diamond",
+    schematic_types_pb2.DS_RECTANGLE: "rectangle",
+}
+
+
 def kicad_sch_add_label(
     label_type: str,
     text: str,
     x_mm: float,
     y_mm: float,
     height_mm: float = 1.27,
+    shape: str = "unspecified",
+    spin: str = "left",
+    directive_shape: str = "point",
 ) -> str:
     """在原理图上创建一个网络标签（Global/Local/Hier/Directive）。
 
     Args:
         label_type: 标签类型 "global" | "local" | "hier" | "directive"。
+            选择规则: 跨页网络用 global（或跨层次图用 hier）；单页内部网络用
+            local；ERC/仿真/PCB 属性指令用 directive。
         text: 标签文本（即网络名，如 "VCC" / "NET_A"）。
         x_mm, y_mm: 标签位置（毫米）。
         height_mm: 字高（毫米），默认 1.27mm（KiCad 标准字高）。
+        shape: 连接箭头形状（仅 global/local/hier 有效），表示信号方向:
+            "unspecified"（无向）| "input"（输入）| "output"（输出）|
+            "bidirectional"（双向）| "tri_state"（三态）。
+            默认 "unspecified"（KiCad 默认的斜杠箭头）。
+        spin: 连接点方向: "left" | "up" | "right" | "down"。
+            连接点应朝向导线/引脚所在方向（导线在标签右侧用 "left" 等）。
+        directive_shape: 指令标签形状（仅 directive 有效，KiCad 界面叫
+            "Net Flag" 形状）: "point" | "circle" | "diamond" | "rectangle"。
+            例: 电源符号 PWR_FLAG 用 "point"；"非连接检查/差分对" 用
+            "circle"；"仿真指令" 默认 "circle"。
 
-    需要已打补丁的 KiCad（Label 文本序列化补丁）。
+    需要已打补丁的 KiCad（Label 文本/形状/方向序列化补丁）。
     """
     if label_type.lower() not in LABEL_TYPE_MAP:
         raise ValueError(f"不支持的标签类型: {label_type}，可选: {sorted(LABEL_TYPE_MAP)}")
+
+    shape_key = shape.lower()
+    if shape_key not in LABEL_SHAPE_MAP:
+        raise ValueError(f"不支持的 shape: {shape}，可选: {sorted(LABEL_SHAPE_MAP)}")
+    spin_key = spin.lower()
+    if spin_key not in LABEL_SPIN_MAP:
+        raise ValueError(f"不支持的 spin: {spin}，可选: {sorted(LABEL_SPIN_MAP)}")
+    ds_key = directive_shape.lower()
+    if ds_key not in DIRECTIVE_SHAPE_MAP:
+        raise ValueError(f"不支持的 directive_shape: {directive_shape}，"
+                         f"可选: {sorted(DIRECTIVE_SHAPE_MAP)}")
 
     label = LABEL_TYPE_MAP[label_type.lower()]()
     # round 避免浮点截断误差导致 label 偏离引脚/线端点 1 IU 而 dangling
@@ -880,13 +954,212 @@ def kicad_sch_add_label(
     label.text.text.position.y_nm = round(y_mm * MM)
     label.text.text.attributes.size.x_nm = round(height_mm * MM)
     label.text.text.attributes.size.y_nm = round(height_mm * MM)
+    # (kicad-mcp) 形状/方向/指令形状
+    if isinstance(label, schematic_types_pb2.DirectiveLabel):
+        label.directive_shape = DIRECTIVE_SHAPE_MAP[ds_key]
+    else:
+        label.shape = LABEL_SHAPE_MAP[shape_key]
+    label.spin = LABEL_SPIN_MAP[spin_key]
 
     url, header = _sch_context()
     with KiCadClient(url, client_name="kicad-mcp") as kc:
         resp = kc.create_items(header, [label])
 
     _check_create_resp(resp)
-    return f"已在原理图 ({x_mm}mm, {y_mm}mm) 创建 {label_type} 标签 '{text}'"
+    extra = ""
+    if isinstance(label, schematic_types_pb2.DirectiveLabel):
+        extra = f", 形状={ds_key}"
+    else:
+        extra = f", 形状={shape_key}, 方向={spin_key}"
+    return (f"已在原理图 ({x_mm}mm, {y_mm}mm) 创建 {label_type} 标签 "
+            f"'{text}'{extra}")
+
+
+def kicad_sch_recommend_label(
+    net_name: str,
+    pin_type: str = "unspecified",
+    cross_page: bool = False,
+    hierarchical: bool = False,
+    purpose: str = "net",
+) -> str:
+    """推荐某条网络应该使用的标签类型 / 形状 / 方向。
+
+    原理图标签种类很多，本工具把“选哪种标签”变成确定的规则，AI 画图时按
+    网络性质调用即可，避免选错类型。
+
+    Args:
+        net_name: 网络名（如 "VCC" / "SCLK" / "NET_A"）。
+        pin_type: 引脚电气类型（决定连接箭头形状，仅作建议）:
+            "input" | "output" | "bidirectional" | "tri_state" | "passive" |
+            "unspecified"。
+            可传 netlist 里该网络的驱动类型，或第一个连接引脚的电气类型。
+        cross_page: 该网络是否跨原理图页面（True → 用全局标签 GlobalLabel）。
+        hierarchical: 是否用于层次化设计（跨子图，True → 用层次标签）。
+        purpose: 标签用途:
+            "net"（普通网络）| "flag"（ERC/仿真/PCB 指令，用指令标签）|
+            "diff"（差分对）| "power"（电源网络）。
+
+    Returns:
+        一行结论 + 一行 JSON，AI 可直接据此调用 kicad_sch_add_label。
+    """
+    # 1) 标签类型
+    if purpose in ("flag", "diff", "sim"):
+        label_type = "directive"
+    elif hierarchical:
+        label_type = "hier"
+    elif cross_page:
+        label_type = "global"
+    else:
+        label_type = "local"
+
+    # 2) 连接箭头形状（global/local/hier 用）
+    p = pin_type.lower()
+    if p in ("input", "output", "bidirectional", "tri_state"):
+        shape = p
+    else:
+        shape = "unspecified"      # passive/无方向 → 默认斜杠
+
+    # 3) 指令标签形状（directive 用）
+    if purpose == "flag":
+        directive_shape = "point"       # 电源/地 PWR_FLAG 风格
+    elif purpose == "diff":
+        directive_shape = "diamond"     # 差分对
+    elif purpose == "sim":
+        directive_shape = "circle"      # 仿真指令
+    else:
+        directive_shape = "point"
+
+    # 4) 连接点方向：默认朝左；网络以电源/地为主时朝上更常见，但一般由
+    #    导线走向决定，这里给默认 left，AI 画图时可按实际走向改。
+    spin = "left"
+
+    lines = [
+        f"网络 '{net_name}' 推荐: 类型={label_type}, 形状={shape}, "
+        f"指令形状={directive_shape}, 方向={spin}",
+        f"调用: kicad_sch_add_label(label_type=\"{label_type}\", text=\"{net_name}\", "
+        f"shape=\"{shape}\", spin=\"{spin}\", directive_shape=\"{directive_shape}\", "
+        f"x_mm=..., y_mm=...)",
+    ]
+    return "\n".join(lines)
+
+
+_LABEL_PROTO_CLASSES = [
+    schematic_types_pb2.GlobalLabel,
+    schematic_types_pb2.LocalLabel,
+    schematic_types_pb2.HierarchicalLabel,
+    schematic_types_pb2.DirectiveLabel,
+]
+
+
+def kicad_sch_transform_item(
+    item_id: str,
+    rotate: str = "none",
+    mirror: str = "none",
+) -> str:
+    """对原理图元素做旋转变换/镜像（等价于编辑器里的 R 旋转、X/Y 镜像）。
+
+    支持的旋转/镜像方式（对应 KiCad 原理图编辑器的工具栏）:
+      - 旋转: R（顺时针 90°）；Shift+R（逆时针 90°）。
+      - 镜像: X（水平镜像，左右翻转）；Y（垂直镜像，上下翻转）。
+
+    Args:
+        item_id: 元素 KIID（符号或标签，来自 kicad_sch_get_items）。
+        rotate: "cw"（顺时针 90°）| "ccw"（逆时针 90°）| "none"（不旋转）。
+        mirror: "x"（水平镜像）| "y"（垂直镜像）| "none"（不镜像）。
+
+    说明:
+      - 符号: 旋转改变方向（0/90/180/270），镜像做 X/Y 轴翻转，二者可叠加。
+      - 标签: 旋转改变连接点方向（left→up→right→down…）；
+        水平镜像交换 left/right，垂直镜像交换 up/down。
+      - 连线（wire）不可变换。
+
+    Returns:
+        变换后的元素状态。
+    """
+    if rotate not in ("none", "cw", "ccw"):
+        raise ValueError(f"rotate 应为 none/cw/ccw，收到: {rotate}")
+    if mirror not in ("none", "x", "y"):
+        raise ValueError(f"mirror 应为 none/x/y，收到: {mirror}")
+    if rotate == "none" and mirror == "none":
+        return "未做任何变换（rotate 和 mirror 均为 none）"
+
+    url, header = _sch_context()
+    kots = [KOT_MAP["symbol"]] + [KOT_MAP["local_label"], KOT_MAP["global_label"],
+                                  KOT_MAP["hier_label"], KOT_MAP["directive_label"]]
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        got = kc.get_items(header, kots)
+        target = None
+        for a in got.items:
+            for cls in _LABEL_PROTO_CLASSES + [schematic_types_pb2.Symbol]:
+                if not a.Is(cls.DESCRIPTOR):
+                    continue
+                obj = cls()
+                a.Unpack(obj)
+                if getattr(obj, "id", None) and obj.id.value == item_id:
+                    target = (cls, obj)
+                    break
+            if target:
+                break
+        if target is None:
+            # id 可能是前缀（前 8 位）
+            for a in got.items:
+                for cls in _LABEL_PROTO_CLASSES + [schematic_types_pb2.Symbol]:
+                    if not a.Is(cls.DESCRIPTOR):
+                        continue
+                    obj = cls()
+                    a.Unpack(obj)
+                    if getattr(obj, "id", None) and obj.id.value.startswith(item_id):
+                        target = (cls, obj)
+                        break
+                if target:
+                    break
+        if target is None:
+            return f"未找到 id={item_id}（不是符号或标签，或已被删除）"
+
+        cls, obj = target
+        desc = ""
+
+        if isinstance(obj, schematic_types_pb2.Symbol):
+            if rotate == "cw":
+                obj.orientation_degrees = (obj.orientation_degrees + 90) % 360
+            elif rotate == "ccw":
+                obj.orientation_degrees = (obj.orientation_degrees - 90) % 360
+            if mirror == "x":
+                obj.mirror = schematic_types_pb2.SM_X
+            elif mirror == "y":
+                obj.mirror = schematic_types_pb2.SM_Y
+            desc = (f"符号 {obj.lib_id.library_nickname}:{obj.lib_id.entry_name} "
+                    f"方向={obj.orientation_degrees}°, "
+                    f"镜像={_SYMBOL_MIRROR_NAME.get(obj.mirror, obj.mirror)}")
+        else:
+            # 标签: 旋转 spin (LEFT=0/UP=1/RIGHT=2/DOWN=3), 镜像交换方向
+            cur = obj.spin
+            if rotate == "cw":
+                cur = (cur + 1) % 4
+            elif rotate == "ccw":
+                cur = (cur - 1) % 4
+            if mirror == "x":
+                cur = {0: 2, 2: 0}.get(cur, cur)   # left<->right
+            elif mirror == "y":
+                cur = {1: 3, 3: 1}.get(cur, cur)   # up<->down
+            obj.spin = cur
+            desc = (f"标签 '{obj.text.text.text}' 方向={_LABEL_SPIN_NAME.get(cur, cur)}")
+
+        resp = kc.update_items(header, [obj])
+        if resp.status != 1:
+            raise RuntimeError(f"KiCad 返回整体状态码 {resp.status}")
+        for ui in resp.updated_items:
+            if ui.status.code != 1:
+                raise RuntimeError(f"更新元素失败 (code={ui.status.code}): "
+                                   f"{ui.status.error_message}")
+    return f"已变换 {desc}"
+
+
+_SYMBOL_MIRROR_NAME = {
+    schematic_types_pb2.SM_NONE: "无",
+    schematic_types_pb2.SM_X: "X（水平）",
+    schematic_types_pb2.SM_Y: "Y（垂直）",
+}
 
 
 def _fmt_any(any_item) -> str:
@@ -900,9 +1173,11 @@ def _fmt_any(any_item) -> str:
         s = schematic_types_pb2.Symbol()
         any_item.Unpack(s)
         fields = {f.name: f.value for f in s.fields}
+        mir = _SYMBOL_MIRROR_NAME.get(s.mirror, s.mirror)
         return (f"Symbol id={s.id.value} {s.lib_id.library_nickname}:{s.lib_id.entry_name} "
                 f"ref={fields.get('Reference', '')} value={fields.get('Value', '')} "
-                f"@({s.position.x_nm / MM:.1f},{s.position.y_nm / MM:.1f})mm")
+                f"@({s.position.x_nm / MM:.1f},{s.position.y_nm / MM:.1f})mm "
+                f"方向={s.orientation_degrees}° 镜像={mir}")
     if any_item.Is(schematic_types_pb2.Line.DESCRIPTOR):
         ln = schematic_types_pb2.Line()
         any_item.Unpack(ln)
@@ -942,8 +1217,14 @@ def _fmt_any(any_item) -> str:
         if any_item.Is(proto_cls.DESCRIPTOR):
             l = proto_cls()
             any_item.Unpack(l)
+            extra = ""
+            if isinstance(l, schematic_types_pb2.DirectiveLabel):
+                extra = (f" 形状={_DIRECTIVE_SHAPE_NAME.get(l.directive_shape, l.directive_shape)}")
+            else:
+                extra = (f" 形状={_LABEL_SHAPE_NAME.get(l.shape, l.shape)}")
+            extra += f" 方向={_LABEL_SPIN_NAME.get(l.spin, l.spin)}"
             return (f"{kind} id={l.id.value} '{l.text.text.text}' "
-                    f"@({l.position.x_nm / MM:.1f},{l.position.y_nm / MM:.1f})mm")
+                    f"@({l.position.x_nm / MM:.1f},{l.position.y_nm / MM:.1f})mm{extra}")
     return f"<{any_item.type_url.split('/')[-1]}>"
 
 
@@ -1379,6 +1660,8 @@ ALL_TOOLS = [
     kicad_sch_add_line,
     kicad_sch_add_symbol,
     kicad_sch_add_label,
+    kicad_sch_recommend_label,
+    kicad_sch_transform_item,
     kicad_sch_get_items,
     kicad_sch_update_text,
     kicad_sch_delete_item,
