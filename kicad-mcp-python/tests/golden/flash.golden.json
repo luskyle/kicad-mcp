@@ -1,0 +1,68 @@
+{
+  "name": "flash",
+  "nets": {
+    "0": [
+      [
+        "PWR0",
+        "1"
+      ],
+      [
+        "U3",
+        "4"
+      ]
+    ],
+    "3V3": [
+      [
+        "PWR3",
+        "1"
+      ],
+      [
+        "U3",
+        "3"
+      ],
+      [
+        "U3",
+        "7"
+      ],
+      [
+        "U3",
+        "8"
+      ]
+    ],
+    "FLASH_CS": [
+      [
+        "U3",
+        "1"
+      ]
+    ],
+    "FLASH_SCLK": [
+      [
+        "U3",
+        "6"
+      ]
+    ],
+    "FLASH_SD0": [
+      [
+        "U3",
+        "5"
+      ]
+    ],
+    "FLASH_SD1": [
+      [
+        "U3",
+        "2"
+      ]
+    ]
+  },
+  "labels": [
+    "0",
+    "3V3",
+    "FLASH_CS",
+    "FLASH_SCLK",
+    "FLASH_SD0",
+    "FLASH_SD1"
+  ],
+  "meta": {
+    "source": "/tmp/empty_test.kicad_sch"
+  }
+}

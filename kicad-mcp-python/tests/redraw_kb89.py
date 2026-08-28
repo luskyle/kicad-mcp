@@ -256,6 +256,37 @@ async def redraw_matrix(session) -> str:
     return res
 
 
+def matrix_json():
+    """矩阵页电路 spec（供 golden 回归复用；run_erc/render 由调用方覆盖）。"""
+    col_of = {k: f"C{((k - 1) % 5) + 1}" for k in range(1, 16)}
+    row_of = {k: f"R{(k - 1) // 5 + 1}" for k in range(1, 16)}
+    x0, y0, dx, dy = 60.0, 100.0, 20.32, 20.32
+    symbols = []
+    positions = {}
+    for k in range(1, 16):
+        r = (k - 1) // 5
+        c = (k - 1) % 5
+        x, y = _g(x0 + c * dx), _g(y0 + r * dy)
+        symbols.append({"ref": f"K{k}", "lib": "keyboard-89_local",
+                        "symbol": "TC-6601-5-160G", "value": f"K{k}"})
+        positions[f"K{k}"] = [x, y, 0]
+    nets = []
+    for c in range(1, 6):
+        ks = [k for k in range(1, 16) if ((k - 1) % 5) + 1 == c]
+        nets.append({"name": f"C{c}", "label_only": True,
+                     "pins": [[f"K{k}", p] for k in ks for p in ("1", "2")]})
+    for r in range(1, 4):
+        ks = [k for k in range(1, 16) if (k - 1) // 5 + 1 == r]
+        nets.append({"name": f"R{r}", "label_only": True,
+                     "pins": [[f"K{k}", p] for k in ks for p in ("3", "4")]})
+    return {
+        "symbols": symbols,
+        "nets": nets,
+        "layout": {"mode": "positions", "positions": positions},
+        "default_label_type": "global",
+    }
+
+
 async def read_syms(session):
     from kicad_mcp.tools.schematic import _read_symbols
     return _read_symbols()

@@ -162,143 +162,13 @@
 	)
 	(wire
 		(pts
-			(xy 86.36 139.7) (xy 88.9 139.7)
+			(xy 53.34 119.38) (xy 50.8 119.38)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "0a9ba123-11da-4b6c-ace5-2ee327fdc2fc")
-	)
-	(wire
-		(pts
-			(xy 106.68 139.7) (xy 109.22 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0c3035fc-84d4-4411-add0-81b7fb077eaa")
-	)
-	(wire
-		(pts
-			(xy 127 99.06) (xy 129.54 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0e900bba-6e2c-40ee-ac3e-43fcff0a7b47")
-	)
-	(wire
-		(pts
-			(xy 106.68 119.38) (xy 109.22 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "10b71e0b-6153-4904-92b4-a32e2e136a1a")
-	)
-	(wire
-		(pts
-			(xy 127 119.38) (xy 129.54 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1303de29-b19f-4552-b648-2e7255d0b60b")
-	)
-	(wire
-		(pts
-			(xy 73.66 99.06) (xy 71.12 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "18f1d783-dc06-42b4-a396-22922e82c8b5")
-	)
-	(wire
-		(pts
-			(xy 106.68 139.7) (xy 106.68 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1ae20388-67ee-46b9-97dd-7106af9e8ef5")
-	)
-	(wire
-		(pts
-			(xy 114.3 119.38) (xy 111.76 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "21790564-7353-4c57-9469-532640be64f8")
-	)
-	(wire
-		(pts
-			(xy 53.34 119.38) (xy 53.34 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "27732fd5-ca71-453c-a680-e26e385b1925")
-	)
-	(wire
-		(pts
-			(xy 127 119.38) (xy 127 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2f978fc0-5ded-40b0-b74d-a7dd4fb3e366")
-	)
-	(wire
-		(pts
-			(xy 114.3 139.7) (xy 114.3 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "39c91acf-5dc0-4904-8bf9-83728822e335")
-	)
-	(wire
-		(pts
-			(xy 93.98 139.7) (xy 91.44 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3a321976-d6ca-4ec0-b8b0-317813433bdc")
-	)
-	(wire
-		(pts
-			(xy 66.04 99.06) (xy 68.58 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3c30189d-d9ae-4f9b-861a-a5905107d766")
-	)
-	(wire
-		(pts
-			(xy 127 139.7) (xy 127 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3f5ed9ea-3b9e-4970-99cd-21286b668cc8")
+		(uuid "1085f277-921b-428d-ac23-8e8bba0dbf47")
 	)
 	(wire
 		(pts
@@ -308,427 +178,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "40e369bf-d3ea-40bc-9e16-156af14ca544")
-	)
-	(wire
-		(pts
-			(xy 114.3 119.38) (xy 114.3 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "45adde22-ba99-4846-8c56-16c56f13d102")
-	)
-	(wire
-		(pts
-			(xy 53.34 139.7) (xy 53.34 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4a1227c8-c2be-4ac7-9b3f-7f4a85c029dc")
-	)
-	(wire
-		(pts
-			(xy 147.32 139.7) (xy 147.32 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "55cb8f15-cb4e-434b-816a-7fdc5e994220")
-	)
-	(wire
-		(pts
-			(xy 147.32 119.38) (xy 147.32 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5ba26f65-7ca7-4cc4-b4d7-7ea36167930b")
-	)
-	(wire
-		(pts
-			(xy 93.98 99.06) (xy 93.98 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5cac60aa-06b5-4b6b-9a61-506388cb49fd")
-	)
-	(wire
-		(pts
-			(xy 147.32 119.38) (xy 149.86 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5df29bf3-ff57-4e3f-968f-3d7a7af49836")
-	)
-	(wire
-		(pts
-			(xy 86.36 119.38) (xy 86.36 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5fb54343-a5f2-4d6e-8cd7-74c9cf50edfb")
-	)
-	(wire
-		(pts
-			(xy 73.66 139.7) (xy 71.12 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6062801f-e064-46a4-8ab3-6d494d4d258c")
-	)
-	(wire
-		(pts
-			(xy 93.98 99.06) (xy 91.44 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "61e90713-70a9-4234-aa4f-3dd1a804e59d")
-	)
-	(wire
-		(pts
-			(xy 93.98 139.7) (xy 93.98 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "62837a63-fbdf-48a5-9857-073091e290cc")
-	)
-	(wire
-		(pts
-			(xy 147.32 139.7) (xy 149.86 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "654db5bc-5d21-498b-9b61-2e76ca605582")
-	)
-	(wire
-		(pts
-			(xy 53.34 139.7) (xy 50.8 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6e160c79-712d-4b22-b5d1-98b04942126b")
-	)
-	(wire
-		(pts
-			(xy 86.36 119.38) (xy 88.9 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "718db10b-b2bf-4a40-805e-d3eb9bcda1bf")
-	)
-	(wire
-		(pts
-			(xy 106.68 99.06) (xy 106.68 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7829d53e-3d47-4269-a2a3-b4fc97d7fd94")
-	)
-	(wire
-		(pts
-			(xy 134.62 119.38) (xy 132.08 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7ca285d8-8c75-4676-8e2a-c3d2520286d9")
-	)
-	(wire
-		(pts
-			(xy 134.62 99.06) (xy 132.08 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "801f2d8c-9373-4496-868c-48e6a639c4a3")
-	)
-	(wire
-		(pts
-			(xy 106.68 99.06) (xy 109.22 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "819da01a-fc9c-4e46-a300-51258d7ad4e3")
-	)
-	(wire
-		(pts
-			(xy 53.34 119.38) (xy 50.8 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "82a0d413-ab44-43c1-a3ba-f1b8f5333d36")
-	)
-	(wire
-		(pts
-			(xy 93.98 119.38) (xy 93.98 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "82f3f732-ed00-4691-ac82-1699a1b82767")
-	)
-	(wire
-		(pts
-			(xy 114.3 139.7) (xy 111.76 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "86df6ceb-0b5a-48f7-a1c9-aec146c04a7a")
-	)
-	(wire
-		(pts
-			(xy 134.62 119.38) (xy 134.62 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8b043441-1513-4286-b130-f4d8db083fa2")
-	)
-	(wire
-		(pts
-			(xy 134.62 139.7) (xy 132.08 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "96ba5185-ffba-4031-b371-bdac10c0837b")
-	)
-	(wire
-		(pts
-			(xy 53.34 99.06) (xy 53.34 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9be9bdc5-50ad-4465-9cf6-3fb96127f398")
-	)
-	(wire
-		(pts
-			(xy 66.04 139.7) (xy 68.58 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9c574187-6d56-46cf-b684-5106023f5cee")
-	)
-	(wire
-		(pts
-			(xy 86.36 99.06) (xy 88.9 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9cec5f37-b640-4a48-91d7-495ba2e2be87")
-	)
-	(wire
-		(pts
-			(xy 66.04 99.06) (xy 66.04 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9d7f9b78-d544-4f7e-abc1-9804e9898335")
-	)
-	(wire
-		(pts
-			(xy 73.66 119.38) (xy 73.66 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9f4b7995-2694-49dc-8902-34ec00002a4a")
-	)
-	(wire
-		(pts
-			(xy 114.3 99.06) (xy 114.3 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a75bc356-1c70-44c7-94b7-492e49c5d420")
-	)
-	(wire
-		(pts
-			(xy 73.66 119.38) (xy 71.12 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a82dd997-4ea4-458c-8fb8-d9c76ce2ebb7")
-	)
-	(wire
-		(pts
-			(xy 86.36 99.06) (xy 86.36 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "aa4cfcae-caa6-45ec-a86a-5c8068ccb75b")
-	)
-	(wire
-		(pts
-			(xy 86.36 139.7) (xy 86.36 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b17b13c3-c1c1-47b5-93d4-07b04f649a31")
-	)
-	(wire
-		(pts
-			(xy 127 139.7) (xy 129.54 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b4ea4067-4a67-4e30-baa4-45313f69ebe3")
-	)
-	(wire
-		(pts
-			(xy 106.68 119.38) (xy 106.68 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "beb4d5d5-9ac3-4fde-bfaa-9be7c19c58ea")
-	)
-	(wire
-		(pts
-			(xy 66.04 139.7) (xy 66.04 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bf794796-ea82-41b0-8b47-e7bf30f0040f")
-	)
-	(wire
-		(pts
-			(xy 114.3 99.06) (xy 111.76 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c37952ce-3622-43e7-bbc8-30e2d334b0ec")
-	)
-	(wire
-		(pts
-			(xy 73.66 99.06) (xy 73.66 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "caa9e760-a31f-49c9-ab64-28f173f7ad09")
-	)
-	(wire
-		(pts
-			(xy 147.32 99.06) (xy 149.86 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cb780b57-f22b-4409-9f20-6127c6db94a6")
-	)
-	(wire
-		(pts
-			(xy 134.62 139.7) (xy 134.62 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d0bbf288-388e-4c9c-9966-bd5dfabfcac2")
-	)
-	(wire
-		(pts
-			(xy 127 99.06) (xy 127 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d9f412d3-2430-421a-99f3-4e68778d040c")
-	)
-	(wire
-		(pts
-			(xy 134.62 99.06) (xy 134.62 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ddb54c1c-2b10-4752-96db-a211c10f1a9b")
-	)
-	(wire
-		(pts
-			(xy 73.66 139.7) (xy 73.66 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e1a36d69-3a5b-4b05-b81b-bbeda31f2765")
-	)
-	(wire
-		(pts
-			(xy 53.34 99.06) (xy 50.8 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e6925993-78e8-4482-829c-c663795aa821")
+		(uuid "11821925-6aa7-4661-9a5d-4c7190503f89")
 	)
 	(wire
 		(pts
@@ -738,7 +188,477 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f2b618f9-4759-4896-9bfa-b2bb8175fa9e")
+		(uuid "1719ab2b-ac34-4958-9ea1-fc7a52947d46")
+	)
+	(wire
+		(pts
+			(xy 73.66 99.06) (xy 71.12 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1c9f7d2f-239f-4113-bec1-fea0832ce2e2")
+	)
+	(wire
+		(pts
+			(xy 106.68 139.7) (xy 106.68 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "21f7c5f8-8372-474a-94e8-aea010b13176")
+	)
+	(wire
+		(pts
+			(xy 127 139.7) (xy 129.54 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "23018e23-c214-412b-8207-2eba6be50032")
+	)
+	(wire
+		(pts
+			(xy 66.04 139.7) (xy 68.58 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "24c6ba55-ed43-4c97-8c0c-fdf4ef1fe511")
+	)
+	(wire
+		(pts
+			(xy 66.04 139.7) (xy 66.04 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "26216c2d-11ac-4ea4-8797-4d9f70634b84")
+	)
+	(wire
+		(pts
+			(xy 114.3 99.06) (xy 114.3 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "268c2cbc-e5bb-4d37-be8e-99c2524d9eef")
+	)
+	(wire
+		(pts
+			(xy 134.62 119.38) (xy 134.62 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "26c097c0-6443-4568-81ff-1c3f5fbfac9c")
+	)
+	(wire
+		(pts
+			(xy 86.36 119.38) (xy 88.9 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "276a8acb-20bd-48fc-855e-a462dab9d349")
+	)
+	(wire
+		(pts
+			(xy 134.62 139.7) (xy 132.08 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "36b95842-d22b-4881-811c-0a2bdf6a5861")
+	)
+	(wire
+		(pts
+			(xy 86.36 119.38) (xy 86.36 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "36e9d4ba-8a1e-4fbf-acd1-c9a86a0ce22d")
+	)
+	(wire
+		(pts
+			(xy 127 99.06) (xy 127 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3739d0ca-388d-4340-b55f-d19bb23bb0cf")
+	)
+	(wire
+		(pts
+			(xy 114.3 139.7) (xy 111.76 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3774e427-d5fc-4426-9a57-3a1e78023b76")
+	)
+	(wire
+		(pts
+			(xy 66.04 99.06) (xy 66.04 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3bf2c783-8952-4eff-a656-06a612e22022")
+	)
+	(wire
+		(pts
+			(xy 147.32 119.38) (xy 147.32 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3dc68194-f55d-4167-ac3d-b1fadd3d7e57")
+	)
+	(wire
+		(pts
+			(xy 73.66 99.06) (xy 73.66 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "409ad6d9-a4ec-4f8d-a307-f49065fa507d")
+	)
+	(wire
+		(pts
+			(xy 93.98 139.7) (xy 91.44 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "47e65acc-221e-4750-b5a8-c18df946db43")
+	)
+	(wire
+		(pts
+			(xy 53.34 139.7) (xy 53.34 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "49862af2-1c76-4934-b34a-17b4b6df729a")
+	)
+	(wire
+		(pts
+			(xy 106.68 119.38) (xy 106.68 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "53a00136-760b-4b70-bf4a-2783840b5c0f")
+	)
+	(wire
+		(pts
+			(xy 73.66 139.7) (xy 71.12 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "603cc104-616b-4846-8ac4-706e931cefbd")
+	)
+	(wire
+		(pts
+			(xy 147.32 139.7) (xy 147.32 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "61f831d1-fcd8-471b-9907-cfea956e5984")
+	)
+	(wire
+		(pts
+			(xy 86.36 99.06) (xy 88.9 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "68a33b34-0c7e-4fcd-aa3b-b1c4ef04eac6")
+	)
+	(wire
+		(pts
+			(xy 134.62 139.7) (xy 134.62 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "68b97855-6f03-4baa-83dd-1f9bdd0d0f20")
+	)
+	(wire
+		(pts
+			(xy 127 119.38) (xy 127 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6ac6ace7-6d38-4bdb-b8ee-7182b11a9bbc")
+	)
+	(wire
+		(pts
+			(xy 114.3 139.7) (xy 114.3 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d2a7375-3d2b-4fa7-8068-faf6160ba9a8")
+	)
+	(wire
+		(pts
+			(xy 86.36 139.7) (xy 86.36 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7fa63445-50e3-415c-aeae-1922fdb421df")
+	)
+	(wire
+		(pts
+			(xy 106.68 99.06) (xy 106.68 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "87c6d650-0e0f-4e3f-8ace-12a417b8eee9")
+	)
+	(wire
+		(pts
+			(xy 53.34 99.06) (xy 50.8 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "880cd3eb-e0a8-4be8-9bda-868560a3fb37")
+	)
+	(wire
+		(pts
+			(xy 73.66 119.38) (xy 73.66 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "883f5ae9-8a86-4d2d-9d58-933083cfcfb6")
+	)
+	(wire
+		(pts
+			(xy 106.68 119.38) (xy 109.22 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8ab6aca4-8c2c-4555-b46c-480b76e943cf")
+	)
+	(wire
+		(pts
+			(xy 134.62 99.06) (xy 132.08 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8afa2521-7928-4a27-a0f6-666a305a3d01")
+	)
+	(wire
+		(pts
+			(xy 134.62 119.38) (xy 132.08 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8fa3034e-f84a-4781-9f34-35ebb553d460")
+	)
+	(wire
+		(pts
+			(xy 66.04 99.06) (xy 68.58 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9068b8b2-06e1-45a7-b91d-3a1e41de22cd")
+	)
+	(wire
+		(pts
+			(xy 127 139.7) (xy 127 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "94d3ecbf-bfdb-4274-9c5e-b1c05431d66c")
+	)
+	(wire
+		(pts
+			(xy 114.3 119.38) (xy 114.3 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9eaf4414-7ac8-465e-ad07-403a6be27ff2")
+	)
+	(wire
+		(pts
+			(xy 147.32 119.38) (xy 149.86 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a324b6bb-386b-4948-ae1e-c8bbeef32eee")
+	)
+	(wire
+		(pts
+			(xy 53.34 119.38) (xy 53.34 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ac8a6c95-8eb0-4f63-92e1-9950600f8404")
+	)
+	(wire
+		(pts
+			(xy 93.98 99.06) (xy 93.98 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b356401b-b355-4fea-86b5-b69427c25baf")
+	)
+	(wire
+		(pts
+			(xy 86.36 139.7) (xy 88.9 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b6c9a321-5350-43ee-8624-70cfa4b64764")
+	)
+	(wire
+		(pts
+			(xy 86.36 99.06) (xy 86.36 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b7f330d2-eac3-4653-835a-1457c061cba5")
+	)
+	(wire
+		(pts
+			(xy 106.68 139.7) (xy 109.22 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bbb1a3b0-fb00-47a1-b548-b91d2a8f4553")
+	)
+	(wire
+		(pts
+			(xy 114.3 119.38) (xy 111.76 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c1303844-d8ce-4f3e-9c1d-42ae648b0a33")
+	)
+	(wire
+		(pts
+			(xy 73.66 119.38) (xy 71.12 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d19f78ef-2ff2-4366-8333-b756cc46e7ff")
+	)
+	(wire
+		(pts
+			(xy 114.3 99.06) (xy 111.76 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dd236c69-0078-480a-93f2-d2c7e09c2f54")
+	)
+	(wire
+		(pts
+			(xy 127 119.38) (xy 129.54 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dd611209-ede3-41bc-b3c9-a8d23d7ce737")
+	)
+	(wire
+		(pts
+			(xy 134.62 99.06) (xy 134.62 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "de687104-f7c5-4aad-b291-5107b0a839d2")
+	)
+	(wire
+		(pts
+			(xy 53.34 139.7) (xy 50.8 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e23722c6-3cd8-4b55-9a7c-b49c7c6e4424")
+	)
+	(wire
+		(pts
+			(xy 127 99.06) (xy 129.54 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e4d81abd-5494-41ae-a1f5-7cb58b4c3359")
 	)
 	(wire
 		(pts
@@ -748,7 +668,87 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f3a7da93-3f4c-442b-8c64-690824623460")
+		(uuid "e526798a-0ccb-4ff4-9a4f-cd46c1b6684c")
+	)
+	(wire
+		(pts
+			(xy 147.32 139.7) (xy 149.86 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e55778c1-aa61-460e-8157-2fd2fce5e5c3")
+	)
+	(wire
+		(pts
+			(xy 53.34 99.06) (xy 53.34 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e5b7d110-406f-4e42-b771-dc72dd288f09")
+	)
+	(wire
+		(pts
+			(xy 73.66 139.7) (xy 73.66 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ed41dfb3-dd98-49bb-9c9a-8432b7dbcdf6")
+	)
+	(wire
+		(pts
+			(xy 93.98 139.7) (xy 93.98 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eef29852-165c-47ee-90ed-4107036b1e3a")
+	)
+	(wire
+		(pts
+			(xy 93.98 119.38) (xy 93.98 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f1313bef-430a-4ff4-8867-07990c56c6fb")
+	)
+	(wire
+		(pts
+			(xy 147.32 99.06) (xy 149.86 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f96f5c51-bf4b-40ae-807b-ee1bb60ed676")
+	)
+	(wire
+		(pts
+			(xy 93.98 99.06) (xy 91.44 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fb084326-cd8a-47d9-88a1-739275f8519e")
+	)
+	(wire
+		(pts
+			(xy 106.68 99.06) (xy 109.22 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fd2f1a1a-04b9-4c30-bf23-37e10eeecc62")
 	)
 	(wire
 		(pts
@@ -758,19 +758,19 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fd037ec1-c2cd-4ca6-87bd-c598b74ac03c")
+		(uuid "fd7cfdec-0584-468f-a955-6505ec84c12f")
 	)
 	(global_label "R2"
 		(shape bidirectional)
-		(at 129.54 119.38 0)
+		(at 88.9 119.38 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "02475505-a253-4c1e-9699-11a562fc6b34")
+		(uuid "145197be-4862-4024-bbbf-e477d17d781d")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 129.54 119.38 0)
+			(at 88.9 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -789,345 +789,9 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "0c181a5e-00c3-47ba-a151-37fad78d7e0a")
+		(uuid "14b90523-0bff-4edb-8f5a-2aa93c73ff44")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 129.54 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C2"
-		(shape bidirectional)
-		(at 71.12 139.7 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "12fe026a-ef74-42be-b31b-3a49e43e57f1")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 71.12 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R1"
-		(shape bidirectional)
-		(at 149.86 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "137db95c-3b40-439b-8c96-888e6348be95")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 149.86 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C1"
-		(shape bidirectional)
-		(at 50.8 139.7 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "193fc50f-675d-4daa-8131-20d9fbb39931")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 50.8 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C2"
-		(shape bidirectional)
-		(at 71.12 119.38 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "1cb7f6e1-3ef4-4c49-888f-5e6cd9184fea")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 71.12 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R2"
-		(shape bidirectional)
-		(at 149.86 119.38 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "2d81bb1b-de77-4ca4-93b9-63b0f1f78f59")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 149.86 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C5"
-		(shape bidirectional)
-		(at 132.08 139.7 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "32e5425a-d264-4e29-b655-ac471a2046fe")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 132.08 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R2"
-		(shape bidirectional)
-		(at 109.22 119.38 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "33742d4f-1b8c-4355-9f48-c1bc78a289fc")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 109.22 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R3"
-		(shape bidirectional)
-		(at 149.86 139.7 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "3abfe4ef-fb1e-4872-9032-cdd1579a067c")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 149.86 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C3"
-		(shape bidirectional)
-		(at 91.44 139.7 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "3ce304d2-b845-47f2-8658-bd1fd0191152")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 91.44 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C1"
-		(shape bidirectional)
-		(at 50.8 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "3eee1ed0-a691-41e7-b6f6-8b4a0f90234a")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 50.8 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C4"
-		(shape bidirectional)
-		(at 111.76 119.38 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "4f5684b3-8f48-4b54-83d9-224b1a76e879")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 111.76 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C4"
-		(shape bidirectional)
-		(at 111.76 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "550fd2e1-443c-4aba-b7a2-56f82c22f1fc")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 111.76 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R1"
-		(shape bidirectional)
-		(at 68.58 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "5d59710e-35c0-43ee-91ef-a97b280715d5")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 68.58 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R3"
-		(shape bidirectional)
-		(at 88.9 139.7 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "5f6bb140-0dbf-474f-8d71-ec8bf620713c")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 88.9 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R1"
-		(shape bidirectional)
-		(at 88.9 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "64436067-45ad-4f21-980a-9e52eab42e96")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 88.9 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R3"
-		(shape bidirectional)
-		(at 109.22 139.7 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "649c5c4d-9374-48a8-80c3-943bf63e9ef9")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 109.22 139.7 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1146,156 +810,9 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "6d45ffb7-c090-4d79-adf3-261305f59cb4")
+		(uuid "1867992d-defb-4fd2-873b-e88440a30469")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 68.58 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C5"
-		(shape bidirectional)
-		(at 132.08 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "796c00e9-a604-4867-b1e1-90cc5f949d51")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 132.08 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C2"
-		(shape bidirectional)
-		(at 71.12 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "83fbbfa0-6146-4056-aaff-07d6c262178a")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 71.12 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C3"
-		(shape bidirectional)
-		(at 91.44 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "8f051fe6-67c0-4477-9e69-945073fa1d1f")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 91.44 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C3"
-		(shape bidirectional)
-		(at 91.44 119.38 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "8fec6b60-064f-486e-8133-f88a341d0e8f")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 91.44 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "C1"
-		(shape bidirectional)
-		(at 50.8 119.38 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "b7193779-447e-4e55-9018-68ff9503f686")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 50.8 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R1"
-		(shape bidirectional)
-		(at 129.54 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "b789b094-f73f-44f8-8f53-27f743c0316b")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 129.54 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "R1"
-		(shape bidirectional)
-		(at 109.22 99.06 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "c9cedd17-8913-4a41-8355-863fc2d9fce9")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 109.22 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1314,9 +831,72 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "cde047e2-15d0-4ed2-9507-04ada692c7e7")
+		(uuid "1e864f27-ef6f-4ca9-a63a-fa9b63575bb9")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 132.08 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "R2"
+		(shape bidirectional)
+		(at 129.54 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "1f702cff-7021-418b-a76b-b44faa443dc7")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 129.54 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "C1"
+		(shape bidirectional)
+		(at 50.8 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "26a8752b-ef47-4cf2-ba5f-2048e6b06f96")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 50.8 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "C3"
+		(shape bidirectional)
+		(at 91.44 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "2d84fb43-cd88-40fa-8504-bdf4beb5c0ce")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 91.44 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1335,9 +915,177 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "e5d10df5-978c-4a11-a4fa-fcfcaa69544e")
+		(uuid "457456d2-f3fc-403c-b1bf-607c7fa3bd89")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 111.76 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "C4"
+		(shape bidirectional)
+		(at 111.76 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "498aaa95-ccc5-4ac5-82d0-5553268df95f")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 111.76 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "R2"
+		(shape bidirectional)
+		(at 149.86 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "5888fbe3-eec6-49f6-8356-4d6659f84369")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 149.86 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "R2"
+		(shape bidirectional)
+		(at 109.22 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "62a15f6b-04ae-4a38-8726-1aab8d8e6859")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 109.22 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "C3"
+		(shape bidirectional)
+		(at 91.44 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "6bd5b867-927b-4104-821c-5e882aa9f44f")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 91.44 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "R1"
+		(shape bidirectional)
+		(at 68.58 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "6beb90ed-135a-4158-9b13-a4edcdeac6a3")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 68.58 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "C2"
+		(shape bidirectional)
+		(at 71.12 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "71d7fbd8-896a-4f61-9e0a-859e60bb2f7e")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 71.12 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "C2"
+		(shape bidirectional)
+		(at 71.12 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "7ee20008-d559-4be9-bbe2-d247daab77f9")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 71.12 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "C3"
+		(shape bidirectional)
+		(at 91.44 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "8bc09c2a-f7ad-4261-b154-4d49efcce692")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 91.44 139.7 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1356,7 +1104,7 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "f1b3e75a-6ad1-410b-b271-97b943ce3694")
+		(uuid "acd3d8d9-4cec-4950-9c1d-daabedf64885")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 68.58 139.7 0)
 			(hide yes)
@@ -1369,17 +1117,17 @@
 			)
 		)
 	)
-	(global_label "R2"
+	(global_label "C1"
 		(shape bidirectional)
-		(at 88.9 119.38 0)
+		(at 50.8 99.06 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "f8b021bc-17c4-4e81-a228-a72386e11de8")
+		(uuid "b7f71876-377b-4469-936c-186aa21a290d")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 88.9 119.38 0)
+			(at 50.8 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1390,464 +1138,122 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 100.33 120.65 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1d92372b-58b5-49cb-803d-0b4fae25dd19")
-		(property "Reference" "K8"
-			(at 100.33 114.3 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+	(global_label "C5"
+		(shape bidirectional)
+		(at 132.08 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
 		)
-		(property "Value" "K8"
-			(at 100.33 127 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 100.33 120.65 0)
+		(uuid "bcc233f2-d798-4cd9-9102-92bac99a01c7")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 132.08 139.7 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 100.33 120.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 100.33 120.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "1a06316e-e599-4603-9937-481f1199aeeb")
-		)
-		(pin "4"
-			(uuid "e666f581-004b-4e60-82ad-bdd82c3a86c8")
-		)
-		(pin "3"
-			(uuid "ccad9b41-6820-46ae-941c-58bcdf9cd5a6")
-		)
-		(pin "2"
-			(uuid "21dc6ad9-39e4-45f3-960a-164470a50d00")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K8")
-					(unit 1)
 				)
 			)
 		)
 	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 80.01 100.33 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1e2f0b9d-3451-4618-853e-d2ff629227f1")
-		(property "Reference" "K2"
-			(at 80.01 93.98 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+	(global_label "R1"
+		(shape bidirectional)
+		(at 109.22 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
 		)
-		(property "Value" "K2"
-			(at 80.01 106.68 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 80.01 100.33 0)
+		(uuid "be1dc173-9a5a-41ea-956a-4603af3b5f28")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 109.22 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 80.01 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 80.01 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "4"
-			(uuid "d9725a71-9f18-4b35-b0a5-c5d79cd47532")
-		)
-		(pin "1"
-			(uuid "4f3f3e43-b787-46a9-82d7-c728838de887")
-		)
-		(pin "3"
-			(uuid "7df8744d-e15a-4b6b-abaf-df3c14748c41")
-		)
-		(pin "2"
-			(uuid "a2908b28-076e-44ac-b7da-63d2438f0dc3")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K2")
-					(unit 1)
 				)
 			)
 		)
 	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 140.97 120.65 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "2a1a96e6-2122-4fb1-8e5a-655e85802905")
-		(property "Reference" "K10"
-			(at 140.97 114.3 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+	(global_label "C2"
+		(shape bidirectional)
+		(at 71.12 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
 		)
-		(property "Value" "K10"
-			(at 140.97 127 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 140.97 120.65 0)
+		(uuid "c0b29985-5df6-43b5-a3c1-8813a1dbee37")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 71.12 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 140.97 120.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 140.97 120.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "4"
-			(uuid "7f301544-3dfa-4499-9210-c403839e889d")
-		)
-		(pin "3"
-			(uuid "51cd9d67-5dfd-407c-8b5b-fa2519857024")
-		)
-		(pin "2"
-			(uuid "f2c821e8-9cc3-49c0-9828-299b84ca1019")
-		)
-		(pin "1"
-			(uuid "6a81e0f9-119f-4653-99b5-363a08e9e07f")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K10")
-					(unit 1)
 				)
 			)
 		)
 	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 120.65 120.65 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "539c0da8-b928-4500-b590-9d915769834e")
-		(property "Reference" "K9"
-			(at 120.65 114.3 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+	(global_label "C5"
+		(shape bidirectional)
+		(at 132.08 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
 		)
-		(property "Value" "K9"
-			(at 120.65 127 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 120.65 120.65 0)
+		(uuid "cb8f59d7-9be0-4377-a75b-1906f7e69ea8")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 132.08 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 120.65 120.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 120.65 120.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "4"
-			(uuid "3bd5e390-3fec-4e81-b131-c396e34ca5d1")
-		)
-		(pin "2"
-			(uuid "e79c0cab-9fb3-4479-8da5-1764e7a0fb36")
-		)
-		(pin "1"
-			(uuid "2f3b56a5-8c87-401a-b401-9eeaee95db1a")
-		)
-		(pin "3"
-			(uuid "d719b6d6-0d1c-4eb9-8291-a78a5677144c")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K9")
-					(unit 1)
 				)
 			)
 		)
 	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 140.97 100.33 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "79bd8319-e316-4ac8-a990-65b6fd779287")
-		(property "Reference" "K5"
-			(at 140.97 93.98 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+	(global_label "R3"
+		(shape bidirectional)
+		(at 88.9 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
 		)
-		(property "Value" "K5"
-			(at 140.97 106.68 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 140.97 100.33 0)
+		(uuid "cf6f985d-2133-4659-a53d-ab8612ad0677")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 88.9 139.7 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 140.97 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 140.97 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "4"
-			(uuid "d10be77a-13ad-4dfe-94ed-5f1d077cf11e")
-		)
-		(pin "3"
-			(uuid "aaf14f11-95ad-47cd-a7da-1488879dac7b")
-		)
-		(pin "2"
-			(uuid "df0277c5-5f4b-4fb2-bdc3-7319318d473d")
-		)
-		(pin "1"
-			(uuid "fca8d0ef-09bf-4d33-a057-2febe542ede4")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K5")
-					(unit 1)
 				)
 			)
 		)
 	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 80.01 120.65 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "8abecca4-d98b-4eb8-b467-3c339dafc9a4")
-		(property "Reference" "K7"
-			(at 80.01 114.3 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+	(global_label "C4"
+		(shape bidirectional)
+		(at 111.76 119.38 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
 		)
-		(property "Value" "K7"
-			(at 80.01 127 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 80.01 120.65 0)
+		(uuid "df7954d3-758a-4911-9b3b-7949b7ac48f3")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 111.76 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1857,8 +1263,18 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
-			(at 80.01 120.65 0)
+	)
+	(global_label "R3"
+		(shape bidirectional)
+		(at 109.22 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "dfbaa3db-7aa0-48ac-a6ba-df073f705353")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 109.22 139.7 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1868,8 +1284,18 @@
 				)
 			)
 		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 80.01 120.65 0)
+	)
+	(global_label "R1"
+		(shape bidirectional)
+		(at 129.54 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "e3dcb28d-d5a7-4b37-929c-22f02a8e1ea1")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 129.54 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1879,23 +1305,87 @@
 				)
 			)
 		)
-		(pin "4"
-			(uuid "c70e1edd-603d-4a25-b7a9-94b2369ae284")
+	)
+	(global_label "R3"
+		(shape bidirectional)
+		(at 149.86 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
 		)
-		(pin "3"
-			(uuid "bd6a1b5b-82b0-47fb-82ef-c1d00eecc984")
+		(uuid "e757cade-9d3a-46b5-946d-92136afae611")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 149.86 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
 		)
-		(pin "2"
-			(uuid "374382b9-40c0-4715-ab75-8fefb4587c0e")
+	)
+	(global_label "R1"
+		(shape bidirectional)
+		(at 88.9 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
 		)
-		(pin "1"
-			(uuid "84bb81c0-32db-422d-ace3-9fca3281c0a1")
+		(uuid "edac451d-3263-4934-8d6a-bd870ead329a")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 88.9 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
 		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K7")
-					(unit 1)
+	)
+	(global_label "C1"
+		(shape bidirectional)
+		(at 50.8 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "f6650d47-ce44-4a5b-ae61-d18e6a0e97dd")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 50.8 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "R1"
+		(shape bidirectional)
+		(at 149.86 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "f7e26772-a7ed-4835-a7e3-43b119c51bf4")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 149.86 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -1910,7 +1400,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "b50c8771-a5ef-4d34-9142-187a36ce2a16")
+		(uuid "10583196-831c-4b06-9665-5005e9993333")
 		(property "Reference" "K3"
 			(at 100.33 93.98 0)
 			(show_name no)
@@ -1964,447 +1454,22 @@
 				)
 			)
 		)
-		(pin "4"
-			(uuid "393c62c1-df82-4984-b972-50103ce97cfa")
-		)
 		(pin "2"
-			(uuid "ed4e55dc-ca91-4e52-a14d-378357d5d41a")
+			(uuid "9e6e83b8-b00d-45dc-82b7-d5636b64fca1")
 		)
 		(pin "1"
-			(uuid "9c9f2fdf-a3d3-44e5-a3e7-30c422e1e25c")
+			(uuid "7d9a4cd0-1b86-413b-939a-578a43d2b861")
+		)
+		(pin "4"
+			(uuid "2e66b1e4-15e6-4a9f-96b6-c4600a6aa137")
 		)
 		(pin "3"
-			(uuid "7d0c1532-38bc-4b66-a00b-bb12480007fb")
+			(uuid "51cd6b4d-a543-45e8-ba7d-75af2a09ec39")
 		)
 		(instances
 			(project "keyboard_matrix"
 				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
 					(reference "K3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 59.69 140.97 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b7aee31c-e6c6-4c91-81e3-2bd210173f79")
-		(property "Reference" "K11"
-			(at 59.69 134.62 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "K11"
-			(at 59.69 147.32 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 59.69 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 59.69 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 59.69 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "4"
-			(uuid "db934dbd-f315-4376-ab3b-987bc1d3d567")
-		)
-		(pin "2"
-			(uuid "e19e2766-0af6-4c08-bce3-73a324c4a052")
-		)
-		(pin "1"
-			(uuid "2a7a32a1-8051-414f-923a-0c3d3870c8b2")
-		)
-		(pin "3"
-			(uuid "92aa06fc-ee3e-4ce6-a453-e0c861ca11be")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 120.65 100.33 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "bcfca957-e4bc-454f-9c9e-edb6d4e8b685")
-		(property "Reference" "K4"
-			(at 120.65 93.98 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "K4"
-			(at 120.65 106.68 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 120.65 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 120.65 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 120.65 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "3"
-			(uuid "1cc77500-96e9-43ac-a296-6305dda0597a")
-		)
-		(pin "2"
-			(uuid "8445ba0d-f379-4239-9aaf-aafae59df2cc")
-		)
-		(pin "1"
-			(uuid "033efc6f-acda-433c-ae50-28137a5cdab1")
-		)
-		(pin "4"
-			(uuid "c57caf88-a67d-4357-a0ed-ea22ee3b7bba")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 80.01 140.97 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "c4dbf1a2-f049-4f03-b15e-5585e1da8333")
-		(property "Reference" "K12"
-			(at 80.01 134.62 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "K12"
-			(at 80.01 147.32 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 80.01 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 80.01 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 80.01 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "14d79e11-fbff-41af-adce-bf698db5fb97")
-		)
-		(pin "1"
-			(uuid "561cce8b-b829-4088-bd82-43d8d7f421a8")
-		)
-		(pin "3"
-			(uuid "902b9efb-f835-4cd6-86df-83cafb4febee")
-		)
-		(pin "4"
-			(uuid "547b5846-cb3c-4bda-8bcf-feb5411d4f88")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 100.33 140.97 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "c5b5623c-f3e6-4fe1-a478-18a1c384e3ab")
-		(property "Reference" "K13"
-			(at 100.33 134.62 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "K13"
-			(at 100.33 147.32 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 100.33 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 100.33 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 100.33 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "3"
-			(uuid "22abceba-bb43-468e-9e1b-57273b7f5127")
-		)
-		(pin "2"
-			(uuid "30f4d2fc-3cbd-444c-8a86-9dcb05886a5d")
-		)
-		(pin "1"
-			(uuid "5b14db53-4c1f-4a6e-bf22-fa00fe51c4d6")
-		)
-		(pin "4"
-			(uuid "cdb4e819-2857-41fe-b3cf-78476b72901c")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K13")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "keyboard-89_local:TC-6601-5-160G")
-		(at 59.69 100.33 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "dcea33d9-f1cc-4876-b85b-d1e8ea61fd73")
-		(property "Reference" "K1"
-			(at 59.69 93.98 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "K1"
-			(at 59.69 106.68 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 59.69 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 59.69 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
-			(at 59.69 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "3"
-			(uuid "143397bf-b507-426a-9815-313597ac1887")
-		)
-		(pin "2"
-			(uuid "3491cf53-8ce8-48de-9843-e44ce78fb288")
-		)
-		(pin "1"
-			(uuid "8fb56a88-deda-47df-97fc-26fffdeffc75")
-		)
-		(pin "4"
-			(uuid "8ba9993c-0628-41cd-82a6-0b6dc6432c6e")
-		)
-		(instances
-			(project "keyboard_matrix"
-				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
-					(reference "K1")
 					(unit 1)
 				)
 			)
@@ -2420,7 +1485,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "e5f75a30-22ea-4216-80b7-ddb464b08f9b")
+		(uuid "1db09442-1d4b-4a13-933b-35ec88d3f121")
 		(property "Reference" "K6"
 			(at 59.69 114.3 0)
 			(show_name no)
@@ -2475,21 +1540,191 @@
 			)
 		)
 		(pin "4"
-			(uuid "d4f8d6db-9d26-4049-beaf-476ea51208e9")
+			(uuid "22212fea-b0ed-4e53-a38e-5365f4d0c6fb")
 		)
 		(pin "3"
-			(uuid "17921da9-e520-4672-8339-344925cd134f")
+			(uuid "eace7f53-2429-41e4-8123-3529737aa2ff")
 		)
 		(pin "2"
-			(uuid "206283a8-7b50-44ff-b513-303e1a598fb8")
+			(uuid "dc6a58f4-76dd-419c-b778-9fa933bedcab")
 		)
 		(pin "1"
-			(uuid "674cf1eb-397c-4efa-bef6-ad20765e0843")
+			(uuid "7e137aff-fa2e-42ce-901d-c5ac5c745e1d")
 		)
 		(instances
 			(project "keyboard_matrix"
 				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
 					(reference "K6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 59.69 140.97 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "57d49864-807e-45dd-92d3-61fc0a8f3b10")
+		(property "Reference" "K11"
+			(at 59.69 134.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K11"
+			(at 59.69 147.32 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 59.69 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 59.69 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 59.69 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "04062fb4-2e96-478f-8bda-4ede6eb9178a")
+		)
+		(pin "2"
+			(uuid "28c18ec8-690a-448c-9bb3-929a1cc139fb")
+		)
+		(pin "3"
+			(uuid "5eaa6c4b-53d3-44a0-9821-51c778f7f9ef")
+		)
+		(pin "4"
+			(uuid "7914acce-ee61-40b1-b513-703f2166f9e3")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 80.01 120.65 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "68eb3597-0bb1-4fa0-9b74-015a8f883599")
+		(property "Reference" "K7"
+			(at 80.01 114.3 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K7"
+			(at 80.01 127 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 80.01 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 80.01 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 80.01 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "62ccf147-b8cf-4ec2-8cd4-3a69e01bba1a")
+		)
+		(pin "3"
+			(uuid "6f71e716-94cc-42b3-b8dc-0e3403457698")
+		)
+		(pin "2"
+			(uuid "571c4c9c-daad-4744-a24f-8a106fce5413")
+		)
+		(pin "1"
+			(uuid "6370ba12-1c25-4896-b89d-2037b857aef5")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K7")
 					(unit 1)
 				)
 			)
@@ -2505,7 +1740,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "e6fbd028-971a-43df-8c26-62b511e24318")
+		(uuid "8b0589c0-65ed-4ab1-8a08-9747f4907d47")
 		(property "Reference" "K15"
 			(at 140.97 134.62 0)
 			(show_name no)
@@ -2560,21 +1795,361 @@
 			)
 		)
 		(pin "4"
-			(uuid "4c7fd93a-ae05-476f-9132-b78966d270d5")
+			(uuid "00d942c7-dea7-43df-9d6d-c757938ea35f")
 		)
 		(pin "3"
-			(uuid "ea850e8a-add7-4054-a73f-ad88b862fd38")
+			(uuid "19cb2df1-5a22-4b11-a8c4-4480d8b28c4f")
 		)
 		(pin "2"
-			(uuid "84be5f79-32bf-40f3-9b5f-3b56658a039a")
+			(uuid "86c88deb-551b-4787-9cdb-3d69b4b457b9")
 		)
 		(pin "1"
-			(uuid "5411233e-c337-468b-a3ad-44e84c6e8bc1")
+			(uuid "0d8ad5ad-d3f2-4b49-9e11-09f619bb08fd")
 		)
 		(instances
 			(project "keyboard_matrix"
 				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
 					(reference "K15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 59.69 100.33 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "905d9e00-c6a7-4bf6-b645-9cc7e19b9744")
+		(property "Reference" "K1"
+			(at 59.69 93.98 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K1"
+			(at 59.69 106.68 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 59.69 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 59.69 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 59.69 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5e864aaa-e08e-4031-a188-87e0e32391c0")
+		)
+		(pin "2"
+			(uuid "bf961dfd-5319-4a05-9350-3162dbf25cea")
+		)
+		(pin "4"
+			(uuid "462d622c-d5e9-4ce7-8631-fb6a7da92820")
+		)
+		(pin "3"
+			(uuid "957d6906-d7b4-4afe-99fa-02f986106b5e")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 140.97 120.65 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "aab2d558-a886-4d38-8223-eadbd3c1abb8")
+		(property "Reference" "K10"
+			(at 140.97 114.3 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K10"
+			(at 140.97 127 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 140.97 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 140.97 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 140.97 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "af7ee34c-542f-4842-89a1-67a78131275a")
+		)
+		(pin "2"
+			(uuid "5466dbaa-bf22-46b6-ab17-999b44f0a103")
+		)
+		(pin "3"
+			(uuid "3c3e0eae-e84c-434a-a502-3ab9ba3edfe3")
+		)
+		(pin "4"
+			(uuid "9015344f-5fcd-407a-8c2b-fb4ab87b3eeb")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 100.33 140.97 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "ac9c6170-2efa-4920-9d9e-579f291950d7")
+		(property "Reference" "K13"
+			(at 100.33 134.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K13"
+			(at 100.33 147.32 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 100.33 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 100.33 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 100.33 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "65b1f5e6-a2f4-4c97-ab46-eeb22ab5319f")
+		)
+		(pin "3"
+			(uuid "2538f69c-ed37-4acf-8b40-066b024a2d58")
+		)
+		(pin "2"
+			(uuid "0f03e72e-3a11-40f9-a5b4-818920b729eb")
+		)
+		(pin "1"
+			(uuid "fefca647-d738-4628-9716-bf57778f3a56")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 140.97 100.33 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "aea22968-9e2a-45d0-a437-d621ee4d9345")
+		(property "Reference" "K5"
+			(at 140.97 93.98 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K5"
+			(at 140.97 106.68 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 140.97 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 140.97 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 140.97 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "eb6a8b74-d73b-485f-925a-524ed35d20bf")
+		)
+		(pin "3"
+			(uuid "5d153477-3cc6-4d1f-a652-f3190415764f")
+		)
+		(pin "2"
+			(uuid "817a9e40-ef95-47f6-8485-82696b61ad6f")
+		)
+		(pin "1"
+			(uuid "01e81868-6c56-4912-8f2e-4684d333b2d2")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K5")
 					(unit 1)
 				)
 			)
@@ -2590,7 +2165,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "eeb8f0be-183d-461f-8227-1e9491dcff26")
+		(uuid "b2916a3c-b3ee-4b5b-bfe6-c77c9b8f7c4d")
 		(property "Reference" "K14"
 			(at 120.65 134.62 0)
 			(show_name no)
@@ -2644,22 +2219,447 @@
 				)
 			)
 		)
-		(pin "4"
-			(uuid "4333e4d4-ae52-43de-9f75-fffc8ae11337")
-		)
 		(pin "3"
-			(uuid "2d7c4cef-2662-4579-8046-3e28b77a8886")
+			(uuid "c0e6508c-834a-4a0f-be56-9cfe2add8ab0")
 		)
 		(pin "2"
-			(uuid "f14f7d78-7f10-4bfd-9ae1-c16f6602e8da")
+			(uuid "da6a78f2-e7df-40ba-8e7a-99860fed4081")
 		)
 		(pin "1"
-			(uuid "c5cabbcc-c895-4f12-a9b5-ef14a9c7f5f1")
+			(uuid "7c7e5027-4d65-47b6-9746-9ebe5a043ff9")
+		)
+		(pin "4"
+			(uuid "4927d73c-b034-45ad-b828-3df71f600870")
 		)
 		(instances
 			(project "keyboard_matrix"
 				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
 					(reference "K14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 120.65 100.33 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "bafc6b6a-7c0e-4b35-99ef-dec9d3e8ab66")
+		(property "Reference" "K4"
+			(at 120.65 93.98 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K4"
+			(at 120.65 106.68 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 120.65 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 120.65 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 120.65 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "136796b8-a518-4ec1-88fc-b366f156f62c")
+		)
+		(pin "1"
+			(uuid "c2be6c34-8e25-4425-9386-4cb64fa18f5f")
+		)
+		(pin "4"
+			(uuid "2dfc1291-9acb-4268-a611-01cffd334b82")
+		)
+		(pin "3"
+			(uuid "3b610ca1-f512-4f00-9ba0-a2879c3d0cfd")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 80.01 100.33 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "dfb5829d-070b-4f9b-8c9f-8d0b3a52f203")
+		(property "Reference" "K2"
+			(at 80.01 93.98 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K2"
+			(at 80.01 106.68 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 80.01 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 80.01 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 80.01 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "3"
+			(uuid "ce4be6d3-0036-4b46-8e59-a6a3ec87c3e5")
+		)
+		(pin "2"
+			(uuid "954f15a2-4564-422f-adaf-dca7000f03db")
+		)
+		(pin "1"
+			(uuid "788d42f7-03fb-4750-b7fd-04b4ac1e6b00")
+		)
+		(pin "4"
+			(uuid "0593f73a-6275-4e57-9526-0274e17fa3e2")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 100.33 120.65 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "e6bd5d9b-8a0c-412b-b439-9421917ceecf")
+		(property "Reference" "K8"
+			(at 100.33 114.3 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K8"
+			(at 100.33 127 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 100.33 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 100.33 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 100.33 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "4095a9a3-4e14-4ef3-9160-101726a3bee2")
+		)
+		(pin "3"
+			(uuid "2ff0d9ac-8f09-4af9-abfb-498c50d45ec2")
+		)
+		(pin "2"
+			(uuid "8cdff10d-a8d5-467d-9f7f-a29c25d260b7")
+		)
+		(pin "1"
+			(uuid "74a296c7-f5ab-4b98-8b8e-9fb9139c1065")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 80.01 140.97 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f5cb5479-838f-463b-b6ab-d7b6a06c7056")
+		(property "Reference" "K12"
+			(at 80.01 134.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K12"
+			(at 80.01 147.32 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 80.01 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 80.01 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 80.01 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "0fe30ba2-c45b-41ea-86a0-3b3a8487d34f")
+		)
+		(pin "3"
+			(uuid "3bae7ea3-ace3-4550-8e51-44ed838ddd3f")
+		)
+		(pin "2"
+			(uuid "077bcf85-f9e3-4258-99af-513a893a920e")
+		)
+		(pin "1"
+			(uuid "8e3a882c-b6b9-4578-a9fb-873edb176301")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:TC-6601-5-160G")
+		(at 120.65 120.65 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f8420937-4ccb-443a-8453-75622c193c8d")
+		(property "Reference" "K9"
+			(at 120.65 114.3 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "K9"
+			(at 120.65 127 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 120.65 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 120.65 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)"
+			(at 120.65 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "5b292330-3171-46b8-b3f7-23df5d568965")
+		)
+		(pin "3"
+			(uuid "2d36390b-4161-4273-8383-44951e406099")
+		)
+		(pin "2"
+			(uuid "6e3792db-888d-49bb-9474-d6011085d3c8")
+		)
+		(pin "1"
+			(uuid "3839db5e-f881-4e10-973a-cd6e7a91f3b7")
+		)
+		(instances
+			(project "keyboard_matrix"
+				(path "/74d37da8-9d7b-40c2-9560-7fb864926289"
+					(reference "K9")
 					(unit 1)
 				)
 			)

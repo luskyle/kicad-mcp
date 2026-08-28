@@ -190,11 +190,31 @@
 之前一致（仅跨页 label 警告 + 封装库警告）。main 页 5 处标签仍压 RP2040 本体 = 已知
 RP2040 引脚读回 bug 的连带（引脚位置都偏，标签跟随）。
 
-### L4 — 质量与工程化
+### L4 — 质量与工程化（已完成 ✅ 2026-08-28，工具共 44）
 
-- [ ] **DRC/ERC 门禁**：L1/L2 工具内部自动跑 ERC/DRC，违规自修复重试，保证"交付即通过"。
-- [ ] **Golden 回归测试**：把已验证电路（RC/分压/LDO/矩阵）的 netlist、ERC、SVG 存 golden，CI 对比防回归（`verify_*.py` 已有雏形）。
-- [ ] **prompt 模板库**：预置"画一个 XX 电路"的分步指令模板，降低 LLM 编排成本。
+- [x] **DRC/ERC 门禁** ✅：`tools/quality.py` 新增 `kicad_sch_erc_gate`
+  - 结构化解析 KiCad 官方 ERC（severity/描述/位置），违规分三类：
+    **blocking**（Pin/Wire/Label not connected、off-grid、短路、电源未驱动，必须 0）/
+    **benign**（跨页输入未驱动、Label 只连一引脚、封装库缺失，豁免）/ warning。
+  - **自动修复**：netlist 检测含 power_in 但无 power_out 的电源网络 → 自动补
+    `power:PWR_FLAG` 并接线 → 重跑，最多 max_attempts 轮 → PASS/FAIL。
+    （LDO 输出驱动的 3V3 无 power_in 不会误加 —— 避免"电源输出和电源输出已连接"。）
+  - draw_circuit 集成：`run_erc` 时走门禁（取代裸 ERC 文本），交付即通过。
+  - 验证：无 PWR_FLAG 的最小 IC 电路自动补 2 个 PWR_FLAG 后 PASS；键盘
+    flash/power/matrix 门禁全 PASS（0 blocking）。
+- [x] **Golden 回归测试** ✅：`kicad_mcp/golden.py` + `tests/golden/*.golden.json` +
+  `tests/run_golden.py`
+  - 判据 = **netlist 网络连通性**（每个网络的 (ref,pin) 节点集合）+ 标签集合
+    —— 比坐标/像素稳（布局/绕线变化不影响电气正确性）。
+  - 已存 5 个基线：rc / divider / flash / power / matrix。
+  - `run_golden.py`：重画 + 对比（重画能抓工具回归）；`--gen` 重新生成基线。
+  - **负向验证**：篡改 golden 期望节点 → 回归 FAIL（0/1），能抓到电气回归 ✅。
+  - 注意：KiCad 文件里 local label 是 `(label ".."` 不是 `(local_label`。
+- [x] **prompt 模板库** ✅：`prompts/*.md` + `tools/prompts.py`
+  - `kicad_get_prompt_template(name)` / `kicad_list_prompt_templates()`。
+  - 模板：draw-circuit（通用）/ draw-power（USBC/LDO）/ draw-mcu（大芯片）/
+    draw-matrix（label_only 矩阵）/ verify-simulate（门禁+标准+仿真+golden）。
+  - 每个模板含 circuit_json 例子、关键约定（踩坑）、交付检查清单。
 
 ## 4. 落地顺序与理由
 

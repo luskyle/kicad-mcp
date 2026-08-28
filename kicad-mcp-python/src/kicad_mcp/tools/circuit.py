@@ -1123,12 +1123,14 @@ def kicad_sch_draw_circuit(
         if n_x:
             lines.append(f"  · 已为 {n_x} 个未用引脚放置 NoConnect(X) 标记")
 
-    # 保存 + ERC
+    # 保存 + ERC 门禁（L4：自动修复 + 交付即通过）
     kicad_save_document()
     if run_erc:
-        erc = kicad_sch_erc()
-        lines.append("── ERC ──")
-        lines.append(erc)
+        from .quality import kicad_sch_erc_gate
+        lines.append("── ERC 门禁 ──")
+        lines.append(kicad_sch_erc_gate(
+            sch_file=_current_sch_path(),
+            fix=True, max_attempts=int(max_fix_attempts or 3)))
     else:
         lines.append("（已跳过 ERC）")
 

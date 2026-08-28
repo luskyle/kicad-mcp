@@ -351,93 +351,13 @@
 		(at 49.53 40.64)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "3aff2544-4537-406b-adde-c54cf1d4c621")
+		(uuid "125fad7d-fa32-4b7d-b921-6b264cf5a15d")
 	)
 	(junction
 		(at 58.42 50.8)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "7d3c1acb-37bb-40a2-892f-60b3f286916c")
-	)
-	(wire
-		(pts
-			(xy 43.18 50.8) (xy 43.18 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3de56f99-89e8-4319-85c2-79d4bacdbda1")
-	)
-	(wire
-		(pts
-			(xy 43.18 53.34) (xy 43.18 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "591ae1a0-c564-4b9d-9585-58e17a3bc442")
-	)
-	(wire
-		(pts
-			(xy 55.88 45.72) (xy 64.77 45.72)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5a41488b-ab5e-40e9-ae8d-5c34d55fce33")
-	)
-	(wire
-		(pts
-			(xy 43.18 45.72) (xy 35.56 45.72)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "639ce3da-80ae-4e0a-ac4e-bea59850fef3")
-	)
-	(wire
-		(pts
-			(xy 58.42 40.64) (xy 58.42 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8374e383-9747-461e-b637-a73b84a3a860")
-	)
-	(wire
-		(pts
-			(xy 43.18 40.64) (xy 58.42 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "88ca1768-b175-48cd-9478-1922b86dc67b")
-	)
-	(wire
-		(pts
-			(xy 55.88 50.8) (xy 58.42 50.8)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "989cdea3-4935-49a7-a203-2bda033d3518")
-	)
-	(wire
-		(pts
-			(xy 43.18 110.49) (xy 49.53 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "99ea27c2-0d8a-47ff-a9f4-ceda6a66bc72")
+		(uuid "6806c213-482f-4032-bf0b-9554821cc54f")
 	)
 	(wire
 		(pts
@@ -447,17 +367,17 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a65fe9a8-ec69-4df8-93d2-046535532f95")
+		(uuid "000f79c9-2e07-411c-b1e0-53d57b12cbb7")
 	)
 	(wire
 		(pts
-			(xy 55.88 53.34) (xy 58.42 53.34)
+			(xy 43.18 53.34) (xy 43.18 110.49)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "c4873a87-163d-4e9c-9afe-f72a1d689642")
+		(uuid "07fbf4bb-e4ac-454b-9c0a-51a6499d22ef")
 	)
 	(wire
 		(pts
@@ -467,37 +387,37 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c5d83312-2cff-475d-a63d-8cc013bfce8d")
+		(uuid "286fddef-08ff-4404-9f54-d2a1ca81d4cc")
 	)
 	(wire
 		(pts
-			(xy 55.88 48.26) (xy 64.77 48.26)
+			(xy 55.88 50.8) (xy 58.42 50.8)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "d6a3f831-dacc-42d8-adc6-52c2bcb8dadc")
+		(uuid "35cdba9a-e7d2-48a6-adb3-afb47ffcea4e")
 	)
 	(wire
 		(pts
-			(xy 49.53 27.94) (xy 49.53 40.64)
+			(xy 43.18 40.64) (xy 58.42 40.64)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "dfb4773d-ed5e-4085-ba96-8b0e5d905393")
+		(uuid "3f768a60-86bd-486c-ba64-fdbb2bfdc9a4")
 	)
 	(wire
 		(pts
-			(xy 49.53 104.14) (xy 49.53 110.49)
+			(xy 43.18 110.49) (xy 49.53 110.49)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e1ae1b7b-7804-4072-8a6a-0649a12687e4")
+		(uuid "5b88dcd6-bd48-4ff0-8648-76d0133b870f")
 	)
 	(wire
 		(pts
@@ -507,40 +427,99 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fac788c5-fb4e-43b2-83ad-91092110f05f")
+		(uuid "6f34904f-1b2d-42b6-90d6-3028a355e462")
 	)
-	(global_label "FLASH_SD1"
+	(wire
+		(pts
+			(xy 55.88 48.26) (xy 64.77 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9569a7b9-d8ec-49d2-8bf3-05622b5d4006")
+	)
+	(wire
+		(pts
+			(xy 43.18 45.72) (xy 35.56 45.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a5858a05-9af9-4925-97d2-6271471d1fa5")
+	)
+	(wire
+		(pts
+			(xy 43.18 50.8) (xy 43.18 40.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b54a6ff5-2477-411d-8d2a-bcb34db08d12")
+	)
+	(wire
+		(pts
+			(xy 49.53 104.14) (xy 49.53 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c7fd2df6-50a5-491a-be2c-54d6f2a81afa")
+	)
+	(wire
+		(pts
+			(xy 49.53 27.94) (xy 49.53 40.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c9202943-0bd5-445e-97c4-8d654459d496")
+	)
+	(wire
+		(pts
+			(xy 55.88 45.72) (xy 64.77 45.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d0e3b2f8-f059-4d4f-ac81-c2d8381ccc40")
+	)
+	(wire
+		(pts
+			(xy 58.42 40.64) (xy 58.42 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "db4f64af-392b-4890-bf8d-ba3f22748156")
+	)
+	(wire
+		(pts
+			(xy 55.88 53.34) (xy 58.42 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e65268f7-84d6-49e8-aeb5-3da303cfd27f")
+	)
+	(global_label "FLASH_SCLK"
 		(shape bidirectional)
-		(at 34.29 48.26 0)
+		(at 64.77 48.26 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "17296cda-d50d-49d4-adf3-45163b22360a")
+		(uuid "2a5ea03e-6e26-48a8-8dc8-fa29a8c6f906")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 34.29 48.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "FLASH_SD0"
-		(shape bidirectional)
-		(at 64.77 45.72 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "741e3bb0-01b9-465a-9763-4b1bab340992")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 64.77 45.72 0)
+			(at 64.77 48.26 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -559,9 +538,30 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "94d091bd-0da9-44b0-ace3-07828633fe64")
+		(uuid "474895ad-70a1-453c-8c28-530883173a0a")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 35.56 45.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "FLASH_SD0"
+		(shape bidirectional)
+		(at 64.77 45.72 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "4ac4caf6-1de6-4639-be94-43d4faea664e")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 64.77 45.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -580,30 +580,9 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "e097e1f0-fbbe-4f67-8798-9a2a9460f2d0")
+		(uuid "619490eb-2f73-47d0-a7f3-1acdd6754bcf")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 40.64 110.49 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "FLASH_SCLK"
-		(shape bidirectional)
-		(at 64.77 48.26 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "e76e65ea-f627-48fc-92b6-1f3e952b5029")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 64.77 48.26 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -622,7 +601,7 @@
 				(size 1.27 1.27)
 			)
 		)
-		(uuid "f515fe1e-82e8-451f-8bda-31156534b713")
+		(uuid "c42abc8c-46cc-4e2c-a6ea-f41bc56be7d4")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 40.64 40.64 0)
 			(hide yes)
@@ -631,6 +610,124 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "FLASH_SD1"
+		(shape bidirectional)
+		(at 34.29 48.26 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "cd9d7892-4451-42b9-bdb2-bb954d612c9f")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 34.29 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:GD25Q16E")
+		(at 49.53 49.53 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "738bca49-ad35-4cdf-a61d-3b4caf95e7ca")
+		(property "Reference" "U3"
+			(at 49.53 40.64 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GD25Q16E"
+			(at 49.53 58.42 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+			(at 49.53 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 49.53 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "GigaDevice GD25Q16E 16Mbit SPI NOR Flash (SOIC-8)"
+			(at 49.53 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "33b2b4ca-5ca8-4950-b071-703dea842103")
+		)
+		(pin "2"
+			(uuid "bc888726-a1d3-4568-a7a0-3e34b877a241")
+		)
+		(pin "3"
+			(uuid "0d51c12e-74c3-4fd7-8756-ea26eca0155a")
+		)
+		(pin "4"
+			(uuid "860454e1-e117-4e7a-897c-22698d3eb602")
+		)
+		(pin "7"
+			(uuid "be9a93a2-f9e7-433c-adc9-2f6a0afae2c1")
+		)
+		(pin "5"
+			(uuid "b076ad5b-5546-4e31-93fc-209654d0a8c9")
+		)
+		(pin "6"
+			(uuid "74f7d992-a168-4421-ac46-7bdb86975005")
+		)
+		(pin "8"
+			(uuid "de1d28ab-0a4a-4a02-bf19-d576bb0260fc")
+		)
+		(instances
+			(project "keyboard_flash"
+				(path "/66e5b2a0-6174-4fb8-8dbf-a21ce93123e5"
+					(reference "U3")
+					(unit 1)
 				)
 			)
 		)
@@ -645,7 +742,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "5dba5925-5b9d-4fc3-9a6d-4e659f31a859")
+		(uuid "7586f6ab-835a-4b5a-b145-6a239b6a2334")
 		(property "Reference" "PWR0"
 			(at 49.53 102.235 0)
 			(hide yes)
@@ -701,109 +798,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "71e7750c-a3dc-4e05-922f-0645324fa912")
+			(uuid "ad4ea41a-7b86-4ca2-847b-09e1c4e07f08")
 		)
 		(instances
 			(project "keyboard_flash"
 				(path "/66e5b2a0-6174-4fb8-8dbf-a21ce93123e5"
 					(reference "PWR0")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "keyboard-89_local:GD25Q16E")
-		(at 49.53 49.53 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "9335ff15-971c-4cfc-8609-e4eb5bb3d6a1")
-		(property "Reference" "U3"
-			(at 49.53 40.64 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GD25Q16E"
-			(at 49.53 58.42 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
-			(at 49.53 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 49.53 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "GigaDevice GD25Q16E 16Mbit SPI NOR Flash (SOIC-8)"
-			(at 49.53 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "519ed9b2-9775-4a6d-9886-d8dc7145d26d")
-		)
-		(pin "2"
-			(uuid "31c7fede-736a-407c-8a07-482cbbd8b2c7")
-		)
-		(pin "3"
-			(uuid "1e749d2b-c36b-48ac-9023-0cde93553ea3")
-		)
-		(pin "4"
-			(uuid "2a3cde90-5542-4100-989d-6c71d3b857fe")
-		)
-		(pin "8"
-			(uuid "3e4464eb-050e-4681-8114-dcd778b5dfdb")
-		)
-		(pin "5"
-			(uuid "ee7f6d4e-390c-44db-89c3-0fb4bfe5a0a9")
-		)
-		(pin "6"
-			(uuid "1ff2886b-ee94-454d-b3e7-4511f6761dee")
-		)
-		(pin "7"
-			(uuid "132899db-393c-4e04-8426-37d57de82472")
-		)
-		(instances
-			(project "keyboard_flash"
-				(path "/66e5b2a0-6174-4fb8-8dbf-a21ce93123e5"
-					(reference "U3")
 					(unit 1)
 				)
 			)
@@ -819,7 +819,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "9634cc1a-4579-4dd7-97a8-09b338e6807a")
+		(uuid "b11acce1-dfc0-4466-b1fb-2160265a1fc4")
 		(property "Reference" "PWR3"
 			(at 49.53 26.035 0)
 			(hide yes)
@@ -875,7 +875,7 @@
 			)
 		)
 		(pin "1"
-			(uuid "0c71881e-1b4f-479c-9cd4-fd82a5035432")
+			(uuid "8d25847a-0344-428c-8113-275d2bac3b26")
 		)
 		(instances
 			(project "keyboard_flash"
