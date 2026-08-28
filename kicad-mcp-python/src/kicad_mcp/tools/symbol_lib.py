@@ -122,7 +122,7 @@ def kicad_sch_create_custom_symbol(
     # 整理输出
     layout_pin_lines = []
     from ..symbol_writer import layout_pins
-    for p in layout_pins(part["pins"])["pins"]:
+    for p in layout_pins(part["pins"], value_name=part.get("name", ""))["pins"]:
         layout_pin_lines.append(
             f"    {p['number']:>3} {p['name']:<12} {p['type']:<12} "
             f"({p['side']}, {p['x']:g},{p['y']:g}mm)")
