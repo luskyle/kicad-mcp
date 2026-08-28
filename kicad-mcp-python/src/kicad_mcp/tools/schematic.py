@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -191,6 +192,7 @@ def kicad_sch_add_symbol(
     value: Optional[str] = None,
     orientation_degrees: int = 0,
     snap_to_grid: bool = True,
+    avoid_overlap: bool = True,
 ) -> str:
     """在原理图上放置一个符号（SCH_SYMBOL）。
 
@@ -204,12 +206,26 @@ def kicad_sch_add_symbol(
         snap_to_grid: 是否把中心吸附到 1.27mm 网格（默认 True）。
             标准 KiCad 符号的引脚都在 1.27mm 网格上，中心在网格上时引脚也
             在网格上，ERC 才不会报 "off connection grid"。
+        avoid_overlap: 放置前检测是否与现有符号重叠（默认 True）。
+            重叠时会报错提示，避免元件叠在一起。
 
     注意: 需要已打补丁的 KiCad（10.0.5 会崩溃）。
     """
     if snap_to_grid:
         x_mm = _snap_grid(x_mm)
         y_mm = _snap_grid(y_mm)
+
+    # 防重叠: 与已放置符号的包围盒比较
+    if avoid_overlap:
+        new_bbox = _symbol_abs_bbox_mm(lib_nickname, entry_name, x_mm, y_mm,
+                                       orientation_degrees)
+        existing = _read_symbols()
+        for ref, info in existing.items():
+            if _bbox_overlap(new_bbox, _symbol_bbox_mm(info)):
+                raise RuntimeError(
+                    f"放置位置 ({x_mm:.1f},{y_mm:.1f})mm 与现有符号 {ref} 重叠！\n"
+                    f"请调整位置，或使用 kicad_sch_place_symbols_grid 自动网格排布"
+                )
 
     symbol = schematic_types_pb2.Symbol()
     symbol.position.x_nm = round(x_mm * MM)
@@ -281,6 +297,77 @@ def _read_symbols() -> dict:
     return out
 
 
+# ============================================================
+# 布局辅助: 页面尺寸 / 符号包围盒 / 重叠检测
+# ============================================================
+
+# KiCad 标准图纸尺寸 (宽, 高) mm
+_PAPER_MM = {
+    "A0": (1189, 841), "A1": (841, 594), "A2": (594, 420),
+    "A3": (420, 297), "A4": (297, 210), "A5": (210, 148),
+    "A": (279.4, 215.9), "B": (431.8, 279.4), "C": (558.8, 431.8),
+    "D": (863.6, 558.8), "E": (1117.6, 863.6),
+}
+
+# 建议预留边距 (mm), 避免元素贴边/出界
+PAGE_MARGIN_MM = 15.0
+
+# 符号包围盒 padding: 引脚延伸 2.54 + 安全间隙 1.27
+_BBOX_PAD_MM = 2.54 + 1.27
+
+
+def _sheet_size_mm(sch_file: Optional[str] = None) -> tuple:
+    """读取 .kicad_sch 图纸尺寸 (宽, 高) mm; 默认 A4 297x210。"""
+    path = sch_file or _current_sch_path()
+    try:
+        txt = Path(path).read_text(errors="ignore")
+        m = re.search(r'\(paper "([^"]+)"', txt)
+        if m:
+            name = m.group(1).upper()
+            if name in _PAPER_MM:
+                return _PAPER_MM[name]
+        m2 = re.search(r'\(size ([0-9.]+) ([0-9.]+)', txt)
+        if m2:
+            return float(m2.group(1)), float(m2.group(2))
+    except Exception:
+        pass
+    return (297.0, 210.0)
+
+
+def _symbol_bbox_mm(info: dict) -> tuple:
+    """符号占用包围盒 (min_x, min_y, max_x, max_y) mm, 基于引脚绝对位置。
+
+    info 来自 _read_symbols(): 含 x_mm/y_mm 和 pins{num:(x_iu,y_iu)}。
+    """
+    pins = info.get("pins") or {}
+    if not pins:
+        x, y = info["x_mm"], info["y_mm"]
+        return (x - 5, y - 5, x + 5, y + 5)
+    xs = [p[0] / MM for p in pins.values()]
+    ys = [p[1] / MM for p in pins.values()]
+    return (min(xs) - _BBOX_PAD_MM, min(ys) - _BBOX_PAD_MM,
+            max(xs) + _BBOX_PAD_MM, max(ys) + _BBOX_PAD_MM)
+
+
+def _bbox_overlap(a: tuple, b: tuple) -> bool:
+    """两个 (min_x, min_y, max_x, max_y) 包围盒是否相交。"""
+    return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
+
+
+def _symbol_abs_bbox_mm(lib_nickname: str, entry_name: str, x_mm: float, y_mm: float,
+                        orientation_degrees: int = 0) -> tuple:
+    """新放置符号的绝对包围盒 mm (从符号库引脚计算)。"""
+    pins = get_pins(lib_nickname, entry_name)
+    if not pins:
+        return (x_mm - 5, y_mm - 5, x_mm + 5, y_mm + 5)
+    orient = int(orientation_degrees) % 360
+    abs_pins = [absolute_pin(x_mm, y_mm, orient, p) for p in pins]
+    xs = [a[0] for a in abs_pins]
+    ys = [a[1] for a in abs_pins]
+    return (min(xs) - _BBOX_PAD_MM, min(ys) - _BBOX_PAD_MM,
+            max(xs) + _BBOX_PAD_MM, max(ys) + _BBOX_PAD_MM)
+
+
 def kicad_sch_get_symbol_pins(reference: str) -> str:
     """查询已放置符号的引脚绝对坐标（考虑旋转），供精确连线。
 
@@ -307,6 +394,7 @@ def kicad_sch_connect(
     pin_b: str,
     via_x_mm: Optional[float] = None,
     via_y_mm: Optional[float] = None,
+    auto_avoid: bool = True,
 ) -> str:
     """连接两个符号的引脚（自动对齐引脚坐标，画直角折线）。
 
@@ -318,6 +406,8 @@ def kicad_sch_connect(
         ref_a / pin_a: 起点符号的 Reference 与引脚号（如 "BAT1","1"）。
         ref_b / pin_b: 终点符号的 Reference 与引脚号。
         via_x_mm / via_y_mm: 可选，指定走线经过的中间点，控制布线路径。
+        auto_avoid: 未指定 via 时自动检测路径是否穿过其他符号，若穿过则
+            选择不冲突的轨道绕行（默认 True）。
     """
     syms = _read_symbols()
     for ref in (ref_a, ref_b):
@@ -334,11 +424,18 @@ def kicad_sch_connect(
     p1 = pin_iu(ref_a, pin_a)
     p2 = pin_iu(ref_b, pin_b)
 
-    # via 转 IU（整数）
     via_ix = round(via_x_mm * MM) if via_x_mm is not None else None
     via_iy = round(via_y_mm * MM) if via_y_mm is not None else None
 
-    segments = _route_wire_iu(p1, p2, via_ix, via_iy)
+    note = ""
+    if auto_avoid and via_ix is None and via_iy is None:
+        obstacles = [_symbol_bbox_mm(i) for r, i in syms.items()
+                     if r not in (ref_a, ref_b)]
+        segments, track = _route_avoiding(p1, p2, obstacles)
+        if track is not None:
+            note = f" (自动避让, 经 y={track}mm 轨道)"
+    else:
+        segments = _route_wire_iu(p1, p2, via_ix, via_iy)
 
     url, header = _sch_context()
     lines = []
@@ -354,7 +451,8 @@ def kicad_sch_connect(
             _check_create_resp(resp)
         lines.append(
             f"已连接 {ref_a}.{pin_a} ({p1[0] / MM:.2f},{p1[1] / MM:.2f}) -> "
-            f"{ref_b}.{pin_b} ({p2[0] / MM:.2f},{p2[1] / MM:.2f})，共 {len(segments)} 段"
+            f"{ref_b}.{pin_b} ({p2[0] / MM:.2f},{p2[1] / MM:.2f})，"
+            f"共 {len(segments)} 段{note}"
         )
     return "\n".join(lines)
 
@@ -373,6 +471,46 @@ def _route_wire_iu(p1, p2, via_x=None, via_y=None):
     if x1 == x2:
         return [((x1, y1), (x2, y2))]
     return [((x1, y1), (x2, y1)), ((x2, y1), (x2, y2))]
+
+
+def _seg_hits_bbox(seg_iu, bbox_mm) -> bool:
+    """正交线段(端点 IU) 是否与包围盒(mm)相交。"""
+    (x1, y1), (x2, y2) = seg_iu
+    x1 = x1 / MM; y1 = y1 / MM; x2 = x2 / MM; y2 = y2 / MM
+    bx0, by0, bx1, by1 = bbox_mm
+    if abs(y1 - y2) < 1e-6:      # 水平段
+        if not (by0 <= y1 <= by1):
+            return False
+        return max(min(x1, x2), bx0) <= min(max(x1, x2), bx1)
+    if abs(x1 - x2) < 1e-6:      # 垂直段
+        if not (bx0 <= x1 <= bx1):
+            return False
+        return max(min(y1, y2), by0) <= min(max(y1, y2), by1)
+    return False
+
+
+def _route_avoiding(p1_iu, p2_iu, obstacles_mm, margin_mm: float = 3.0):
+    """找一条不穿过任何障碍的正交走线。
+
+    Returns: (segments_iu, track_mm 或 None)
+    track_mm 非空表示用了中间水平轨道避让 (便于提示)。
+    """
+    (x1, y1), (x2, y2) = p1_iu, p2_iu
+    candidates = []
+    candidates.append((None, _route_wire_iu(p1_iu, p2_iu)))              # 先横后竖
+    candidates.append((None, [((x1, y1), (x1, y2)), ((x1, y2), (x2, y2))]))  # 先竖后横
+    for dy in (margin_mm, -margin_mm, 2 * margin_mm, -2 * margin_mm,
+               4 * margin_mm, -4 * margin_mm):
+        y_mid = round((y1 + y2) / 2) + round(dy * MM)
+        segs = [((x1, y1), (x1, y_mid)), ((x1, y_mid), (x2, y_mid)),
+                ((x2, y_mid), (x2, y2))]
+        segs = [s for s in segs if s[0] != s[1]]
+        candidates.append((y_mid, segs))
+    for y_mid, segs in candidates:
+        if not any(_seg_hits_bbox(s, o) for s in segs for o in obstacles_mm):
+            track = round(y_mid / MM, 1) if y_mid is not None else None
+            return segs, track
+    return candidates[0][1], None
 
 
 def _route_wire(p1, p2, via_x=None, via_y=None):
@@ -1043,6 +1181,199 @@ def kicad_sch_add_image(
     return f"已在 ({x_mm}mm, {y_mm}mm) 放置图片 {path.name} (scale={scale})"
 
 
+def kicad_sch_get_sheet_info(sch_file: Optional[str] = None) -> str:
+    """查询当前图纸尺寸和可绘图区域，以及现有元素占用的范围。
+
+    Args:
+        sch_file: 可选，.kicad_sch 文件路径（默认当前打开的图）。
+
+    用途: 绘制前先调用，确定元素放置的边界，避免超出页面。
+    """
+    w, h = _sheet_size_mm(sch_file)
+    syms = _read_symbols()
+    xs, ys = [], []
+    for info in syms.values():
+        bx = _symbol_bbox_mm(info)
+        xs += [bx[0], bx[2]]
+        ys += [bx[1], bx[3]]
+    extent = (min(xs), min(ys), max(xs), max(ys)) if xs else None
+    lines = [
+        f"图纸尺寸: {w:.0f} x {h:.0f} mm",
+        f"建议可绘图区域 (留 {PAGE_MARGIN_MM:.0f}mm 边距): "
+        f"X {PAGE_MARGIN_MM:.0f} - {w - PAGE_MARGIN_MM:.0f}, "
+        f"Y {PAGE_MARGIN_MM:.0f} - {h - PAGE_MARGIN_MM:.0f}",
+    ]
+    if extent:
+        over = []
+        if extent[0] < PAGE_MARGIN_MM:
+            over.append(f"X 左超界 {PAGE_MARGIN_MM - extent[0]:.1f}mm")
+        if extent[2] > w - PAGE_MARGIN_MM:
+            over.append(f"X 右超界 {extent[2] - (w - PAGE_MARGIN_MM):.1f}mm")
+        if extent[1] < PAGE_MARGIN_MM:
+            over.append(f"Y 上超界 {PAGE_MARGIN_MM - extent[1]:.1f}mm")
+        if extent[3] > h - PAGE_MARGIN_MM:
+            over.append(f"Y 下超界 {extent[3] - (h - PAGE_MARGIN_MM):.1f}mm")
+        lines.append(
+            f"当前符号范围: X {extent[0]:.1f}-{extent[2]:.1f}, "
+            f"Y {extent[1]:.1f}-{extent[3]:.1f}"
+        )
+        lines.append("超出可绘图区域: " + ("; ".join(over) if over else "无"))
+    else:
+        lines.append("当前无符号")
+    return "\n".join(lines)
+
+
+def kicad_sch_check_layout(sch_file: Optional[str] = None) -> str:
+    """检查布局质量: 符号重叠 + 是否超出页面边距。
+
+    Args:
+        sch_file: 可选，.kicad_sch 文件路径（默认当前打开的图）。
+
+    Returns:
+        报告: 哪些符号互相重叠、哪些超出页面，供规划修复。
+    """
+    syms = _read_symbols()
+    bboxes = {ref: _symbol_bbox_mm(info) for ref, info in syms.items()}
+    refs = sorted(bboxes)
+    out = []
+    # 重叠检测
+    overlaps = []
+    for i in range(len(refs)):
+        for j in range(i + 1, len(refs)):
+            if _bbox_overlap(bboxes[refs[i]], bboxes[refs[j]]):
+                overlaps.append((refs[i], refs[j]))
+    if overlaps:
+        out.append(f"⚠ 检测到 {len(overlaps)} 处符号重叠:")
+        for a, b in overlaps[:20]:
+            out.append(f"   {a} <-> {b}")
+    else:
+        out.append("✓ 符号无重叠")
+    # 超出页面
+    w, h = _sheet_size_mm(sch_file)
+    over = []
+    for ref in refs:
+        bx = bboxes[ref]
+        if (bx[0] < PAGE_MARGIN_MM or bx[1] < PAGE_MARGIN_MM
+                or bx[2] > w - PAGE_MARGIN_MM or bx[3] > h - PAGE_MARGIN_MM):
+            over.append(ref)
+    if over:
+        out.append(f"⚠ {len(over)} 个符号超出页面/边距: {', '.join(over)}")
+    else:
+        out.append(f"✓ 所有符号在页面内 ({w:.0f}x{h:.0f}mm)")
+    return "\n".join(out)
+
+
+def kicad_sch_place_symbols_grid(
+    symbols_json: str,
+    columns: int = 4,
+    col_gap_mm: float = 15.24,
+    row_gap_mm: float = 12.7,
+    x0_mm: float = 50.0,
+    y0_mm: float = 50.0,
+    snap_to_grid: bool = True,
+) -> str:
+    """批量把多个符号自动排成网格（吸附 1.27mm、间距充足、防重叠）。
+
+    Args:
+        symbols_json: JSON 数组，每项含 lib/entry/ref/value，如:
+            '[{"lib":"Device","entry":"R","ref":"R1","value":"10k"},\n'
+            ' {"lib":"Device","entry":"C","ref":"C1","value":"100nF"}]'
+        columns: 每行符号数（默认 4）。
+        col_gap_mm: 列间距（默认 15.24mm = 12 格）。
+        row_gap_mm: 行间距（默认 12.7mm = 10 格）。
+        x0_mm, y0_mm: 网格起点（默认 50,50）。
+        snap_to_grid: 吸附 1.27mm 网格（默认 True）。
+
+    Returns:
+        每个符号的放置位置。
+    """
+    import json as _json
+
+    try:
+        syms = _json.loads(symbols_json)
+    except Exception as e:
+        raise ValueError(f"symbols_json 必须是 JSON 数组: {e}")
+    if not isinstance(syms, list) or not syms:
+        raise ValueError("symbols_json 应为非空数组")
+    if columns < 1:
+        raise ValueError("columns >= 1")
+
+    # 自动间距: 按符号实际尺寸放大 col/row 间距, 确保不重叠
+    # (用户给的 col_gap_mm/row_gap_mm 作为最小值)
+    def _sym_size_mm(lib: str, entry: str) -> tuple:
+        pins = get_pins(lib, entry)
+        if not pins:
+            # 本地库解析不到 (如系统库符号) -> 保守默认, 防重叠
+            return 20.0, 20.0
+        xs = [p.x_mm for p in pins]
+        ys = [p.y_mm for p in pins]
+        return (max(xs) - min(xs) + 2 * _BBOX_PAD_MM,
+                max(ys) - min(ys) + 2 * _BBOX_PAD_MM)
+
+    max_w, max_h = 10.0, 10.0
+    for s in syms:
+        w, h = _sym_size_mm(s.get("lib", "Device"), s.get("entry", "R"))
+        max_w, max_h = max(max_w, w), max(max_h, h)
+    # +2mm 安全余量, 避免符号包围盒恰好接触/边界判定重叠
+    eff_col_gap = max(col_gap_mm, max_w + 2.0)
+    eff_row_gap = max(row_gap_mm, max_h + 2.0)
+
+    # 计算位置
+    placed = []
+    for i, s in enumerate(syms):
+        col, row = i % columns, i // columns
+        x = x0_mm + col * eff_col_gap
+        y = y0_mm + row * eff_row_gap
+        if snap_to_grid:
+            x, y = _snap_grid(x), _snap_grid(y)
+        placed.append((x, y, s))
+
+    # 页面边界检查
+    w, h = _sheet_size_mm()
+    over = []
+    for x, y, s in placed:
+        if (x < PAGE_MARGIN_MM or x > w - PAGE_MARGIN_MM
+                or y < PAGE_MARGIN_MM or y > h - PAGE_MARGIN_MM):
+            over.append(s.get("ref", "?"))
+    if over:
+        raise RuntimeError(
+            f"以下符号将超出页面: {over}。请减小列数/间距或调整 x0/y0。"
+            f"当前图纸 {w:.0f}x{h:.0f}mm, 可绘图 X {PAGE_MARGIN_MM:.0f}-{w-PAGE_MARGIN_MM:.0f}, "
+            f"Y {PAGE_MARGIN_MM:.0f}-{h-PAGE_MARGIN_MM:.0f}"
+        )
+
+    # 批量创建
+    batch = []
+    for x, y, s in placed:
+        sym = schematic_types_pb2.Symbol()
+        sym.lib_id.library_nickname = s.get("lib", "Device")
+        sym.lib_id.entry_name = s.get("entry", "R")
+        sym.position.x_nm = round(x * MM)
+        sym.position.y_nm = round(y * MM)
+        if s.get("ref"):
+            f = sym.fields.add(); f.name = "Reference"; f.value = s["ref"]
+        if s.get("value"):
+            f = sym.fields.add(); f.name = "Value"; f.value = s["value"]
+        batch.append(sym)
+
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        resp = kc.create_items(header, batch)
+    _check_create_resp(resp)
+
+    lines = [
+        f"已网格排布 {len(placed)} 个符号 "
+        f"({columns} 列, 实际间距 {eff_col_gap:.1f}x{eff_row_gap:.1f}mm, "
+        f"起点 {x0_mm},{y0_mm}):"
+    ]
+    for i, (x, y, s) in enumerate(placed):
+        lines.append(
+            f"  {s.get('ref', '?'):6s} {s.get('lib', 'Device')}:{s.get('entry', '?')} "
+            f"@({x:.1f},{y:.1f})mm"
+        )
+    return "\n".join(lines)
+
+
 ALL_TOOLS = [
     kicad_sch_add_text,
     kicad_sch_add_line,
@@ -1060,4 +1391,7 @@ ALL_TOOLS = [
     kicad_sch_add_shape,
     kicad_sch_add_no_connect,
     kicad_sch_add_image,
+    kicad_sch_get_sheet_info,
+    kicad_sch_check_layout,
+    kicad_sch_place_symbols_grid,
 ]
