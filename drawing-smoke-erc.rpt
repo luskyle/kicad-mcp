@@ -1,0 +1,147 @@
+ERC report (2026-08-30T13:05:50, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(92.71 mm, 62.23 mm): Symbol K1 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(92.71 mm, 90.17 mm): Symbol K6 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(92.71 mm, 118.11 mm): Symbol K11 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(120.65 mm, 62.23 mm): Symbol K2 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(120.65 mm, 90.17 mm): Symbol K7 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(120.65 mm, 118.11 mm): Symbol K12 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(148.59 mm, 62.23 mm): Symbol K3 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(148.59 mm, 90.17 mm): Symbol K8 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(148.59 mm, 118.11 mm): Symbol K13 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(176.53 mm, 62.23 mm): Symbol K4 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(176.53 mm, 90.17 mm): Symbol K9 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(176.53 mm, 118.11 mm): Symbol K14 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(204.47 mm, 62.23 mm): Symbol K5 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(204.47 mm, 90.17 mm): Symbol K10 [TC-6601-5-160G]
+[unresolved_variable]: Unresolved text variable
+    ; error
+    @(204.47 mm, 118.11 mm): Symbol K15 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(92.71 mm, 62.23 mm): Symbol K1 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(92.71 mm, 62.23 mm): Symbol K1 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(92.71 mm, 90.17 mm): Symbol K6 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(92.71 mm, 90.17 mm): Symbol K6 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(92.71 mm, 118.11 mm): Symbol K11 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(92.71 mm, 118.11 mm): Symbol K11 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(120.65 mm, 62.23 mm): Symbol K2 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(120.65 mm, 62.23 mm): Symbol K2 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(120.65 mm, 90.17 mm): Symbol K7 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(120.65 mm, 90.17 mm): Symbol K7 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(120.65 mm, 118.11 mm): Symbol K12 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(120.65 mm, 118.11 mm): Symbol K12 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(148.59 mm, 62.23 mm): Symbol K3 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(148.59 mm, 62.23 mm): Symbol K3 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(148.59 mm, 90.17 mm): Symbol K8 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(148.59 mm, 90.17 mm): Symbol K8 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(148.59 mm, 118.11 mm): Symbol K13 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(148.59 mm, 118.11 mm): Symbol K13 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(176.53 mm, 62.23 mm): Symbol K4 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(176.53 mm, 62.23 mm): Symbol K4 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(176.53 mm, 90.17 mm): Symbol K9 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(176.53 mm, 90.17 mm): Symbol K9 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(176.53 mm, 118.11 mm): Symbol K14 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(176.53 mm, 118.11 mm): Symbol K14 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(204.47 mm, 62.23 mm): Symbol K5 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(204.47 mm, 62.23 mm): Symbol K5 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(204.47 mm, 90.17 mm): Symbol K10 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(204.47 mm, 90.17 mm): Symbol K10 [TC-6601-5-160G]
+[footprint_link_issues]: The current configuration does not include the footprint library 'keyboard-89_local'
+    ; warning
+    @(204.47 mm, 118.11 mm): Symbol K15 [TC-6601-5-160G]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(204.47 mm, 118.11 mm): Symbol K15 [TC-6601-5-160G]
+
+ ** ERC messages: 45  Errors 15  Warnings 30
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

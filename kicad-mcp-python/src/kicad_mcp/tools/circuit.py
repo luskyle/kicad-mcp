@@ -16,7 +16,9 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import deque
+from pathlib import Path
 from typing import Optional
 
 from ..client import KiCadClient
@@ -53,6 +55,25 @@ _POWER_NAMES = {"GND", "PWR_FLAG", "+3V3", "+5V", "+12V", "-12V", "VCC", "VDD"}
 # 解析辅助
 # ============================================================
 
+def _get_symbol_pins(lib: str, name: str):
+    """从当前项目私有库或仓库 KiCad 数据目录读取符号引脚。"""
+    roots = []
+    try:
+        roots.append(Path(_current_sch_path()).parent)
+    except RuntimeError:
+        pass
+
+    stock_home = os.environ.get("KICAD_STOCK_DATA_HOME")
+    if stock_home:
+        roots.append(Path(stock_home) / "symbols")
+
+    for root in roots:
+        pins = get_pins(lib, name, root)
+        if pins:
+            return pins
+
+    return get_pins(lib, name)
+
 def _parse_json(value: str, what: str):
     try:
         return json.loads(value)
@@ -65,7 +86,7 @@ def _find_symbol(name: str, lib: str = "") -> tuple:
     name = name.strip()
     from .symbol_browser import kicad_sch_search_symbols
     if lib:
-        if get_pins(lib, name):
+        if _get_symbol_pins(lib, name):
             return lib, name
         hit = kicad_sch_search_symbols(name, library=lib, max_results=10)
         for ln in hit.splitlines():
@@ -170,7 +191,7 @@ def _net_anchor(ref: str, nets: list, symbols: list) -> Optional[str]:
 
 def _sym_size_mm(spec: dict) -> tuple:
     """从库引脚估算符号尺寸（宽, 高）mm，用于间距。"""
-    pins = get_pins(spec.get("lib", ""), spec.get("symbol", ""))
+    pins = _get_symbol_pins(spec.get("lib", ""), spec.get("symbol", ""))
     if not pins:
         return 10.0, 10.0
     xs = [p.x_mm for p in pins]
@@ -250,7 +271,7 @@ def _auto_orient(spec: dict, stages: dict, adj: dict) -> Optional[int]:
         return None                       # 用户显式指定
     ref = spec.get("ref")
     try:
-        pins = get_pins(spec.get("lib", ""), spec.get("symbol", ""))
+        pins = _get_symbol_pins(spec.get("lib", ""), spec.get("symbol", ""))
         two_pin = pins is not None and len(pins) == 2
     except Exception:
         two_pin = (spec.get("symbol") or "").upper() in _TWO_PIN_ENTRIES
@@ -293,7 +314,7 @@ def _orient_toward_pins(layout: dict, symbols: list, nets: list) -> dict:
         if s.get("orient"):
             continue                       # 用户显式指定，不自动改
         try:
-            pins = get_pins(s.get("lib", ""), s.get("symbol", ""))
+            pins = _get_symbol_pins(s.get("lib", ""), s.get("symbol", ""))
             two_pin = pins is not None and len(pins) == 2
         except Exception:
             two_pin = (s.get("symbol") or "").upper() in _TWO_PIN_ENTRIES
@@ -1162,36 +1183,16 @@ def _label_stub(syms: dict, ref: str, pin: str, text: str,
                 size_mm: float, wires_iu: Optional[list] = None) -> tuple:
     """引脚外侧短 stub。返回 ((起,止)IU, (标签锚点)IU)。
 
-    KiCad 标签文字以「锚点+1.43mm」为中心绘制（GetSchematicTextOffset，L_BIDI），
-    文字半宽 ≈ len*size*0.55。stub 长度需保证：文字最外缘不碰符号本体
-    （本体余量 0.5mm + 间隙 1.0mm），否则左侧标签文字会贴/压到符号。
+    标签的 spin 已由 `_auto_label_spin` 设为朝向引脚，文字和标签框会从连接点
+    向符号外侧展开。因此 stub 只需提供固定的 2.54mm 视觉间隙；若再把文字
+    宽度计入 stub，会把相邻符号两侧的标签同时推向列间中心，造成标签相贴。
 
     若 wires_iu 给定，stub 端点会**避让已有竖直导线**（如同列其它网络的
     collector），避免端点落在别人的竖直线上造成短路（密集 IC 页常见）。
     """
-    import math
     px, py = _pin_iu(syms, ref, pin)
     dx, dy = _pin_outward_dir(syms, ref, pin)
-    offset = 1.43                       # KiCad label 文字中心相对锚点的偏移
-    half = max(size_mm / 2, len(text) * size_mm * 0.55)
-    # 实际文字宽度近似（KiCad 全局标签为 end-anchor：文字右缘≈锚点，文字
-    # 整体在锚点左侧，左缘 = 锚点 - 文字宽）。实测 2 字符 'R1' 宽约 2.6mm，
-    # len*size*0.55 低估了 → 用 0.9 系数。
-    text_w = len(text) * size_mm * 0.9
-    if dx < 0:
-        # 左侧引脚：文字在锚点左侧（end-anchor），锚点在 pin 外侧 stub 端。
-        # stub 需 ≥ 文字宽 + 间隙，让文字整体在符号左侧。
-        stub_mm = max(2.54, text_w + 1.5)
-        stub_mm = math.ceil(stub_mm / 1.27) * 1.27 # 向上吸附网格（保证够长）
-    elif dx > 0:
-        # 右侧引脚：文字在锚点左侧（end-anchor），文字左缘 = 锚点 - 文字宽
-        # = pin + stub - 文字宽。stub 需 ≥ 文字宽 + 间隙，否则文字左缘覆盖
-        # 引脚本身（如 R1 文字框 x153.1-155.7 压 K1-pin3@153.7）。
-        stub_mm = max(2.54, text_w + 1.0)          # 文字左缘离 pin 1.0mm
-        stub_mm = math.ceil(stub_mm / 1.27) * 1.27
-    else:
-        # 上下引脚：stub 垂直，不影响文字水平位置 → 短 stub（2.54）即可
-        stub_mm = 2.54
+    stub_mm = 2.54
     # 避让：若端点落在已有竖直导线上（其它网络 collector），缩短 stub（1.27 步进）
     while wires_iu and stub_mm > 1.27:
         off = round(stub_mm * MM)

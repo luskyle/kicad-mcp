@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "keyboard-89_local")(type "KiCad")(uri "${KIPRJMOD}/keyboard-89_local.pretty")(options "")(descr "Keyboard-89 production footprints"))
+)

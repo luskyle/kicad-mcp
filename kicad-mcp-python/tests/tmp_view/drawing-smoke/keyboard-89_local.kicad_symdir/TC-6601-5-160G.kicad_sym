@@ -1,0 +1,26 @@
+(kicad_symbol_lib
+	(version 20251024)
+	(generator "kicad_mcp")
+	(generator_version "10.0")
+	(symbol "TC-6601-5-160G"
+		(pin_names (offset 1.016))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(property "Reference" "U" (at 0 6.35 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TC-6601-5-160G" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "keyboard-89_local:TC-6601-5-160G" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Datasheet" "${KIPRJMOD}/TC-6601-5-160G.pdf" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(symbol "TC-6601-5-160G_0_1"
+			(rectangle (start -3.81 3.81) (end 3.81 -3.81) (stroke (width 0.254) (type default)) (fill (type background)))
+		)
+		(symbol "TC-6601-5-160G_1_1"
+			(pin passive line (at -6.35 1.27 0) (length 2.54) (name "1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -6.35 -1.27 0) (length 2.54) (name "2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 6.35 1.27 180) (length 2.54) (name "3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 6.35 -1.27 180) (length 2.54) (name "4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+		)
+	)
+)
