@@ -31,22 +31,22 @@ KiCad  (打补丁后编译)
 
 ## 核心能力（48 个 MCP 工具）
 
-| 能力域 | 代表工具 | 说明 |
-|---|---|---|
-| **一键成图** | `kicad_sch_draw_circuit` | 从电路描述 JSON（symbols+nets）自动布局→布线→标签→ERC→渲染；支持 `kicad_sch_auto_layout` / `kicad_sch_auto_route` 分步调用 |
-| **智能布局** | 内置 | 信号流左→右分列（BFS）、barycenter 减交叉、电源上/地在下轨道、**2 引脚元件自动水平朝向**（串联直连）、间距自适应 |
-| **智能布线** | 内置 | 两引脚网络**智能直连**（免 U 形绕线）、多引脚网络专业 trunk bus（每网络独占水平道 + 垂直 stub + Junction）、跨网络避让防短路 |
-| **标签体系** | `kicad_sch_add_label` / `kicad_sch_recommend_label` | 全局/本地/层次/指令标签；输入/输出/双向/三态箭头形状；连接点方向；指令标签 点/圆/菱形/矩形 |
-| **变换** | `kicad_sch_transform_item` | 符号顺时针/逆时针旋转、水平/垂直镜像；标签连接点旋转/镜像 |
-| **ERC 门禁** | `kicad_sch_erc_gate` | 结构化解析 ERC → 分类 blocking/benign；**自动补 PWR_FLAG** 修复电源未驱动，交付即通过 |
-| **标准审查** | `kicad_sch_standards_check` | 按 IEC 61082-1 / IPC-2612 审查位号值、网格、重叠、越界、交叉、电源上下、命名 |
-| **重叠修复** | `kicad_sch_check_overlaps` / `kicad_sch_fix_overlaps` | 真实几何检测符号/标签/导线重叠与越界，自动重摆 + 延伸 stub 保持连通 |
-| **Golden 回归** | `tests/run_golden.py` | 以 netlist 连通性 + 标签为判据的回归测试，防工具改动破坏既有电路 |
-| **仿真** | `kicad_sch_simulate` / `kicad_sch_simulate_gui` | 导出 netlist 用本地 ngspice 仿真（返回节点波形）；GUI 版在 KiCad 里直接显示波形 |
-| **自定义元件** | `kicad_sch_create_custom_symbol` | 按规格书 JSON/文本自动生成库符号，写入项目私有库 |
-| **总线** | `kicad_sch_add_bus` 系列 | 总线导线/标签/entry/一键连接总线 |
-| **渲染反馈** | `kicad_sch_render` / `kicad_pcb_render` | 原理图导出 SVG（AI 可读坐标验证），PCB 渲染 PNG/3D |
-| **提示词模板** | `kicad_get_prompt_template` | 内置 draw-circuit / power / mcu / matrix 等模板，指导 AI 高质量画图 |
+| 能力域                | 代表工具                                                  | 说明                                                                                                                               |
+| --------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **一键成图**    | `kicad_sch_draw_circuit`                                | 从电路描述 JSON（symbols+nets）自动布局→布线→标签→ERC→渲染；支持`kicad_sch_auto_layout` / `kicad_sch_auto_route` 分步调用  |
+| **智能布局**    | 内置                                                      | 信号流左→右分列（BFS）、barycenter 减交叉、电源上/地在下轨道、**2 引脚元件自动水平朝向**（串联直连）、间距自适应            |
+| **智能布线**    | 内置                                                      | 两引脚网络**智能直连**（免 U 形绕线）、多引脚网络专业 trunk bus（每网络独占水平道 + 垂直 stub + Junction）、跨网络避让防短路 |
+| **标签体系**    | `kicad_sch_add_label` / `kicad_sch_recommend_label`   | 全局/本地/层次/指令标签；输入/输出/双向/三态箭头形状；连接点方向；指令标签 点/圆/菱形/矩形                                         |
+| **变换**        | `kicad_sch_transform_item`                              | 符号顺时针/逆时针旋转、水平/垂直镜像；标签连接点旋转/镜像                                                                          |
+| **ERC 门禁**    | `kicad_sch_erc_gate`                                    | 结构化解析 ERC → 分类 blocking/benign；**自动补 PWR_FLAG** 修复电源未驱动，交付即通过                                       |
+| **标准审查**    | `kicad_sch_standards_check`                             | 按 IEC 61082-1 / IPC-2612 审查位号值、网格、重叠、越界、交叉、电源上下、命名                                                       |
+| **重叠修复**    | `kicad_sch_check_overlaps` / `kicad_sch_fix_overlaps` | 真实几何检测符号/标签/导线重叠与越界，自动重摆 + 延伸 stub 保持连通                                                                |
+| **Golden 回归** | `tests/run_golden.py`                                   | 以 netlist 连通性 + 标签为判据的回归测试，防工具改动破坏既有电路                                                                   |
+| **仿真**        | `kicad_sch_simulate` / `kicad_sch_simulate_gui`       | 导出 netlist 用本地 ngspice 仿真（返回节点波形）；GUI 版在 KiCad 里直接显示波形                                                    |
+| **自定义元件**  | `kicad_sch_create_custom_symbol`                        | 按规格书 JSON/文本自动生成库符号，写入项目私有库                                                                                   |
+| **总线**        | `kicad_sch_add_bus` 系列                                | 总线导线/标签/entry/一键连接总线                                                                                                   |
+| **渲染反馈**    | `kicad_sch_render` / `kicad_pcb_render`               | 原理图导出 SVG（AI 可读坐标验证），PCB 渲染 PNG/3D                                                                                 |
+| **提示词模板**  | `kicad_get_prompt_template`                             | 内置 draw-circuit / power / mcu / matrix 等模板，指导 AI 高质量画图                                                                |
 
 ## 快速开始
 
@@ -74,6 +74,7 @@ PYTHONPATH=src python -m kicad_mcp
 ## 智能原理图怎么用
 
 给 AI 一段描述，例如：
+
 > "画一个 3.3V LDO 电源：USB-C 输入，AMS1117-3.3 输出，输入输出各一个 10µF 电容，
 > 输出网络叫 3V3，GND 用 0。"
 
@@ -125,10 +126,12 @@ KiCad uses a host of CI resources.
 GitLab CI pipeline status can be viewed for Linux and Windows builds of the latest commits.
 
 ## Release status
+
 [![latest released version(s)](https://repology.org/badge/latest-versions/kicad.svg)](https://repology.org/project/kicad/versions)
 [![Release status](https://repology.org/badge/tiny-repos/kicad.svg)](https://repology.org/metapackage/kicad/versions)
 
 ## Files
+
 * [AUTHORS.txt](AUTHORS.txt) - The authors, contributors, document writers and translators list
 * [CMakeLists.txt](CMakeLists.txt) - Main CMAKE build tool script
 * [copyright.h](copyright.h) - A very short copy of the GNU General Public License to be included in new source files
@@ -157,8 +160,8 @@ GitLab CI pipeline status can be viewed for Linux and Windows builds of the late
 * [plugins](plugins)           - Sourcecode for the 3D viewer plugins
 * [qa](qa)                - Unit testing framework for KiCad
 * [resources](resources)         - Packaging resources such as bitmaps and operating system specific files
-    - [bitmaps_png](resources/bitmaps_png)       - Menu and program icons
-    - [project_template](resources/project_template)          - Project template
+  - [bitmaps_png](resources/bitmaps_png)       - Menu and program icons
+  - [project_template](resources/project_template)          - Project template
 * [scripting](scripting)         - Python integration for KiCad
 * [thirdparty](thirdparty)           - Sourcecode of external libraries used in KiCad but not written by the KiCad team
 * [tools](tools)             - Helpers for developing, testing and building

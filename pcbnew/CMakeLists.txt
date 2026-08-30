@@ -14,7 +14,11 @@ add_subdirectory(router)
 add_dependencies( pnsrouter pcbcommon )
 
 
-file( MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/swig )
+if( IS_MULTI_CONFIG )
+    file( GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/swig/.keep CONTENT "" )
+else()
+    file( MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/swig )
+endif()
 
 #Infrequently needed headers go at end of search paths, append to INC_AFTER
 set( INC_AFTER ${INC_AFTER} python/scripting )
@@ -549,7 +553,7 @@ if( CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
 endif()
 
 set( PCBNEW_SCRIPTING_SRCS
-    pcbnew_wrap.cxx
+    ${CMAKE_CURRENT_BINARY_DIR}/pcbnew_wrap.cxx
     ${PCBNEW_SCRIPTING_PYTHON_HELPERS}
     )
 
@@ -591,7 +595,7 @@ if( EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/doxygen-xml )
     set( SWIG_OPTS ${SWIG_OPTS} -I${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/docstrings )
 endif()
 
-add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/pcbnew_wrap.cxx
+add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pcbnew_wrap.cxx
                     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/pcbnew.py
 
     DEPENDS python/swig/pcbnew.i
@@ -604,7 +608,7 @@ add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/pcb
     COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/docstrings/docstrings.i
 
     COMMAND ${SWIG_EXECUTABLE}
-        ${SWIG_OPTS} -MMD -MF ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/pcbnew_wrap.d -MT pcbnew/pcbnew_wrap.cxx -o ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/pcbnew_wrap.cxx ${CMAKE_SOURCE_DIR}/pcbnew/python/swig/pcbnew.i
+        ${SWIG_OPTS} -MMD -MF ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/pcbnew_wrap.d -MT pcbnew/pcbnew_wrap.cxx -o ${CMAKE_CURRENT_BINARY_DIR}/pcbnew_wrap.cxx ${CMAKE_SOURCE_DIR}/pcbnew/python/swig/pcbnew.i
 
 #was needed only with SWIG version < 4 to disable a python section "def swig_import_helper()"
 #found in pcbnew.py but not existing in SWIG version >= 4
@@ -1040,7 +1044,7 @@ elseif( WIN32 )
     # For phase 1, copy _pcbnew.kiface to the python module.
     add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/_pcbnew.${PYMOD_EXT}
         DEPENDS pcbnew_kiface
-        COMMAND ${CMAKE_COMMAND} -E copy _pcbnew${KIFACE_SUFFIX} _pcbnew.${PYMOD_EXT}
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:pcbnew_kiface> ${CMAKE_CURRENT_BINARY_DIR}/${KICMAKE_CFG_INTDIR}/_pcbnew.${PYMOD_EXT}
         COMMENT "Creating python's pcbnew native module _pcbnew.${PYMOD_EXT} for command line use."
         )
 

@@ -68,7 +68,7 @@ macro( create_git_version_header _git_src_path )
     if( _git_describe_result EQUAL 0 )
         set( KICAD_VERSION "${_git_DESCRIBE}" )
     else()
-        message( STATUS "git describe returned error ${_git_describe_result}: ${_git_describe_error}" )
+        message( STATUS "git describe failed (${_git_describe_result}): ${_git_describe_error}" )
     endif()
 
     if( _git_rev_parse_head_result EQUAL 0 )

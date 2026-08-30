@@ -111,6 +111,7 @@ pcbnew/Info.plist
 .cproject
 .pydevproject
 __pycache__
+.venv/
 
 # Visual Studio
 .vs/
