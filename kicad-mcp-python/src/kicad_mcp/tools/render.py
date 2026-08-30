@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..client import DOCTYPE_PCB, DOCTYPE_SCHEMATIC, find_document_socket
+from ..runtime import find_kicad_cli, kicad_cli_env
 
 # SVG 文本默认内联上限：超过则只返回文件路径（避免 MCP 结果过大撑爆上下文）。
 DEFAULT_MAX_SVG_CHARS = 300_000
@@ -25,28 +26,12 @@ DEFAULT_PCB_LAYERS = "F.Cu,B.Cu,F.SilkS,B.SilkS,F.Mask,B.Mask"
 
 def _cli_env() -> dict:
     """kicad-cli 运行环境：隔离 conda + 指向资源目录（与 kicad_sch_erc 一致）。"""
-    env = dict(os.environ)
-    env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    for k in ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONHOME", "PYTHONPATH"):
-        env.pop(k, None)
-    env.setdefault("KICAD_STOCK_DATA_HOME", "/tmp/squashfs-root/share/kicad")
-    return env
+    return kicad_cli_env()
 
 
 def _find_kicad_cli() -> str:
     """定位 kicad-cli：优先环境变量，其次常见编译路径，最后 PATH。"""
-    env = os.environ.get("KICAD_CLI")
-    if env:
-        return env
-    candidates = [
-        "/media/luskyle/DATA/project/kicad-mcp/build/kicad/kicad-cli",
-        "/usr/local/bin/kicad-cli",
-        "/usr/bin/kicad-cli",
-    ]
-    for c in candidates:
-        if os.path.exists(c):
-            return c
-    return "kicad-cli"
+    return find_kicad_cli()
 
 
 def _current_doc_path(doc_type: int) -> str:

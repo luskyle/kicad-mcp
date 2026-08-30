@@ -9,7 +9,6 @@ MCP 工具：
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -17,9 +16,7 @@ from typing import Optional
 from ..symbol_writer import parse_spec, build_symbol, write_lib_file, write_symdir
 from ..client import DOCTYPE_SCHEMATIC, KiCadClient, find_document_socket
 from ..proto.common.types import base_types_pb2
-
-KICAD_CONFIG_DIR = Path.home() / ".config/kicad" / "10.0"
-SYM_LIB_TABLE = KICAD_CONFIG_DIR / "sym-lib-table"
+from ..runtime import resolve_kicad_runtime
 
 
 def _current_sch_path() -> str:
@@ -36,10 +33,11 @@ def _current_sch_path() -> str:
 
 def ensure_lib_table() -> Path:
     """确保 sym-lib-table 存在，返回其路径。"""
-    KICAD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    if not SYM_LIB_TABLE.exists():
-        SYM_LIB_TABLE.write_text("(sym_lib_table\n\t(version 7)\n)\n", encoding="utf-8")
-    return SYM_LIB_TABLE
+    table = resolve_kicad_runtime().symbol_lib_table
+    table.parent.mkdir(parents=True, exist_ok=True)
+    if not table.exists():
+        table.write_text("(sym_lib_table\n\t(version 7)\n)\n", encoding="utf-8")
+    return table
 
 
 def add_lib_to_table(lib_name: str, uri: str) -> bool:

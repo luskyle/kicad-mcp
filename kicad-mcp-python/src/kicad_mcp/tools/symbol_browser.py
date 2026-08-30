@@ -11,17 +11,16 @@ import re
 from pathlib import Path
 from typing import Optional
 
-KICAD_CONFIG_DIR = Path.home() / ".config/kicad" / "10.0"
-SYM_LIB_TABLE = KICAD_CONFIG_DIR / "sym-lib-table"
-SYSTEM_SYMBOL_DIR = Path("/tmp/squashfs-root/share/kicad/symbols")
+from ..runtime import resolve_kicad_runtime
 
 
 def _parse_lib_table() -> list[dict]:
     """解析 sym-lib-table，返回 [{name, uri, descr}]。"""
     libs = []
-    if not SYM_LIB_TABLE.exists():
+    table = resolve_kicad_runtime().symbol_lib_table
+    if not table.exists():
         return libs
-    text = SYM_LIB_TABLE.read_text(encoding="utf-8")
+    text = table.read_text(encoding="utf-8")
     for m in re.finditer(
             r'\(lib\s+\(name\s+"([^"]+)"\)\s+\(type\s+"([^"]+)"\)\s+\(uri\s+"([^"]+)"\)'
             r'(?:\s+\(options\s+"[^"]*"\))?(?:\s+\(descr\s+"([^"]*)"\))?',
@@ -93,8 +92,9 @@ def kicad_sch_search_symbols(query: str, library: str = "",
         searched.add(uri)
 
     # 再搜系统符号目录中未挂载的库（保证所有系统符号可被调用）
-    if not library and SYSTEM_SYMBOL_DIR.is_dir():
-        for d in sorted(SYSTEM_SYMBOL_DIR.glob("*.kicad_symdir")):
+    system_symbol_dir = resolve_kicad_runtime().symbol_dir
+    if not library and system_symbol_dir.is_dir():
+        for d in sorted(system_symbol_dir.glob("*.kicad_symdir")):
             if d in searched:
                 continue
             for name in _symbol_files(d):

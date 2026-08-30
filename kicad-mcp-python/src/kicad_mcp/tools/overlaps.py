@@ -23,6 +23,7 @@ from ..client import KiCadClient
 from ..proto.common.types import base_types_pb2, enums_pb2
 from ..proto.schematic import schematic_types_pb2
 from .common import kicad_save_document
+from .geometry import Box, GeometryModel
 from .schematic import (
     MM,
     KOT_MAP,
@@ -50,20 +51,11 @@ def _text_width_mm(text: str, size_mm: float) -> float:
 
 
 def _label_box_mm(text: str, x_mm: float, y_mm: float,
-                  size_mm: float) -> tuple:
-    """标签占用框，用 KiCad 真实文字几何：
-
-    - 文字中心 = 锚点 + 1.43mm（L_BIDI 的 GetSchematicTextOffset）
-    - 文字半宽 ≈ len*size*0.55；文字右缘 = 锚点 + 1.43 + 半宽
-    - 图形框从锚点向左延伸（宽约 1.5mm 的 margin/箭头）
-
-    之前用 len*size*0.62 估算文字宽会**低估**（漏报左侧标签文字贴符号），
-    这里用真实几何，能抓到“文字右缘碰键本体”这类真实重叠。
-    """
-    offset = 1.43
-    half = max(size_mm / 2, len(text) * size_mm * 0.55)
-    return (x_mm - 1.5, y_mm - size_mm / 2,
-            x_mm + offset + half, y_mm + size_mm / 2)
+                  size_mm: float, spin: str = "left",
+                  shape: str = "local") -> tuple:
+    return GeometryModel.label_box(
+        text, x_mm, y_mm, size_mm, spin, shape
+    ).as_tuple()
 
 
 def _read_elements() -> tuple:
@@ -105,7 +97,8 @@ def _read_elements() -> tuple:
             syms.append({"id": s.id.value, "ref": ref,
                          "lib": s.lib_id.library_nickname,
                          "entry": s.lib_id.entry_name,
-                         "x": x, "y": y, "bbox": bbox})
+                         "x": x, "y": y, "bbox": bbox,
+                         "pins": [(px / MM, py / MM) for px, py in pins.values()]})
         elif a.Is(schematic_types_pb2.Line.DESCRIPTOR):
             ln = schematic_types_pb2.Line()
             a.Unpack(ln)
@@ -127,9 +120,16 @@ def _read_elements() -> tuple:
                     x, y = l.position.x_nm / MM, l.position.y_nm / MM
                     size = (l.text.text.attributes.size.x_nm / MM
                             if l.text.text.attributes.HasField("size") else 1.27)
+                    spin = {
+                        schematic_types_pb2.LSPIN_LEFT: "left",
+                        schematic_types_pb2.LSPIN_UP: "up",
+                        schematic_types_pb2.LSPIN_RIGHT: "right",
+                        schematic_types_pb2.LSPIN_DOWN: "down",
+                    }.get(l.spin, "left")
                     labels.append({"id": l.id.value, "type": kind, "text": text,
-                                   "x": x, "y": y, "size": size,
-                                   "box": _label_box_mm(text, x, y, size)})
+                                   "x": x, "y": y, "size": size, "spin": spin,
+                                   "box": _label_box_mm(text, x, y, size,
+                                                        spin, kind)})
                     break
     return syms, labels, wires_mm
 
@@ -157,9 +157,11 @@ def _label_wire(label, wires_mm):
 # 检查
 # ---------------------------------------------------------------------------
 
-def _check(syms, labels, wires_mm, page_w, page_h, margin) -> dict:
+def _check(syms, labels, wires_mm, page_w, page_h, margin,
+           clearance_mm: float = 0.0) -> dict:
     """返回 {sym_sym:[(a,b)], sym_lab:[...], lab_lab:[...], out:[(kind,desc)]}。"""
-    res = {"sym_sym": [], "sym_lab": [], "lab_lab": [], "out": []}
+    res = {"sym_sym": [], "sym_lab": [], "lab_lab": [],
+           "wire_sym": [], "out": []}
     # 符号-符号
     for i in range(len(syms)):
         for j in range(i + 1, len(syms)):
@@ -168,13 +170,23 @@ def _check(syms, labels, wires_mm, page_w, page_h, margin) -> dict:
     # 符号-标签
     for s in syms:
         for l in labels:
-            if _bbox_overlap(s["bbox"], l["box"]):
+            if Box(*s["bbox"]).overlaps(Box(*l["box"]), clearance_mm):
                 res["sym_lab"].append((s["ref"], l["text"]))
     # 标签-标签
     for i in range(len(labels)):
         for j in range(i + 1, len(labels)):
-            if _bbox_overlap(labels[i]["box"], labels[j]["box"]):
+            if Box(*labels[i]["box"]).overlaps(
+                Box(*labels[j]["box"]), clearance_mm
+            ):
                 res["lab_lab"].append((labels[i]["text"], labels[j]["text"]))
+    # 导线-非所属符号：接触该符号任一引脚的线视为该符号所属网络。
+    for wire in wires_mm:
+        wire_box = GeometryModel.segment_box(wire[0], wire[1])
+        for symbol in syms:
+            if any(_wire_touches(wire, *pin) for pin in symbol.get("pins", [])):
+                continue
+            if wire_box.overlaps(Box(*symbol["bbox"]), clearance_mm):
+                res["wire_sym"].append((wire[2], symbol["ref"]))
     # 越界
     for s in syms:
         x0, y0, x1, y1 = s["bbox"]
@@ -189,7 +201,7 @@ def _check(syms, labels, wires_mm, page_w, page_h, margin) -> dict:
 
 def _fmt_report(res: dict) -> list:
     lines = []
-    n = len(res["sym_sym"]) + len(res["sym_lab"]) + len(res["lab_lab"]) + len(res["out"])
+    n = sum(len(res[key]) for key in ("sym_sym", "sym_lab", "lab_lab", "wire_sym", "out"))
     lines.append(f"共 {n} 处问题")
     if res["sym_sym"]:
         lines.append("  · 符号重叠: " + ", ".join(f"{a}<->{b}" for a, b in res["sym_sym"][:8]))
@@ -197,6 +209,10 @@ def _fmt_report(res: dict) -> list:
         lines.append("  · 标签压符号: " + ", ".join(f"{b}@{a}" for a, b in res["sym_lab"][:8]))
     if res["lab_lab"]:
         lines.append("  · 标签互叠: " + ", ".join(f"{a}+{b}" for a, b in res["lab_lab"][:8]))
+    if res["wire_sym"]:
+        lines.append("  · 导线净距不足: " + ", ".join(
+            f"{wire}@{ref}" for wire, ref in res["wire_sym"][:8]
+        ))
     if res["out"]:
         lines.append("  · 越界:")
         for kind, desc in res["out"][:10]:
@@ -206,12 +222,14 @@ def _fmt_report(res: dict) -> list:
 
 def kicad_sch_check_overlaps(
     page_margin_mm: float = DEFAULT_MARGIN,
+    clearance_mm: float = 1.27,
     sch_file: Optional[str] = None,
 ) -> str:
     """检查当前原理图元素的重叠与越界（符号/标签/文字框）。
 
     Args:
         page_margin_mm: 内容边距（元素不能超出 图纸-边距，默认 5mm）。
+        clearance_mm: 标签与标签/符号的最小净距（默认 1.27mm）。
         sch_file: 原理图路径；不传用当前 eeschema 打开的文档。
 
     Returns:
@@ -220,11 +238,12 @@ def kicad_sch_check_overlaps(
     """
     w, h = _sheet_size_mm(sch_file)
     syms, labels, wires = _read_elements()
-    res = _check(syms, labels, wires, w, h, page_margin_mm)
-    n = len(res["sym_sym"]) + len(res["sym_lab"]) + len(res["lab_lab"]) + len(res["out"])
+    res = _check(syms, labels, wires, w, h, page_margin_mm, clearance_mm)
+    n = sum(len(res[key]) for key in ("sym_sym", "sym_lab", "lab_lab", "wire_sym", "out"))
     head = ("✅ 无重叠/越界" if n == 0
             else f"❌ 发现 {n} 处重叠/越界")
-    lines = [f"🔎 重叠/越界检查（{w:.0f}x{h:.0f}mm，边距 {page_margin_mm}mm）：{head}"]
+    lines = [f"🔎 重叠/净距/越界检查（{w:.0f}x{h:.0f}mm，边距 "
+             f"{page_margin_mm}mm，净距 {clearance_mm}mm）：{head}"]
     lines += _fmt_report(res)
     return "\n".join(lines)
 
@@ -406,8 +425,10 @@ def kicad_sch_fix_overlaps(
     for it in range(1, max_iterations + 1):
         syms, labels, wires = _read_elements()
         res = _check(syms, labels, wires, w, h, page_margin_mm)
-        n_problem = (len(res["sym_sym"]) + len(res["sym_lab"])
-                     + len(res["lab_lab"]) + len(res["out"]))
+        n_problem = sum(
+            len(res[key])
+            for key in ("sym_sym", "sym_lab", "lab_lab", "wire_sym", "out")
+        )
         if n_problem == 0:
             lines.append(f"第{it}轮后：全部干净 ✅")
             break
@@ -521,7 +542,10 @@ def kicad_sch_fix_overlaps(
     # 最终报告
     syms, labels, wires = _read_elements()
     res = _check(syms, labels, wires, w, h, page_margin_mm)
-    n = (len(res["sym_sym"]) + len(res["sym_lab"]) + len(res["lab_lab"]) + len(res["out"]))
+    n = sum(
+        len(res[key])
+        for key in ("sym_sym", "sym_lab", "lab_lab", "wire_sym", "out")
+    )
     lines.append(f"— 重摆完成：共移动 {total_fixed} 处，剩余问题 {n} —")
     lines += _fmt_report(res)
     return "\n".join(lines)

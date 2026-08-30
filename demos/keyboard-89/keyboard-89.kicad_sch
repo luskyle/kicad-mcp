@@ -19,20 +19,42 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(stroke (width 0) (type solid))
-		(fill (color 0 0 0 0.0000))
+		(fields_autoplaced yes)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
 		(uuid "a98ad176-1f13-43e6-9655-ad6000010001")
 		(property "Sheetname" "Controller"
 			(at 50.8 50.0375 0)
-			(effects (font (size 1.524 1.524)) (justify left bottom))
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left bottom)
+			)
 		)
 		(property "Sheetfile" "keyboard_controller.kicad_sch"
 			(at 50.8 89.6625 0)
-			(effects (font (size 1.524 1.524)) (justify left top))
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left top)
+			)
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5" (page "2"))
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+					(page "4")
+				)
 			)
 		)
 	)
@@ -43,25 +65,49 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(stroke (width 0) (type solid))
-		(fill (color 0 0 0 0.0000))
+		(fields_autoplaced yes)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
 		(uuid "a98ad176-1f13-43e6-9655-ad6000010002")
 		(property "Sheetname" "Matrix"
 			(at 152.4 50.0375 0)
-			(effects (font (size 1.524 1.524)) (justify left bottom))
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left bottom)
+			)
 		)
 		(property "Sheetfile" "keyboard_matrix.kicad_sch"
 			(at 152.4 89.6625 0)
-			(effects (font (size 1.524 1.524)) (justify left top))
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left top)
+			)
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5" (page "3"))
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+					(page "5")
+				)
 			)
 		)
 	)
 	(sheet_instances
-		(path "/" (page "1"))
+		(path "/"
+			(page "1")
+		)
 	)
 	(embedded_fonts no)
 )

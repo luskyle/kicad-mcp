@@ -25,6 +25,7 @@ import subprocess
 import tempfile
 from typing import Optional
 
+from ..runtime import kicad_cli_env
 from ..symbols import parse_sexpr
 from .common import kicad_save_document
 from .schematic import (
@@ -59,13 +60,7 @@ _BLOCKING_DESC = (
 
 def _kicad_cli_env() -> dict:
     """隔离 Python 环境，并按平台设置 KiCad CLI 运行环境。"""
-    env = dict(os.environ)
-    for k in ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONHOME", "PYTHONPATH"):
-        env.pop(k, None)
-    if os.name != "nt":
-        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-        env.setdefault("KICAD_STOCK_DATA_HOME", "/tmp/squashfs-root/share/kicad")
-    return env
+    return kicad_cli_env()
 
 
 def _run_cli(args: list, timeout: int = 180) -> subprocess.CompletedProcess:

@@ -19,9 +19,10 @@ dev = ["pytest>=7"]
 
 [project.scripts]
 kicad-mcp = "kicad_mcp.__main__:main"
+kicad-mcp-quality = "kicad_mcp.quality_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-kicad_mcp = ["proto/**/*.py"]
+kicad_mcp = ["proto/**/*.py", "resources/*.kicad_pro"]

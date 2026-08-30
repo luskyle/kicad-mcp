@@ -209,6 +209,23 @@ class KiCadClient:
         req.document.CopyFrom(doc)
         self._call(req)
 
+    def close_document(self, doc: base_types_pb2.DocumentSpecifier) -> None:
+        """Close a saved document after the API response is sent."""
+        req = editor_commands_pb2.CloseDocument()
+        req.document.CopyFrom(doc)
+        self._call(req)
+
+    def get_schematic_state(
+        self, doc: base_types_pb2.DocumentSpecifier
+    ) -> "editor_commands_pb2.GetSchematicStateResponse":
+        """Return unsaved-change and load-repair state for a schematic."""
+        req = editor_commands_pb2.GetSchematicState()
+        req.document.CopyFrom(doc)
+        resp = self._call(req)
+        out = editor_commands_pb2.GetSchematicStateResponse()
+        resp.message.Unpack(out)
+        return out
+
     def simulate(self, doc: base_types_pb2.DocumentSpecifier,
                  signal: str = "",
                  signals: list[str] | None = None,

@@ -12,8 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-# KiCad 10 符号库根目录（AppImage 解包位置，可由环境变量覆盖）
-DEFAULT_LIB_ROOT = Path("/tmp/squashfs-root/share/kicad/symbols")
+from .runtime import resolve_kicad_runtime
 
 
 @dataclass
@@ -103,8 +102,9 @@ def parse_pins(sym_node) -> List[SymbolPin]:
 
 
 def load_symbol(lib_name: str, sym_name: str,
-                lib_root: Path = DEFAULT_LIB_ROOT) -> Optional[dict]:
+                lib_root: Optional[Path] = None) -> Optional[dict]:
     """加载符号定义，返回 { 'name': str, 'pins': [SymbolPin] }；找不到返回 None。"""
+    lib_root = lib_root or resolve_kicad_runtime().symbol_dir
     path = lib_root / f"{lib_name}.kicad_symdir" / f"{sym_name}.kicad_sym"
     if not path.exists():
         return None
@@ -117,7 +117,7 @@ def load_symbol(lib_name: str, sym_name: str,
 
 
 def get_pins(lib_name: str, sym_name: str,
-             lib_root: Path = DEFAULT_LIB_ROOT) -> List[SymbolPin]:
+             lib_root: Optional[Path] = None) -> List[SymbolPin]:
     """获取符号的引脚（相对符号中心，mm）。"""
     sym = load_symbol(lib_name, sym_name, lib_root)
     return sym['pins'] if sym else []

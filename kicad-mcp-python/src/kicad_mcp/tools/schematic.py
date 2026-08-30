@@ -26,6 +26,7 @@ from ..client import (
 from ..proto.common.commands import editor_commands_pb2
 from ..proto.common.types import base_types_pb2, enums_pb2
 from ..proto.schematic import schematic_types_pb2
+from ..runtime import find_kicad_cli, kicad_cli_env
 from ..symbols import absolute_pin, get_pins# 原理图内部单位: SCH_IU_PER_MM = 1e4 (1 IU = 100nm)。KiCad API 的 x_nm 字段
 # 实际存的就是内部 IU（PackVector2/UnpackVector2 不做单位换算），因此原理图
 # 坐标换算 1mm = 1e4，而不是 PCB 的 1e6（PCB_IU_PER_MM = 1e6）。
@@ -87,21 +88,7 @@ def _current_sch_path() -> str:
 
 def _find_kicad_cli() -> str:
     """定位 kicad-cli：优先环境变量，其次常见编译路径，最后 PATH。"""
-    env = os.environ.get("KICAD_CLI")
-    if env:
-        return env
-    repo_root = Path(__file__).resolve().parents[4]
-    candidates = [
-        repo_root / "build/install/msvc-local-release/bin/kicad-cli.exe",
-        repo_root / "build/msvc-local-release/kicad/Release/kicad-cli.exe",
-        "/media/luskyle/DATA/project/kicad-mcp/build/kicad/kicad-cli",
-        "/usr/local/bin/kicad-cli",
-        "/usr/bin/kicad-cli",
-    ]
-    for c in candidates:
-        if os.path.exists(c):
-            return str(c)
-    return "kicad-cli.exe" if os.name == "nt" else "kicad-cli"
+    return find_kicad_cli()
 
 
 def _check_create_resp(resp) -> None:
@@ -610,19 +597,12 @@ def kicad_sch_erc(sch_file: Optional[str] = None,
 
     kicad_cli = _find_kicad_cli()
 
-    # 隔离 conda 环境 + 指向资源目录（与运行 eeschema 一致）
-    env = dict(os.environ)
-    env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    for k in ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONHOME", "PYTHONPATH"):
-        env.pop(k, None)
-    env.setdefault("KICAD_STOCK_DATA_HOME", "/tmp/squashfs-root/share/kicad")
-
     tmp = tempfile.mktemp(suffix=".json")
     try:
         proc = subprocess.run(
             [kicad_cli, "sch", "erc", "--format", "json", "--severity-all",
              sch_file, "-o", tmp],
-            capture_output=True, text=True, env=env, timeout=180,
+            capture_output=True, text=True, env=kicad_cli_env(), timeout=180,
         )
         if not os.path.exists(tmp):
             return (f"ERC 运行失败 (exit {proc.returncode}): "
@@ -656,6 +636,24 @@ def kicad_sch_erc(sch_file: Optional[str] = None,
         if loc:
             lines.append(f"        -> {loc}")
     return "\n".join(lines)
+
+
+def kicad_sch_reload_gate() -> str:
+    """Check whether KiCad repaired the schematic during its current load.
+
+    Run this after closing and reopening a generated schematic. A pass means
+    the parser did not repair the file and the reopened document has no
+    unsaved content changes.
+    """
+    url, header = _sch_context()
+    with KiCadClient(url, client_name="kicad-mcp") as kc:
+        state = kc.get_schematic_state(header.document)
+
+    if state.load_had_repairs:
+        return "❌ 重载门禁失败: KiCad 在打开原理图时自动修复了文件"
+    if state.content_modified:
+        return "❌ 重载门禁失败: 重开后的原理图存在未保存修改"
+    return "✅ 重载门禁通过: 加载无自动修复，文档无未保存修改"
 
 
 def kicad_sch_simulate(

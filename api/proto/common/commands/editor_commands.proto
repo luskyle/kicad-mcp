@@ -52,6 +52,30 @@ message SaveDocument
   kiapi.common.types.DocumentSpecifier document = 1;
 }
 
+// (kicad-mcp patch) Closes a clean document after the API response is sent.
+message CloseDocument
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+// (kicad-mcp patch) Returns schematic state needed by save/reload quality gates.
+message GetSchematicState
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message GetSchematicStateResponse
+{
+  // True when the in-memory schematic contains unsaved changes.
+  bool content_modified = 1;
+
+  // True when the parser or page-number repair changed the file during load.
+  bool load_had_repairs = 2;
+
+  // Process hosting this editor, used to complete a controlled reload.
+  uint64 process_id = 3;
+}
+
 // (kicad-mcp patch) Run the SPICE simulation in KiCad's built-in simulator and
 // show the waveform results in the integrated GUI (eeschema Simulator frame).
 // Requires the schematic to contain a simulation directive (e.g. ".tran ...").

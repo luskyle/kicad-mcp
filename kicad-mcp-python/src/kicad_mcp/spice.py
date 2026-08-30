@@ -31,6 +31,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from .runtime import find_kicad_cli as runtime_find_kicad_cli, kicad_cli_env
 from pathlib import Path
 
 # ---------------- ngspice 调用 ----------------
@@ -608,34 +609,19 @@ def detect_simulation(netlist: str) -> dict:
 
 
 def find_kicad_cli() -> str:
-    env = os.environ.get("KICAD_CLI")
-    if env:
-        return env
-    for c in [
-        "/media/luskyle/DATA/project/kicad-mcp/build/kicad/kicad-cli",
-        "/usr/local/bin/kicad-cli",
-        "/usr/bin/kicad-cli",
-    ]:
-        if os.path.exists(c):
-            return c
-    return "kicad-cli"
+    return runtime_find_kicad_cli()
 
 
 def export_spice_netlist(sch_file: str) -> str:
     """用 kicad-cli 把原理图导出为 SPICE netlist 文本。"""
     kicad_cli = find_kicad_cli()
-    env = dict(os.environ)
-    env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    for k in ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONHOME", "PYTHONPATH"):
-        env.pop(k, None)
-    env.setdefault("KICAD_STOCK_DATA_HOME", "/tmp/squashfs-root/share/kicad")
 
     with tempfile.TemporaryDirectory() as td:
         out = os.path.join(td, "net.spice")
         proc = subprocess.run(
             [kicad_cli, "sch", "export", "netlist", "--format", "spice",
              sch_file, "-o", out],
-            capture_output=True, text=True, env=env, timeout=120,
+            capture_output=True, text=True, env=kicad_cli_env(), timeout=120,
         )
         if not os.path.exists(out):
             raise RuntimeError(

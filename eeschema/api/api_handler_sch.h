@@ -75,6 +75,12 @@ private:
     HANDLER_RESULT<google::protobuf::Empty> handleSaveDocument(
             const HANDLER_CONTEXT<commands::SaveDocument>& aCtx );
 
+    HANDLER_RESULT<google::protobuf::Empty> handleCloseDocument(
+            const HANDLER_CONTEXT<commands::CloseDocument>& aCtx );
+
+    HANDLER_RESULT<commands::GetSchematicStateResponse> handleGetSchematicState(
+            const HANDLER_CONTEXT<commands::GetSchematicState>& aCtx );
+
     // (kicad-mcp patch) GetItems support: read schematic items back over the
     // API so clients can inspect the current schematic (position planning,
     // verification, etc.).  Only types with a concrete serialization

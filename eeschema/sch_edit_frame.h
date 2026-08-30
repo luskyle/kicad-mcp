@@ -182,6 +182,8 @@ public:
      */
     bool IsContentModified() const override;
 
+    bool LastLoadHadRepairs() const { return m_lastLoadHadRepairs; }
+
     /**
      * Must be called after a schematic change in order to set the "modify" flag and update other
      * data structures and GUI elements.
@@ -1060,6 +1062,7 @@ private:
     };
 
     SCHEMATIC*                  m_schematic;          ///< The currently loaded schematic
+    bool                        m_lastLoadHadRepairs = false;
     wxString                    m_highlightedConn;    ///< The highlighted net or bus or empty string.
 
     wxPageSetupDialogData       m_pageSetupData;

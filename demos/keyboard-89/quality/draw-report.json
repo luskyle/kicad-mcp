@@ -1,0 +1,134 @@
+{
+  "schematic": "C:\\Users\\84480\\Project\\kicad-mcp\\demos\\keyboard-89\\keyboard-89.kicad_sch",
+  "status": "passed",
+  "schema_version": 1,
+  "gates": [
+    {
+      "name": "schema",
+      "status": "passed",
+      "duration_ms": 783,
+      "message": "KiCad 工程预检通过: C:\\Users\\84480\\Project\\kicad-mcp\\demos\\keyboard-89\\keyboard-89.kicad_pro",
+      "metrics": {
+        "hierarchy_issues": 0
+      }
+    },
+    {
+      "name": "topology",
+      "status": "passed",
+      "duration_ms": 1324,
+      "message": "层级与连接图可解析",
+      "metrics": {
+        "sheets": 3,
+        "connections": 232
+      }
+    },
+    {
+      "name": "erc",
+      "status": "passed",
+      "duration_ms": 1318,
+      "message": "ERC blocking 为 0",
+      "metrics": {
+        "blocking": 0,
+        "benign": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "name": "geometry",
+      "status": "passed",
+      "duration_ms": 77,
+      "message": "🔎 重叠/净距/越界检查（297x210mm，边距 5.0mm，净距 1.27mm）：✅ 无重叠/越界",
+      "metrics": {
+        "clearance_mm": 1.27
+      }
+    },
+    {
+      "name": "reload",
+      "status": "passed",
+      "duration_ms": 6656,
+      "message": "✅ 重载门禁通过: 第 1 轮通过；加载无修复且语义快照稳定",
+      "metrics": {
+        "rounds": 1
+      }
+    },
+    {
+      "name": "visual",
+      "status": "passed",
+      "duration_ms": 1224,
+      "message": "✅ 已渲染原理图（3 页）",
+      "metrics": {
+        "files": 3,
+        "bytes": 2793060,
+        "drawable_elements": 40647,
+        "measurements": [
+          {
+            "drawable_elements": 16730,
+            "text_elements": 423,
+            "viewbox": [
+              0.0,
+              0.0,
+              419.989,
+              297.0022
+            ],
+            "ink_bounds": [
+              10.0,
+              9.9167,
+              410.72229999999996,
+              287.0022
+            ],
+            "inside_page": true,
+            "minimum_text_clearance_mm": 0.0
+          },
+          {
+            "drawable_elements": 21175,
+            "text_elements": 689,
+            "viewbox": [
+              0.0,
+              0.0,
+              419.989,
+              297.0022
+            ],
+            "ink_bounds": [
+              10.0,
+              9.9167,
+              410.72229999999996,
+              287.0022
+            ],
+            "inside_page": true,
+            "minimum_text_clearance_mm": 0.0
+          },
+          {
+            "drawable_elements": 2742,
+            "text_elements": 37,
+            "viewbox": [
+              0.0,
+              0.0,
+              297.0022,
+              210.0072
+            ],
+            "ink_bounds": [
+              10.0,
+              9.9167,
+              287.7355,
+              200.0072
+            ],
+            "inside_page": true,
+            "minimum_text_clearance_mm": 0.6999999999999886
+          }
+        ]
+      }
+    },
+    {
+      "name": "golden",
+      "status": "passed",
+      "duration_ms": 0,
+      "message": "连接图与 Golden 一致",
+      "metrics": {}
+    }
+  ],
+  "artifacts": {
+    "report": "C:\\Users\\84480\\Project\\kicad-mcp\\demos\\keyboard-89\\quality\\draw-report.json",
+    "svg_dir": "C:\\Users\\84480\\Project\\kicad-mcp\\demos\\keyboard-89\\quality\\svg",
+    "golden": "C:\\Users\\84480\\Project\\kicad-mcp\\demos\\keyboard-89\\quality\\semantic-snapshot.json"
+  }
+}

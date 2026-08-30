@@ -2,7 +2,7 @@
 	(version 20260306)
 	(generator "eeschema")
 	(generator_version "10.0")
-	(uuid "90509e26-8ec4-4712-b0e0-6bdb2801d7c5")
+	(uuid "74d37da8-9d7b-40c2-9560-7fb864926289")
 	(paper "A3")
 	(title_block
 		(title "按键原理图")
@@ -9099,7 +9099,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D33")
 					(unit 1)
 				)
@@ -9200,7 +9200,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D63")
 					(unit 1)
 				)
@@ -9308,7 +9308,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-G1")
 					(unit 1)
 				)
@@ -9409,7 +9409,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D7")
 					(unit 1)
 				)
@@ -9510,7 +9510,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D87")
 					(unit 1)
 				)
@@ -9611,7 +9611,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D40")
 					(unit 1)
 				)
@@ -9719,7 +9719,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-N1")
 					(unit 1)
 				)
@@ -9820,7 +9820,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D56")
 					(unit 1)
 				)
@@ -9922,7 +9922,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D6")
 					(unit 1)
 				)
@@ -10023,7 +10023,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D16")
 					(unit 1)
 				)
@@ -10124,7 +10124,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D20")
 					(unit 1)
 				)
@@ -10225,7 +10225,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D41")
 					(unit 1)
 				)
@@ -10326,7 +10326,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D55")
 					(unit 1)
 				)
@@ -10427,7 +10427,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D59")
 					(unit 1)
 				)
@@ -10535,7 +10535,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-tab1")
 					(unit 1)
 				)
@@ -10643,7 +10643,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\&1")
 					(unit 1)
 				)
@@ -10744,7 +10744,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D62")
 					(unit 1)
 				)
@@ -10852,7 +10852,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-～1")
 					(unit 1)
 				)
@@ -10960,7 +10960,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-10")
 					(unit 1)
 				)
@@ -11069,7 +11069,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-S1")
 					(unit 1)
 				)
@@ -11177,7 +11177,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-1")
 					(unit 1)
 				)
@@ -11285,7 +11285,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-shift-R1")
 					(unit 1)
 				)
@@ -11393,7 +11393,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-F1")
 					(unit 1)
 				)
@@ -11501,7 +11501,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-4")
 					(unit 1)
 				)
@@ -11609,7 +11609,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-L1")
 					(unit 1)
 				)
@@ -11710,7 +11710,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D57")
 					(unit 1)
 				)
@@ -11818,7 +11818,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-!1")
 					(unit 1)
 				)
@@ -11919,7 +11919,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D89")
 					(unit 1)
 				)
@@ -12020,7 +12020,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D35")
 					(unit 1)
 				)
@@ -12121,7 +12121,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D5")
 					(unit 1)
 				)
@@ -12229,7 +12229,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-Q1")
 					(unit 1)
 				)
@@ -12337,7 +12337,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-alt1")
 					(unit 1)
 				)
@@ -12445,7 +12445,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\-1")
 					(unit 1)
 				)
@@ -12546,7 +12546,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D13")
 					(unit 1)
 				)
@@ -12654,7 +12654,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-O1")
 					(unit 1)
 				)
@@ -12762,7 +12762,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\<,1")
 					(unit 1)
 				)
@@ -12870,7 +12870,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-)1")
 					(unit 1)
 				)
@@ -12978,7 +12978,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-9")
 					(unit 1)
 				)
@@ -13086,7 +13086,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-C1")
 					(unit 1)
 				)
@@ -13187,7 +13187,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D77")
 					(unit 1)
 				)
@@ -13295,7 +13295,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-V1")
 					(unit 1)
 				)
@@ -13396,7 +13396,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D15")
 					(unit 1)
 				)
@@ -13497,7 +13497,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D85")
 					(unit 1)
 				)
@@ -13605,7 +13605,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-8")
 					(unit 1)
 				)
@@ -13706,7 +13706,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D29")
 					(unit 1)
 				)
@@ -13807,7 +13807,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D14")
 					(unit 1)
 				)
@@ -13908,7 +13908,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D30")
 					(unit 1)
 				)
@@ -14009,7 +14009,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D58")
 					(unit 1)
 				)
@@ -14110,7 +14110,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D66")
 					(unit 1)
 				)
@@ -14211,7 +14211,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D34")
 					(unit 1)
 				)
@@ -14312,7 +14312,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D65")
 					(unit 1)
 				)
@@ -14413,7 +14413,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D22")
 					(unit 1)
 				)
@@ -14514,7 +14514,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D12")
 					(unit 1)
 				)
@@ -14622,7 +14622,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-delete1")
 					(unit 1)
 				)
@@ -14730,7 +14730,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\*-R1")
 					(unit 1)
 				)
@@ -14838,7 +14838,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\#1")
 					(unit 1)
 				)
@@ -14946,7 +14946,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\>.1")
 					(unit 1)
 				)
@@ -15054,7 +15054,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-—-1")
 					(unit 1)
 				)
@@ -15155,7 +15155,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D2")
 					(unit 1)
 				)
@@ -15263,7 +15263,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-esc1")
 					(unit 1)
 				)
@@ -15371,7 +15371,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-right1")
 					(unit 1)
 				)
@@ -15472,7 +15472,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D61")
 					(unit 1)
 				)
@@ -15580,7 +15580,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-end1")
 					(unit 1)
 				)
@@ -15688,7 +15688,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-bottom1")
 					(unit 1)
 				)
@@ -15796,7 +15796,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-backspace1")
 					(unit 1)
 				)
@@ -15897,7 +15897,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D27")
 					(unit 1)
 				)
@@ -15999,7 +15999,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D1")
 					(unit 1)
 				)
@@ -16100,7 +16100,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D18")
 					(unit 1)
 				)
@@ -16201,7 +16201,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D26")
 					(unit 1)
 				)
@@ -16309,7 +16309,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-F2")
 					(unit 1)
 				)
@@ -16417,7 +16417,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-F(0-9)1")
 					(unit 1)
 				)
@@ -16518,7 +16518,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D47")
 					(unit 1)
 				)
@@ -16619,7 +16619,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D60")
 					(unit 1)
 				)
@@ -16727,7 +16727,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-B1")
 					(unit 1)
 				)
@@ -16835,7 +16835,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-H1")
 					(unit 1)
 				)
@@ -16943,7 +16943,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\/1")
 					(unit 1)
 				)
@@ -17051,7 +17051,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-5")
 					(unit 1)
 				)
@@ -17152,7 +17152,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D31")
 					(unit 1)
 				)
@@ -17253,7 +17253,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D71")
 					(unit 1)
 				)
@@ -17354,7 +17354,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D67")
 					(unit 1)
 				)
@@ -17455,7 +17455,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D64")
 					(unit 1)
 				)
@@ -17563,7 +17563,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-3")
 					(unit 1)
 				)
@@ -17671,7 +17671,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-T1")
 					(unit 1)
 				)
@@ -17772,7 +17772,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D68")
 					(unit 1)
 				)
@@ -17880,7 +17880,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-(1")
 					(unit 1)
 				)
@@ -17981,7 +17981,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D37")
 					(unit 1)
 				)
@@ -18089,7 +18089,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-top1")
 					(unit 1)
 				)
@@ -18190,7 +18190,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D42")
 					(unit 1)
 				)
@@ -18298,7 +18298,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\*-L1")
 					(unit 1)
 				)
@@ -18399,7 +18399,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D76")
 					(unit 1)
 				)
@@ -18500,7 +18500,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D23")
 					(unit 1)
 				)
@@ -18608,7 +18608,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\+=1")
 					(unit 1)
 				)
@@ -18716,7 +18716,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-:;1")
 					(unit 1)
 				)
@@ -18817,7 +18817,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D17")
 					(unit 1)
 				)
@@ -18925,7 +18925,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\$1")
 					(unit 1)
 				)
@@ -19033,7 +19033,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\+1")
 					(unit 1)
 				)
@@ -19141,7 +19141,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-？/1")
 					(unit 1)
 				)
@@ -19249,7 +19249,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-2")
 					(unit 1)
 				)
@@ -19350,7 +19350,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D21")
 					(unit 1)
 				)
@@ -19451,7 +19451,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D81")
 					(unit 1)
 				)
@@ -19559,7 +19559,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-A1")
 					(unit 1)
 				)
@@ -19660,7 +19660,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D8")
 					(unit 1)
 				)
@@ -19761,7 +19761,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D51")
 					(unit 1)
 				)
@@ -19869,7 +19869,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-D1")
 					(unit 1)
 				)
@@ -19977,7 +19977,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-ctrl1")
 					(unit 1)
 				)
@@ -20085,7 +20085,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-E1")
 					(unit 1)
 				)
@@ -20186,7 +20186,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D44")
 					(unit 1)
 				)
@@ -20287,7 +20287,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D19")
 					(unit 1)
 				)
@@ -20395,7 +20395,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-Y1")
 					(unit 1)
 				)
@@ -20503,7 +20503,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-I1")
 					(unit 1)
 				)
@@ -20604,7 +20604,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D82")
 					(unit 1)
 				)
@@ -20705,7 +20705,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D49")
 					(unit 1)
 				)
@@ -20806,7 +20806,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D86")
 					(unit 1)
 				)
@@ -20914,7 +20914,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-F3")
 					(unit 1)
 				)
@@ -21015,7 +21015,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D84")
 					(unit 1)
 				)
@@ -21116,7 +21116,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D74")
 					(unit 1)
 				)
@@ -21217,7 +21217,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D32")
 					(unit 1)
 				)
@@ -21325,7 +21325,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-windows1")
 					(unit 1)
 				)
@@ -21433,7 +21433,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-enter-L1")
 					(unit 1)
 				)
@@ -21541,7 +21541,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-K1")
 					(unit 1)
 				)
@@ -21649,7 +21649,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-|\\1")
 					(unit 1)
 				)
@@ -21750,7 +21750,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D72")
 					(unit 1)
 				)
@@ -21858,7 +21858,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-pagedown1")
 					(unit 1)
 				)
@@ -21959,7 +21959,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D52")
 					(unit 1)
 				)
@@ -22060,7 +22060,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D9")
 					(unit 1)
 				)
@@ -22168,7 +22168,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-7")
 					(unit 1)
 				)
@@ -22269,7 +22269,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D69")
 					(unit 1)
 				)
@@ -22377,7 +22377,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-{[1")
 					(unit 1)
 				)
@@ -22485,7 +22485,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-W1")
 					(unit 1)
 				)
@@ -22593,7 +22593,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-blankspace1")
 					(unit 1)
 				)
@@ -22694,7 +22694,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D45")
 					(unit 1)
 				)
@@ -22795,7 +22795,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D38")
 					(unit 1)
 				)
@@ -22896,7 +22896,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D24")
 					(unit 1)
 				)
@@ -22997,7 +22997,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D70")
 					(unit 1)
 				)
@@ -23098,7 +23098,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D75")
 					(unit 1)
 				)
@@ -23206,7 +23206,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-printscreen1")
 					(unit 1)
 				)
@@ -23307,7 +23307,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D80")
 					(unit 1)
 				)
@@ -23408,7 +23408,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D11")
 					(unit 1)
 				)
@@ -23516,7 +23516,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-M1")
 					(unit 1)
 				)
@@ -23624,7 +23624,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-J1")
 					(unit 1)
 				)
@@ -23732,7 +23732,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-X1")
 					(unit 1)
 				)
@@ -23840,7 +23840,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-capslock1")
 					(unit 1)
 				)
@@ -23941,7 +23941,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D10")
 					(unit 1)
 				)
@@ -24042,7 +24042,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D3")
 					(unit 1)
 				)
@@ -24150,7 +24150,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-6")
 					(unit 1)
 				)
@@ -24258,7 +24258,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-U1")
 					(unit 1)
 				)
@@ -24366,7 +24366,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-}]1")
 					(unit 1)
 				)
@@ -24467,7 +24467,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D25")
 					(unit 1)
 				)
@@ -24568,7 +24568,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D39")
 					(unit 1)
 				)
@@ -24676,7 +24676,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-pageup1")
 					(unit 1)
 				)
@@ -24784,7 +24784,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-`1")
 					(unit 1)
 				)
@@ -24885,7 +24885,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D48")
 					(unit 1)
 				)
@@ -24986,7 +24986,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D78")
 					(unit 1)
 				)
@@ -25094,7 +25094,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-Z1")
 					(unit 1)
 				)
@@ -25202,7 +25202,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-^1")
 					(unit 1)
 				)
@@ -25303,7 +25303,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D88")
 					(unit 1)
 				)
@@ -25411,7 +25411,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-left1")
 					(unit 1)
 				)
@@ -25519,7 +25519,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-“‘1")
 					(unit 1)
 				)
@@ -25620,7 +25620,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D46")
 					(unit 1)
 				)
@@ -25721,7 +25721,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D36")
 					(unit 1)
 				)
@@ -25822,7 +25822,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D54")
 					(unit 1)
 				)
@@ -25930,7 +25930,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-enter-R1")
 					(unit 1)
 				)
@@ -26038,7 +26038,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-shift-L1")
 					(unit 1)
 				)
@@ -26139,7 +26139,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D43")
 					(unit 1)
 				)
@@ -26240,7 +26240,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D53")
 					(unit 1)
 				)
@@ -26348,7 +26348,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\%1")
 					(unit 1)
 				)
@@ -26456,7 +26456,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-R1")
 					(unit 1)
 				)
@@ -26557,7 +26557,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D79")
 					(unit 1)
 				)
@@ -26665,7 +26665,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-\\.1")
 					(unit 1)
 				)
@@ -26766,7 +26766,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D83")
 					(unit 1)
 				)
@@ -26874,7 +26874,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-@1")
 					(unit 1)
 				)
@@ -26975,7 +26975,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D73")
 					(unit 1)
 				)
@@ -27076,7 +27076,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D50")
 					(unit 1)
 				)
@@ -27184,7 +27184,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-P1")
 					(unit 1)
 				)
@@ -27292,7 +27292,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-home1")
 					(unit 1)
 				)
@@ -27393,7 +27393,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D28")
 					(unit 1)
 				)
@@ -27501,7 +27501,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "TC-F4")
 					(unit 1)
 				)
@@ -27602,7 +27602,7 @@
 		)
 		(instances
 			(project "keyboard-89"
-				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010002"
 					(reference "D4")
 					(unit 1)
 				)
@@ -27611,8 +27611,7 @@
 	)
 	(sheet_instances
 		(path "/"
-			(page "1")
+			(page "3")
 		)
 	)
-	(embedded_fonts no)
 )

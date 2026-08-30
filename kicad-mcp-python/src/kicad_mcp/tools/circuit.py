@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import json
-import os
+import time
 from collections import deque
 from pathlib import Path
 from typing import Optional
@@ -24,7 +24,18 @@ from typing import Optional
 from ..client import KiCadClient
 from ..proto.common.types import base_types_pb2, enums_pb2
 from ..proto.schematic import schematic_types_pb2
+from ..runtime import resolve_kicad_runtime
 from .common import kicad_save_document
+from .constraint_layout import apply_constraints
+from .draw_report import DrawReport
+from .geometry import Box, GeometryModel
+from .label_placement import solve_label_candidate
+from .pathfinding import (
+    OccupancyGrid,
+    find_orthogonal_path,
+    validate_routed_segments,
+)
+from .project import ensure_kicad_project
 from .render import kicad_sch_render
 from .schematic import (
     MM,
@@ -63,9 +74,7 @@ def _get_symbol_pins(lib: str, name: str):
     except RuntimeError:
         pass
 
-    stock_home = os.environ.get("KICAD_STOCK_DATA_HOME")
-    if stock_home:
-        roots.append(Path(stock_home) / "symbols")
+    roots.append(resolve_kicad_runtime().symbol_dir)
 
     for root in roots:
         pins = get_pins(lib, name, root)
@@ -382,6 +391,30 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
     gap = float(opts.get("gap_mm", 0.0) or 0.0)
     mode = opts.get("mode", "auto")
 
+    def _constrain(out: dict) -> dict:
+        constraints = opts.get("constraints")
+        if not constraints:
+            return out
+        label_reserve = 2 * float(opts.get("label_clearance_mm", 1.27))
+        sizes = {
+            s.get("ref"): (
+                _sym_size_mm(s)[0] + label_reserve,
+                _sym_size_mm(s)[1] + label_reserve,
+            )
+            for s in symbols
+        }
+        try:
+            page_size = _sheet_size_mm()
+        except RuntimeError:
+            page_size = None
+        constrained, diagnostics = apply_constraints(
+            out, sizes, constraints, page_size=page_size
+        )
+        opts["_constraint_diagnostics"] = diagnostics.as_dict()
+        if diagnostics.violations:
+            raise RuntimeError("布局约束失败: " + "; ".join(diagnostics.violations))
+        return constrained
+
     non_power = [s for s in symbols if not _is_power_spec(s)]
     power = [s for s in symbols if _is_power_spec(s)]
 
@@ -400,7 +433,7 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
         # positions 里给 orient 的尊重用户；没给 orient 的自动朝向邻居。
         if mode in ("auto", "flow"):
             out = _orient_toward_pins(out, symbols, nets)
-        return out
+        return _constrain(out)
 
     # 间距：按最大符号尺寸自适应（gap 为最小值）。行间距要留出 trunk 布线通道，
     # 否则同一行所有水平导线会因共线被 KiCad 合并成一条贯穿线（短路）。
@@ -480,7 +513,7 @@ def _compute_layout(symbols: list, nets: list, opts: dict) -> dict:
     # 左侧的按键 K6，而不是朝右绕线）。仅 auto/flow 模式自动，grid 不干预。
     if mode in ("auto", "flow"):
         out = _orient_toward_pins(out, symbols, nets)
-    return out
+    return _constrain(out)
 
 
 def _center_layout(layout: dict, symbols: list, opts: dict) -> dict:
@@ -839,7 +872,9 @@ def _route_net_trunk(pin_refs: list, obstacles_mm: list,
                      used_lanes_iu: list, owner_bbox_map: dict,
                      preferred_lane: Optional[int] = None,
                      used_collector_xs: Optional[list] = None,
-                     used_segs_iu: Optional[list] = None) -> tuple:
+                     used_segs_iu: Optional[list] = None,
+                     enable_pathfinding: bool = False,
+                     net_name: str = "net") -> tuple:
     """用独立 trunk 道连接网络的所有引脚（每网络一条专属水平道）。
 
     设计要点（防止 KiCad 把共线导线合并短路）:
@@ -891,6 +926,60 @@ def _route_net_trunk(pin_refs: list, obstacles_mm: list,
             final = [s for s in dsegs if s[0] != s[1]]
             used_segs_iu.extend(final)
             return final, None, []
+        if enable_pathfinding:
+            grid = OccupancyGrid(1.27)
+            for obstacle in body:
+                if obstacle not in allow_bodies:
+                    grid.occupy_box(Box(*obstacle))
+            for used in used_segs_iu:
+                start = grid.point_to_cell((used[0][0] / MM, used[0][1] / MM))
+                end = grid.point_to_cell((used[1][0] / MM, used[1][1] / MM))
+                grid.occupy_segment((start, end), "#routed")
+            path = find_orthogonal_path(
+                grid,
+                (pins_iu[0][0] / MM, pins_iu[0][1] / MM),
+                (pins_iu[1][0] / MM, pins_iu[1][1] / MM),
+                net_name,
+            )
+            final = [
+                ((round(a[0] * MM), round(a[1] * MM)),
+                 (round(b[0] * MM), round(b[1] * MM)))
+                for a, b in path if a != b
+            ]
+            used_segs_iu.extend(final)
+            return final, None, []
+    if enable_pathfinding and used_segs_iu is not None and len(pin_refs) > 2:
+        allowed_bodies = {
+            (bbox[0] + 2.54, bbox[1] + 2.54,
+             bbox[2] - 2.54, bbox[3] - 2.54)
+            for bbox in owner_bboxes if bbox is not None
+        }
+        grid = OccupancyGrid(1.27)
+        for obstacle in body:
+            if obstacle not in allowed_bodies:
+                grid.occupy_box(Box(*obstacle))
+        for used in used_segs_iu:
+            start = grid.point_to_cell((used[0][0] / MM, used[0][1] / MM))
+            end = grid.point_to_cell((used[1][0] / MM, used[1][1] / MM))
+            grid.occupy_segment((start, end), "#routed")
+        final = []
+        for start_pin, end_pin in zip(pins_iu, pins_iu[1:]):
+            start_mm = start_pin[0] / MM, start_pin[1] / MM
+            end_mm = end_pin[0] / MM, end_pin[1] / MM
+            grid.owners.pop(grid.point_to_cell(start_mm), None)
+            grid.owners.pop(grid.point_to_cell(end_mm), None)
+            path = find_orthogonal_path(grid, start_mm, end_mm, net_name)
+            branch = [
+                ((round(a[0] * MM), round(a[1] * MM)),
+                 (round(b[0] * MM), round(b[1] * MM)))
+                for a, b in path if a != b
+            ]
+            final.extend(branch)
+            for cell, owner in list(grid.owners.items()):
+                if owner == net_name:
+                    grid.owners[cell] = "#routed"
+        used_segs_iu.extend(final)
+        return final, None, []
     for ob in owner_bboxes:
         if ob is None:
             body_owners.append(None)
@@ -991,6 +1080,12 @@ def _power_rail_lanes(syms: dict, nets: list, power_refs: set,
         # 若被占则往上/往下让一让（交给 _pick_trunk_lane 的首选候选机制）
         out[name] = preferred
     return out
+
+
+def _route_priority(net: dict) -> tuple[int, int, str]:
+    name = str(net.get("name", ""))
+    power = name.upper() in {"GND", "0", "VCC", "VDD", "+3V3", "+5V", "+12V"}
+    return (0 if power else 1, -len(net.get("pins", [])), name)
 
 
 def _mark_unused_pins(nets: list, syms: dict) -> int:
@@ -1319,6 +1414,7 @@ def kicad_sch_auto_layout(
 
 def kicad_sch_auto_route(
     nets_json: str,
+    enable_pathfinding: bool = False,
 ) -> str:
     """批量自动布线：把多个网络的引脚用导线连起来（链式，自动避让）。
 
@@ -1346,8 +1442,9 @@ def kicad_sch_auto_route(
     all_junctions = []
     collector_xs: list = []
     used_segs_iu: list = []   # 已画全部导线段（跨网络防共线）
+    routed_by_net: dict = {}
     n_direct = 0
-    for net in nets:
+    for net in sorted(nets, key=_route_priority):
         name = net.get("name", "?")
         pins = net.get("pins", [])
         if len(pins) < 2:
@@ -1356,20 +1453,25 @@ def kicad_sch_auto_route(
         pin_refs = [(r, _pin_iu(syms, r, p)) for r, p in pins]
         segs, y_lane, junctions = _route_net_trunk(
             pin_refs, obstacles, used_lanes_iu, owner_bbox_map,
-            used_collector_xs=collector_xs, used_segs_iu=used_segs_iu)
+            used_collector_xs=collector_xs, used_segs_iu=used_segs_iu,
+            enable_pathfinding=enable_pathfinding, net_name=name)
         if y_lane is None:
             n_direct += 1
         all_segs += segs
+        routed_by_net[name] = segs
         all_junctions += junctions
         summary.append(f"  {name}: 连接 {len(pins)} 个引脚，{len(segs)} 段导线")
     if n_direct:
         summary.append(f"  ⚡ 智能直连 {n_direct} 个两引脚网络（直接短接，免绕线）")
 
+    route_issues = validate_routed_segments(routed_by_net)
+    if route_issues:
+        raise RuntimeError("路由预检失败: " + "; ".join(route_issues))
     _create_lines(all_segs, all_junctions)
     return "✅ 自动布线完成:\n" + "\n".join(summary)
 
 
-def kicad_sch_draw_circuit(
+def _draw_circuit_impl(
     circuit_json: str,
     clear: Optional[bool] = None,
     run_erc: Optional[bool] = None,
@@ -1426,6 +1528,8 @@ def kicad_sch_draw_circuit(
     render = data.get("render", True) if render is None else render
 
     lines = ["🧩 kicad_sch_draw_circuit 开始"]
+    project_check = ensure_kicad_project(_current_sch_path())
+    lines.append("  · " + project_check.replace("\n", "\n    "))
     if clear:
         n = _clear_sheet()
         lines.append(f"  · 已清空图纸（删除 {n} 个元素）")
@@ -1456,11 +1560,19 @@ def kicad_sch_draw_circuit(
 
     # 布局 + 放置（只放非电源符号）。流向计算用完整符号列表，让电源网络
     # （含已跳过的电源符号）不参与 stage，否则会成环全挤到同一列。
-    layout = _compute_layout(symbols, nets, data.get("layout", {}))
+    layout_opts = data.get("layout", {})
+    layout = _compute_layout(symbols, nets, layout_opts)
     # 智能摆放：整体居中到可用绘制区、避开右下角标题栏（除非 auto_center=false）
     layout = _center_layout(layout, real_symbols, data.get("layout", {}))
     place_msgs = _place_symbols(real_symbols, layout)
     lines.append(f"  · 已放置 {len(real_symbols)} 个符号")
+    constraint_diagnostics = layout_opts.get("_constraint_diagnostics")
+    if constraint_diagnostics:
+        lines.append(
+            "  · 约束布局: "
+            + " -> ".join(constraint_diagnostics["stages"])
+            + f"，扩展 {constraint_diagnostics['expanded_axes']} 步"
+        )
     for s, m in zip(real_symbols, place_msgs):
         lines.append("      " + m.splitlines()[0])
 
@@ -1473,6 +1585,7 @@ def kicad_sch_draw_circuit(
     used_segs_iu: list = []   # 已画全部导线段（跨网络防共线重叠）
     net_lanes: dict = {}   # net 名 -> trunk y_iu（标签放 trunk 上）
     routed = []
+    routed_by_net: dict = {}
     all_junctions = []
 
     # route=false：只放符号+标签，不自动布线（留给调用方手动画电源轨道等）。
@@ -1485,7 +1598,7 @@ def kicad_sch_draw_circuit(
                                     obstacles)
     do_route = data.get("route", True) is not False
     if do_route:
-        for net in nets:
+        for net in sorted(nets, key=_route_priority):
             name = net.get("name", "")
             # label_only 网络（如键盘矩阵）：不拉线，靠同名全局标签连接
             if net.get("label_only"):
@@ -1498,10 +1611,16 @@ def kicad_sch_draw_circuit(
             segs, y_lane, junctions = _route_net_trunk(
                 pin_refs, obstacles, used_lanes_iu, owner_bbox_map,
                 preferred_lane=preferred, used_collector_xs=collector_xs,
-                used_segs_iu=used_segs_iu)
+                used_segs_iu=used_segs_iu,
+                enable_pathfinding=bool(data.get("enable_pathfinding", False)),
+                net_name=name)
             routed.append((name, len(pins), segs))
+            routed_by_net[name] = segs
             net_lanes[name] = y_lane
             all_junctions += junctions
+        route_issues = validate_routed_segments(routed_by_net)
+        if route_issues:
+            raise RuntimeError("路由预检失败: " + "; ".join(route_issues))
         _create_lines([s for _, _, segs in routed for s in segs], all_junctions)
         n_direct = sum(1 for _, y in net_lanes.items() if y is None)
         lines.append("  · 布线完成: " + ", ".join(
@@ -1520,11 +1639,13 @@ def kicad_sch_draw_circuit(
     default_label_spin = data.get("default_label_spin", "auto")
     default_directive_shape = data.get("default_directive_shape", "point")
     label_wires: list = []   # 标签引出 stub / trunk 左端 tab（随标签一起连线）
+    label_boxes: list[Box] = []
     n_labels = 0
     # 读现有 wire 供标签 stub 避让（防端点落在别的网络竖直 collector 上短路）
     stub_wires = _read_wires_iu()
     for net in nets:
         name = net.get("name", "")
+        alignment_points: list[tuple[float, float]] = []
         pins = net.get("pins", [])
         has_power = any(r in power_refs for r, _ in pins)
         # 单引脚网络（跨页 label 型连接，如 GPIO→矩阵、FLASH_*）也要默认用
@@ -1559,14 +1680,34 @@ def kicad_sch_draw_circuit(
             for r, ps in groups.items():
                 label_wires += _group_wire_segments(syms, r, ps)
                 primary = _group_primary_pin(syms, r, ps)
-                stub, tip = _label_stub(syms, r, primary, text, size,
-                                        wires_iu=stub_wires)
+                pin = _pin_iu(syms, r, primary)
+                preferred_spin = _auto_label_spin(syms, r, primary, explicit=spin)
+                obstacles_for_label = [
+                    Box(*bbox) for owner, bbox in owner_bbox_map.items() if owner != r
+                ] + label_boxes
+                page_width, page_height = _sheet_size_mm()
+                candidate = solve_label_candidate(
+                    text, (pin[0] / MM, pin[1] / MM), obstacles_for_label,
+                    height_mm=size,
+                    clearance_mm=float(data.get("clearance_mm", 1.27)),
+                    preferred_spin=preferred_spin,
+                    shape=label_type,
+                    page_box=Box(5, 5, page_width - 5, page_height - 5),
+                          wires=[((a[0] / MM, a[1] / MM), (b[0] / MM, b[1] / MM))
+                              for a, b, *_ in stub_wires],
+                              alignment_points=alignment_points,
+                )
+                tip = (round(candidate.x_mm * MM), round(candidate.y_mm * MM))
+                stub = (pin, tip)
                 label_wires.append(stub)
-                # 标签 spin 自动匹配引脚朝外方向（连接点指向引脚）
-                auto_spin = _auto_label_spin(syms, r, primary, explicit=spin)
                 kicad_sch_add_label(label_type, text, tip[0] / MM, tip[1] / MM,
                                     height_mm=size, shape=shape,
-                                    spin=auto_spin, directive_shape=ds)
+                                    spin=candidate.spin, directive_shape=ds)
+                label_boxes.append(GeometryModel.label_box(
+                    text, tip[0] / MM, tip[1] / MM, size,
+                    candidate.spin, label_type
+                ))
+                alignment_points.append((tip[0] / MM, tip[1] / MM))
                 n_labels += 1
             continue
         y_lane = net_lanes.get(name)
@@ -1582,8 +1723,27 @@ def kicad_sch_draw_circuit(
         else:
             # 无 trunk（单引脚跨页标签）：引脚外侧短 stub + 标签，避免文字
             # 压在符号本体上（尤其左侧引脚）。
-            stub, tip = _label_stub(syms, placed[0][0], placed[0][1], text, size,
-                                    wires_iu=stub_wires)
+            ref, pin_number = placed[0]
+            pin = _pin_iu(syms, ref, pin_number)
+            preferred_spin = _auto_label_spin(
+                syms, ref, pin_number, explicit=spin
+            )
+            obstacles_for_label = [
+                Box(*bbox) for owner, bbox in owner_bbox_map.items() if owner != ref
+            ] + label_boxes
+            page_width, page_height = _sheet_size_mm()
+            candidate = solve_label_candidate(
+                text, (pin[0] / MM, pin[1] / MM), obstacles_for_label,
+                height_mm=size,
+                clearance_mm=float(data.get("clearance_mm", 1.27)),
+                preferred_spin=preferred_spin,
+                shape=label_type,
+                page_box=Box(5, 5, page_width - 5, page_height - 5),
+                  wires=[((a[0] / MM, a[1] / MM), (b[0] / MM, b[1] / MM))
+                      for a, b, *_ in stub_wires],
+            )
+            tip = (round(candidate.x_mm * MM), round(candidate.y_mm * MM))
+            stub = (pin, tip)
             label_wires.append(stub)
             lx, ly = tip[0] / MM, tip[1] / MM
         # trunk 标签连接点在 trunk 左端（朝左）；单引脚 stub 标签 spin 自动
@@ -1593,10 +1753,12 @@ def kicad_sch_draw_circuit(
         elif y_lane is not None:
             final_spin = "left"          # trunk 左端 tab，连接点朝左
         else:
-            final_spin = _auto_label_spin(syms, placed[0][0], placed[0][1],
-                                          explicit=None)
+            final_spin = candidate.spin
         kicad_sch_add_label(label_type, text, lx, ly, height_mm=size,
                             shape=shape, spin=final_spin, directive_shape=ds)
+        label_boxes.append(GeometryModel.label_box(
+            text, lx, ly, size, final_spin, label_type
+        ))
         n_labels += 1
     if label_wires:
         _create_lines([s for s in label_wires if s[0] != s[1]], [])
@@ -1669,6 +1831,78 @@ def kicad_sch_draw_circuit(
             lines.append(f"  ⚠️ 渲染失败: {exc}")
 
     return "\n".join(lines)
+
+
+def kicad_sch_draw_circuit(
+    circuit_json: str,
+    clear: Optional[bool] = None,
+    run_erc: Optional[bool] = None,
+    render: Optional[bool] = None,
+    max_fix_attempts: Optional[int] = None,
+) -> str:
+    """Draw a complete circuit and emit a machine-readable V2.6 report."""
+    started = time.monotonic()
+    try:
+        data = _parse_json(circuit_json, "circuit_json")
+    except Exception:
+        raise
+    try:
+        schematic = Path(_current_sch_path()).resolve()
+    except Exception:
+        schematic = Path("unknown.kicad_sch")
+    report_path = schematic.with_suffix(".draw-report.json")
+    report = DrawReport(str(schematic))
+    report.artifacts["report"] = str(report_path)
+    try:
+        result = _draw_circuit_impl(
+            circuit_json,
+            clear=clear,
+            run_erc=run_erc,
+            render=render,
+            max_fix_attempts=max_fix_attempts,
+        )
+        report.add_gate(
+            "create",
+            "passed",
+            started,
+            "对象创建完成",
+            {
+                "symbols": len(data.get("symbols", [])),
+                "nets": len(data.get("nets", [])),
+            },
+        )
+        snapshot_started = time.monotonic()
+        from .reload import semantic_snapshot
+
+        snapshot = semantic_snapshot(schematic)
+        report.add_gate(
+            "topology",
+            "passed",
+            snapshot_started,
+            "连接图可读回",
+            {
+                "sheets": len(snapshot["sheets"]),
+                "connections": len(snapshot["connections"]),
+            },
+        )
+        for gate, enabled in (
+            ("erc", run_erc if run_erc is not None else data.get("run_erc", True)),
+            ("geometry", data.get("overlap_check", True)),
+            ("visual", render if render is not None else data.get("render", True)),
+        ):
+            report.add_gate(
+                gate,
+                "passed" if enabled else "skipped",
+                time.monotonic(),
+            )
+        report.status = "passed"
+        report.write(report_path)
+        return result + f"\n── DrawReport ──\n{report_path}"
+    except Exception as exc:
+        report.status = "failed"
+        report.add_gate("draw", "failed", started, str(exc))
+        report.write(report_path)
+        raise
 
 
 ALL_TOOLS = [

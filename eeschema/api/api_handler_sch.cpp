@@ -27,9 +27,12 @@
 #include <wx/filename.h>
 
 #include <frame_type.h>
+#include <kiface_base.h>
 #include <kiway.h>
 #include <sim/simulator_frame.h>
+#include <wx/app.h>
 #include <wx/file.h>
+#include <wx/utils.h>
 #include <wx/regex.h>
 #include <settings/settings_manager.h>
 
@@ -58,6 +61,12 @@ API_HANDLER_SCH::API_HANDLER_SCH( SCH_EDIT_FRAME* aFrame ) :
     // (kicad-mcp patch) SaveDocument support (mirrors pcbnew)
     registerHandler<SaveDocument, google::protobuf::Empty>(
             &API_HANDLER_SCH::handleSaveDocument );
+
+    registerHandler<CloseDocument, google::protobuf::Empty>(
+            &API_HANDLER_SCH::handleCloseDocument );
+
+    registerHandler<GetSchematicState, GetSchematicStateResponse>(
+            &API_HANDLER_SCH::handleGetSchematicState );
 
     // (kicad-mcp patch) GetItems support (mirrors pcbnew)
     registerHandler<GetItems, GetItemsResponse>( &API_HANDLER_SCH::handleGetItems );
@@ -143,6 +152,55 @@ HANDLER_RESULT<google::protobuf::Empty> API_HANDLER_SCH::handleSaveDocument(
 
     m_frame->SaveProject();
     return google::protobuf::Empty();
+}
+
+
+HANDLER_RESULT<google::protobuf::Empty> API_HANDLER_SCH::handleCloseDocument(
+        const HANDLER_CONTEXT<CloseDocument>& aCtx )
+{
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() );
+
+    if( !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( m_frame->IsContentModified() )
+    {
+        ApiResponseStatus error;
+        error.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        error.set_error_message( "Refusing to close a schematic with unsaved changes" );
+        return tl::unexpected( error );
+    }
+
+    SCH_EDIT_FRAME* frame = m_frame;
+    bool standalone = Kiface().IsSingle();
+    wxTheApp->CallAfter(
+            [frame, standalone]()
+            {
+                frame->Close( false );
+
+                if( standalone )
+                    wxTheApp->ExitMainLoop();
+            } );
+    return google::protobuf::Empty();
+}
+
+
+HANDLER_RESULT<GetSchematicStateResponse> API_HANDLER_SCH::handleGetSchematicState(
+        const HANDLER_CONTEXT<GetSchematicState>& aCtx )
+{
+    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() );
+
+    if( !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    GetSchematicStateResponse response;
+    response.set_content_modified( m_frame->IsContentModified() );
+    response.set_load_had_repairs( m_frame->LastLoadHadRepairs() );
+    response.set_process_id( wxGetProcessId() );
+    return response;
 }
 
 

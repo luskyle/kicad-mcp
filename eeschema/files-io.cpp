@@ -113,6 +113,8 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         return false;
     }
 
+    m_lastLoadHadRepairs = false;
+
     wxString   fullFileName( aFileSet[0] );
     wxFileName wx_filename( fullFileName );
 
@@ -452,7 +454,9 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         // It's possible the schematic parser fixed errors due to bugs, or that we reassigned
         // duplicate or blank sheet page numbers, so warn the user that the schematic has been
         // fixed (modified).
-        if( sheetList.IsModified() || repairedPageNumbers )
+        m_lastLoadHadRepairs = sheetList.IsModified() || repairedPageNumbers;
+
+        if( m_lastLoadHadRepairs )
         {
             DisplayInfoMessage( this,
                                 _( "An error was found when loading the schematic that has "
