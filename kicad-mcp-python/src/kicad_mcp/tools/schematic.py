@@ -90,15 +90,18 @@ def _find_kicad_cli() -> str:
     env = os.environ.get("KICAD_CLI")
     if env:
         return env
+    repo_root = Path(__file__).resolve().parents[4]
     candidates = [
+        repo_root / "build/install/msvc-local-release/bin/kicad-cli.exe",
+        repo_root / "build/msvc-local-release/kicad/Release/kicad-cli.exe",
         "/media/luskyle/DATA/project/kicad-mcp/build/kicad/kicad-cli",
         "/usr/local/bin/kicad-cli",
         "/usr/bin/kicad-cli",
     ]
     for c in candidates:
         if os.path.exists(c):
-            return c
-    return "kicad-cli"
+            return str(c)
+    return "kicad-cli.exe" if os.name == "nt" else "kicad-cli"
 
 
 def _check_create_resp(resp) -> None:
@@ -189,6 +192,8 @@ def kicad_sch_add_symbol(
     y_mm: float,
     reference: Optional[str] = None,
     value: Optional[str] = None,
+    footprint: Optional[str] = None,
+    datasheet: Optional[str] = None,
     orientation_degrees: int = 0,
     snap_to_grid: bool = True,
     avoid_overlap: bool = True,
@@ -201,6 +206,8 @@ def kicad_sch_add_symbol(
         x_mm, y_mm: 符号位置（毫米）。
         reference: 可选，参考位号（如 "R1"）。
         value: 可选，值（如 "10k"）。
+        footprint: 可选，封装库标识（如 "Resistor_SMD:R_0603_1608Metric"）。
+        datasheet: 可选，数据手册 URL 或项目相对路径。
         orientation_degrees: 旋转角度（0/90/180/270，默认 0）。
         snap_to_grid: 是否把中心吸附到 1.27mm 网格（默认 True）。
             标准 KiCad 符号的引脚都在 1.27mm 网格上，中心在网格上时引脚也
@@ -240,6 +247,14 @@ def kicad_sch_add_symbol(
         f = symbol.fields.add()
         f.name = "Value"
         f.value = value
+    if footprint:
+        f = symbol.fields.add()
+        f.name = "Footprint"
+        f.value = footprint
+    if datasheet:
+        f = symbol.fields.add()
+        f.name = "Datasheet"
+        f.value = datasheet
 
     url, header = _sch_context()
     with KiCadClient(url, client_name="kicad-mcp") as kc:

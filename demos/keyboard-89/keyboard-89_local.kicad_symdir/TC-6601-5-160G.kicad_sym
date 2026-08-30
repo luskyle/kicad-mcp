@@ -10,8 +10,8 @@
 		(in_pos_files yes)
 		(property "Reference" "U" (at 0 6.35 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TC-6601-5-160G" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Footprint" "keyboard-89_local:TC-6601-5-160G" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Datasheet" "${KIPRJMOD}/TC-6601-5-160G.pdf" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Description" "6x6 轻触按键开关 (TC-6601, 160gf)" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
 		(symbol "TC-6601-5-160G_0_1"
 			(rectangle (start -3.81 3.81) (end 3.81 -3.81) (stroke (width 0.254) (type default)) (fill (type background)))

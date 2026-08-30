@@ -58,12 +58,13 @@ _BLOCKING_DESC = (
 
 
 def _kicad_cli_env() -> dict:
-    """隔离 conda + 指向资源目录（与 eeschema/kicad-cli 运行一致）。"""
+    """隔离 Python 环境，并按平台设置 KiCad CLI 运行环境。"""
     env = dict(os.environ)
-    env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     for k in ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONHOME", "PYTHONPATH"):
         env.pop(k, None)
-    env.setdefault("KICAD_STOCK_DATA_HOME", "/tmp/squashfs-root/share/kicad")
+    if os.name != "nt":
+        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        env.setdefault("KICAD_STOCK_DATA_HOME", "/tmp/squashfs-root/share/kicad")
     return env
 
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import platform
+import tempfile
 import sys
 from pathlib import Path
 from typing import Optional
@@ -34,7 +35,9 @@ from common.types import base_types_pb2  # noqa: E402
 
 
 def default_socket_dir() -> str:
-    """KiCad API socket 所在目录（Linux）。"""
+    """KiCad API socket 所在目录。"""
+    if platform.system() == "Windows":
+        return str(Path(tempfile.gettempdir()) / "kicad")
     return "/tmp/kicad"
 
 
@@ -47,9 +50,7 @@ def default_socket_url() -> str:
     env = os.environ.get("KICAD_API_SOCKET")
     if env:
         return env
-    if platform.system() == "Windows":
-        return "ipc:///kicad_api"
-    return "ipc:///tmp/kicad/api.sock"
+    return f"ipc://{Path(default_socket_dir()) / 'api.sock'}"
 
 
 def discover_socket_urls() -> list:
@@ -60,15 +61,13 @@ def discover_socket_urls() -> list:
       - /tmp/kicad/api-<pid>.sock   (后续进程: eeschema、pcbnew 等)
     返回排序后的 URL 列表（api-<pid>.sock 按 pid 升序）。
     """
-    if platform.system() == "Windows":
-        return [default_socket_url()]
     sock_dir = Path(default_socket_dir())
     if not sock_dir.is_dir():
-        return []
+        return [default_socket_url()]
     urls = []
     for p in sorted(sock_dir.glob("*.sock")):
         urls.append(f"ipc://{p}")
-    return urls
+    return urls or [default_socket_url()]
 
 
 # 方便引用的文档类型

@@ -126793,7 +126793,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "keyboard-89_local:TC-6601-5-160G"
 			(at 5.08 2.54 90)
 			(show_name no)
 			(do_not_autoplace no)

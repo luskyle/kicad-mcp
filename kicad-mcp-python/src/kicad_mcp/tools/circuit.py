@@ -517,7 +517,8 @@ def _place_symbols(symbols: list, layout: dict) -> list:
         msgs.append(kicad_sch_add_symbol(
             lib_nickname=s["lib"], entry_name=s["symbol"],
             x_mm=x, y_mm=y, reference=ref,
-            value=s.get("value", ""), orientation_degrees=orient,
+            value=s.get("value", ""), footprint=s.get("footprint"),
+            datasheet=s.get("datasheet"), orientation_degrees=orient,
             snap_to_grid=False, avoid_overlap=False))
     return msgs
 
@@ -1384,7 +1385,7 @@ def kicad_sch_draw_circuit(
         circuit_json: 电路描述 JSON:
             {
               "symbols": [{"ref":"V1","lib":"Simulation_SPICE","symbol":"VDC",
-                           "value":"5","orient":90},
+                           "value":"5","footprint":"Package:Name","orient":90},
                           {"ref":"R1","lib":"Device","symbol":"R","value":"10k"},
                           {"ref":"C1","lib":"Device","symbol":"C","value":"100u"},
                           {"ref":"G1","lib":"power","symbol":"GND"}],

@@ -19,9 +19,20 @@ def main() -> int:
 
     try:
         with KiCadClient(client_name="kicad-mcp-check") as kc:
-            kc.ping()
-            print("[OK] ping 成功")
-            print(f"[OK] KiCad 版本: {kc.get_version()}")
+            try:
+                kc.ping()
+                print("[OK] ping 成功")
+            except Exception as exc:
+                if "no handler available" not in str(exc):
+                    raise
+                print("[OK] API 已连接（当前编辑器未注册 Ping handler）")
+
+            try:
+                print(f"[OK] KiCad 版本: {kc.get_version()}")
+            except Exception as exc:
+                if "no handler available" not in str(exc):
+                    raise
+                print("[OK] 当前编辑器未注册版本查询 handler，跳过版本检查")
 
             for dtype in (1, 3):  # schematic, pcb
                 name = DOC_TYPE_NAMES.get(dtype, f"type{dtype}")
@@ -34,7 +45,10 @@ def main() -> int:
                     else:
                         print(f"[OK] 当前没有打开的 {name} 文档")
                 except Exception as exc:
-                    print(f"[!!] 查询 {name} 文档失败: {exc}")
+                    if "no handler available" in str(exc):
+                        print(f"[OK] 当前 KiCad 进程不处理 {name} 文档")
+                    else:
+                        print(f"[!!] 查询 {name} 文档失败: {exc}")
     except KiCadNotRunningError as exc:
         print(f"[FAIL] {exc}")
         print()
