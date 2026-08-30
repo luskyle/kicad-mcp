@@ -8,10 +8,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(property "Reference" "U" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "C-100nF" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Footprint" "keyboard-89_local:C_0402_1005Metric" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Datasheet" "${KIPRJMOD}/capacitor100nF.pdf" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Description" "100nF 去耦电容 (0402)" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
 		(symbol "C-100nF_0_1"
 			(rectangle (start -3.81 2.54) (end 3.81 -2.54) (stroke (width 0.254) (type default)) (fill (type background)))

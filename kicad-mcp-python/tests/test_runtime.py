@@ -9,8 +9,9 @@ from kicad_mcp.runtime import resolve_kicad_runtime
 
 def _runtime_tree(tmp_path: Path, windows: bool = True) -> tuple[Path, Path, Path]:
     executable = "kicad-cli.exe" if windows else "kicad-cli"
-    cli = tmp_path / "build" / "install" / "msvc-local-release" / "bin" / executable
-    stock = tmp_path / "build" / "install" / "msvc-local-release" / "share" / "kicad"
+    build_name = "msvc-local-release" if windows else "linux-local-release"
+    cli = tmp_path / "build" / "install" / build_name / "bin" / executable
+    stock = tmp_path / "build" / "install" / build_name / "share" / "kicad"
     cli.parent.mkdir(parents=True)
     cli.write_bytes(b"")
     stock.mkdir(parents=True)

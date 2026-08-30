@@ -24,15 +24,9 @@ AI 客户端 ──MCP/stdio──▶ kicad-mcp (Python) ──nng+protobuf─�
 
 ## 安装
 
-```bash
-# 1. 安装 Python 依赖（使用 base conda 环境即可）
-conda run -n base pip install mcp pynng grpcio-tools protobuf
-
-# 2. 从 KiCad 源码仓库的 api/proto 生成 protobuf 绑定
-PYTHON=/path/to/python ./gen_proto.sh
-```
-
-生成产物位于 `src/kicad_mcp/proto/`（已包含 `__init__.py` 的包结构）。
+新环境请使用仓库根目录的 Windows/Linux 引导脚本。它会编译仓库 KiCad、创建隔离的
+`.venv`、运行核心测试并生成 VS Code/Claude MCP 配置。完整步骤见
+[AI 环境配置指南](../docs/AI_SETUP.md)。
 
 ## 使用
 

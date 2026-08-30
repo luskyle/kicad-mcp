@@ -1,0 +1,36 @@
+ERC report (2026-08-30T16:01:48, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(35.56 mm, 48.26 mm): Global Label 'USB_DP'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(35.56 mm, 50.80 mm): Global Label 'USB_DM'
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(49.53 mm, 49.53 mm): Symbol J1 [USBC]
+[lib_symbol_issues]: The symbol library 'power' was not found at 'C:\Users\84480\Project\kicad-mcp\build\install\msvc-local-release\share\kicad\symbols\/power.kicad_sym'
+    ; warning
+    @(69.85 mm, 27.94 mm): Symbol PWRV [PWR_FLAG]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(69.85 mm, 72.39 mm): Symbol U2 [LDO]
+[lib_symbol_issues]: The symbol library 'power' was not found at 'C:\Users\84480\Project\kicad-mcp\build\install\msvc-local-release\share\kicad\symbols\/power.kicad_sym'
+    ; warning
+    @(69.85 mm, 104.14 mm): Symbol PWR0 [PWR_FLAG]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Capacitor_SMD'
+    ; warning
+    @(90.17 mm, 49.53 mm): Symbol C1 [C-100nF]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'keyboard-89_local'
+    ; warning
+    @(90.17 mm, 49.53 mm): Symbol C1 [C-100nF]
+
+ ** ERC messages: 8  Errors 0  Warnings 8
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

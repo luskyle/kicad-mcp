@@ -1,0 +1,36 @@
+ERC report (2026-08-30T16:13:58, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[pin_not_driven]: Input pin not driven by any Output pins
+    ; error
+    @(179.07 mm, 143.51 mm): Symbol U3 Pin 1 [CS#, Input, Line]
+[pin_not_driven]: Input pin not driven by any Output pins
+    ; error
+    @(179.07 mm, 148.59 mm): Symbol U3 Pin 6 [SCLK, Input, Line]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(177.80 mm, 143.51 mm): Global Label 'QSPI_CSn'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(177.80 mm, 148.59 mm): Global Label 'QSPI_SCLK'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(210.82 mm, 143.51 mm): Global Label 'QSPI_SD1'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(210.82 mm, 148.59 mm): Global Label 'QSPI_SD2'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(210.82 mm, 153.67 mm): Global Label 'QSPI_SD0'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(210.82 mm, 158.75 mm): Global Label 'QSPI_SD3'
+
+ ** ERC messages: 8  Errors 2  Warnings 6
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

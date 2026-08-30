@@ -1,0 +1,17 @@
+{
+  "schematic": "unknown.kicad_sch",
+  "status": "failed",
+  "schema_version": 1,
+  "gates": [
+    {
+      "name": "draw",
+      "status": "failed",
+      "duration_ms": 59,
+      "message": "没有可用的原理图进程。请先启动 KiCad 的 eeschema 并打开一个 .kicad_sch 文件。",
+      "metrics": {}
+    }
+  ],
+  "artifacts": {
+    "report": "unknown.draw-report.json"
+  }
+}

@@ -1,0 +1,323 @@
+ERC report (2026-08-30T16:58:41, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(193.04 mm, 107.95 mm): Global Label 'QSPI_CSn'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(193.04 mm, 113.03 mm): Global Label 'QSPI_SCLK'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(226.06 mm, 107.95 mm): Global Label 'QSPI_SD1'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(226.06 mm, 113.03 mm): Global Label 'QSPI_SD2'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(226.06 mm, 118.11 mm): Global Label 'QSPI_SD0'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(226.06 mm, 123.19 mm): Global Label 'QSPI_SD3'
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(53.34 mm, 62.23 mm): Symbol TC-esc1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(53.34 mm, 92.71 mm): Symbol TC-tab1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(53.34 mm, 123.19 mm): Symbol TC-capslock1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(53.34 mm, 153.67 mm): Symbol TC-shift-L1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(53.34 mm, 184.15 mm): Symbol TC-ctrl1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(67.31 mm, 62.23 mm): Symbol TC-～1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(67.31 mm, 92.71 mm): Symbol TC-Q1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(67.31 mm, 123.19 mm): Symbol TC-A1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(67.31 mm, 153.67 mm): Symbol TC-Z1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(67.31 mm, 184.15 mm): Symbol TC-windows1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(81.28 mm, 62.23 mm): Symbol TC-`1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(81.28 mm, 92.71 mm): Symbol TC-W1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(81.28 mm, 123.19 mm): Symbol TC-S1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(81.28 mm, 153.67 mm): Symbol TC-X1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(81.28 mm, 184.15 mm): Symbol TC-alt1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(95.25 mm, 62.23 mm): Symbol TC-!1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(95.25 mm, 92.71 mm): Symbol TC-E1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(95.25 mm, 123.19 mm): Symbol TC-D1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(95.25 mm, 153.67 mm): Symbol TC-C1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(109.22 mm, 62.23 mm): Symbol TC-@1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(109.22 mm, 92.71 mm): Symbol TC-R1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(109.22 mm, 123.19 mm): Symbol TC-F1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(109.22 mm, 153.67 mm): Symbol TC-V1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(123.19 mm, 62.23 mm): Symbol TC-\#1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(123.19 mm, 92.71 mm): Symbol TC-T1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(123.19 mm, 123.19 mm): Symbol TC-G1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(123.19 mm, 153.67 mm): Symbol TC-B1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(123.19 mm, 184.15 mm): Symbol TC-blankspace1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(137.16 mm, 62.23 mm): Symbol TC-\$1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(137.16 mm, 92.71 mm): Symbol TC-Y1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(137.16 mm, 123.19 mm): Symbol TC-H1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(137.16 mm, 153.67 mm): Symbol TC-N1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(151.13 mm, 62.23 mm): Symbol TC-\%1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(151.13 mm, 92.71 mm): Symbol TC-U1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(151.13 mm, 123.19 mm): Symbol TC-J1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(151.13 mm, 153.67 mm): Symbol TC-M1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(165.10 mm, 62.23 mm): Symbol TC-^1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(165.10 mm, 92.71 mm): Symbol TC-I1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(165.10 mm, 123.19 mm): Symbol TC-K1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(165.10 mm, 153.67 mm): Symbol TC-\<,1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(165.10 mm, 184.15 mm): Symbol TC-F(0-9)1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(179.07 mm, 62.23 mm): Symbol TC-\&1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(179.07 mm, 92.71 mm): Symbol TC-O1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(179.07 mm, 123.19 mm): Symbol TC-L1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(179.07 mm, 153.67 mm): Symbol TC-\>.1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(179.07 mm, 184.15 mm): Symbol TC-F2 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(193.04 mm, 62.23 mm): Symbol TC-\*-L1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(193.04 mm, 92.71 mm): Symbol TC-P1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(193.04 mm, 123.19 mm): Symbol TC-:;1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(193.04 mm, 153.67 mm): Symbol TC-？/1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(193.04 mm, 184.15 mm): Symbol TC-F3 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(207.01 mm, 62.23 mm): Symbol TC-(1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(207.01 mm, 92.71 mm): Symbol TC-{[1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(207.01 mm, 123.19 mm): Symbol TC-“‘1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(207.01 mm, 153.67 mm): Symbol TC-shift-R1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(207.01 mm, 184.15 mm): Symbol TC-F4 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(220.98 mm, 62.23 mm): Symbol TC-)1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(220.98 mm, 92.71 mm): Symbol TC-}]1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(220.98 mm, 123.19 mm): Symbol TC-enter-L1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(234.95 mm, 62.23 mm): Symbol TC-—-1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(234.95 mm, 92.71 mm): Symbol TC-|\1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(248.92 mm, 62.23 mm): Symbol TC-\+=1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(265.43 mm, 62.23 mm): Symbol TC-backspace1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(265.43 mm, 92.71 mm): Symbol TC-printscreen1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(265.43 mm, 184.15 mm): Symbol TC-left1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(279.40 mm, 62.23 mm): Symbol TC-delete1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(279.40 mm, 92.71 mm): Symbol TC-home1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(279.40 mm, 123.19 mm): Symbol TC-end1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(279.40 mm, 153.67 mm): Symbol TC-top1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(279.40 mm, 184.15 mm): Symbol TC-bottom1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(293.37 mm, 92.71 mm): Symbol TC-pageup1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(293.37 mm, 123.19 mm): Symbol TC-pagedown1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(293.37 mm, 184.15 mm): Symbol TC-right1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(317.50 mm, 62.23 mm): Symbol TC-\+1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(317.50 mm, 92.71 mm): Symbol TC-1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(317.50 mm, 123.19 mm): Symbol TC-2 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(317.50 mm, 153.67 mm): Symbol TC-3 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(317.50 mm, 184.15 mm): Symbol TC-4 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(331.47 mm, 62.23 mm): Symbol TC-\-1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(331.47 mm, 92.71 mm): Symbol TC-5 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(331.47 mm, 123.19 mm): Symbol TC-6 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(331.47 mm, 153.67 mm): Symbol TC-7 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(331.47 mm, 184.15 mm): Symbol TC-\.1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(345.44 mm, 62.23 mm): Symbol TC-\*-R1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(345.44 mm, 92.71 mm): Symbol TC-8 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(345.44 mm, 123.19 mm): Symbol TC-9 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(345.44 mm, 153.67 mm): Symbol TC-10 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(359.41 mm, 62.23 mm): Symbol TC-\/1 [TC-6601-5-160G]
+[lib_symbol_mismatch]: Symbol 'TC-6601-5-160G' doesn't match copy in library 'keyboard-89_local'
+    ; warning
+    @(359.41 mm, 92.71 mm): Symbol TC-enter-R1 [TC-6601-5-160G]
+
+***** Sheet /Power & USB/
+[pin_to_pin]: Pins of type Power output and Power output are connected
+    ; error
+    @(246.38 mm, 81.28 mm): Symbol PWRV Pin 1 [pwr, Power output, Line]
+    @(246.38 mm, 81.28 mm): Symbol PWRV Pin 1 [pwr, Power output, Line]
+[pin_to_pin]: Pins of type Power output and Power output are connected
+    ; error
+    @(246.38 mm, 205.74 mm): Symbol PWR0 Pin 1 [pwr, Power output, Line]
+    @(246.38 mm, 205.74 mm): Symbol PWR0 Pin 1 [pwr, Power output, Line]
+[pin_to_pin]: Pins of type Power output and Power output are connected
+    ; error
+    @(252.73 mm, 109.22 mm): Symbol U2 Pin 2 [VOUT, Power output, Line]
+    @(252.73 mm, 109.22 mm): Symbol U2 Pin 2 [VOUT, Power output, Line]
+
+***** Sheet /RP2040 Core/
+
+***** Sheet /QSPI Flash/
+[pin_not_driven]: Input pin not driven by any Output pins
+    ; error
+    @(194.31 mm, 107.95 mm): Symbol U3 Pin 1 [CS#, Input, Line]
+[pin_not_driven]: Input pin not driven by any Output pins
+    ; error
+    @(194.31 mm, 113.03 mm): Symbol U3 Pin 6 [SCLK, Input, Line]
+
+***** Sheet /Matrix/
+
+ ** ERC messages: 100  Errors 5  Warnings 95
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

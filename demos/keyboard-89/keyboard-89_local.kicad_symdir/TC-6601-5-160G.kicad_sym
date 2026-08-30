@@ -8,7 +8,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(property "Reference" "U" (at 0 6.35 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "SW" (at 0 6.35 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TC-6601-5-160G" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "keyboard-89_local:TC-6601-5-160G" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "${KIPRJMOD}/TC-6601-5-160G.pdf" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))

@@ -74,6 +74,24 @@ def _config_dir(environ: Mapping[str, str], platform: str) -> Path:
     return versions[0] if versions else base / "10.0"
 
 
+def _repository_cli_candidates(root: Path, executable: str, platform: str) -> list[Path]:
+    install_root = root / "build" / "install"
+    preferred_name = "msvc-local-release" if platform == "nt" else "linux-local-release"
+    installed = list(install_root.glob(f"*/bin/{executable}")) if install_root.is_dir() else []
+    installed.sort(
+        key=lambda path: (
+            path.parent.parent.name == preferred_name,
+            "release" in path.parent.parent.name.lower(),
+            path.parent.parent.name,
+        ),
+        reverse=True,
+    )
+    return installed + [
+        root / "build" / "msvc-local-release" / "kicad" / "Release" / executable,
+        root / "build" / "kicad" / executable,
+    ]
+
+
 def resolve_kicad_runtime(
     environ: Optional[Mapping[str, str]] = None,
     platform: Optional[str] = None,
@@ -90,11 +108,7 @@ def resolve_kicad_runtime(
         cli = Path(explicit_cli).expanduser()
         source = "KICAD_CLI"
     else:
-        candidates = [
-            root / "build" / "install" / "msvc-local-release" / "bin" / executable,
-            root / "build" / "msvc-local-release" / "kicad" / "Release" / executable,
-            root / "build" / "kicad" / executable,
-        ]
+        candidates = _repository_cli_candidates(root, executable, platform)
         cli = next((path for path in candidates if path.is_file()), None)
         source = "repository"
         if cli is None and env.get("KICAD_ALLOW_PATH") == "1":
@@ -118,10 +132,13 @@ def resolve_kicad_runtime(
     if explicit_stock:
         stock = Path(explicit_stock).expanduser()
     else:
-        repo_stock = root / "build" / "install" / "msvc-local-release" / "share" / "kicad"
         adjacent_stock = cli.parent.parent / "share" / "kicad"
+        installed_stock = sorted(
+            (root / "build" / "install").glob("*/share/kicad"),
+            key=lambda path: path.parent.parent.name,
+        )
         stock = next(
-            (path for path in (repo_stock, adjacent_stock) if path.is_dir()),
+            (path for path in [adjacent_stock, *installed_stock] if path.is_dir()),
             None,
         )
         if stock is None:

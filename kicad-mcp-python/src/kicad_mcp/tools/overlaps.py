@@ -170,6 +170,11 @@ def _check(syms, labels, wires_mm, page_w, page_h, margin,
     # 符号-标签
     for s in syms:
         for l in labels:
+            label_wire = _label_wire(l, wires_mm)
+            if label_wire and any(
+                _wire_touches(label_wire, *pin) for pin in s.get("pins", [])
+            ):
+                continue
             if Box(*s["bbox"]).overlaps(Box(*l["box"]), clearance_mm):
                 res["sym_lab"].append((s["ref"], l["text"]))
     # 标签-标签

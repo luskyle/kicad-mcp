@@ -1,0 +1,123 @@
+ERC report (2026-08-30T16:55:48, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(69.85 mm, 166.37 mm): Symbol U1 Pin 1 [IOVDD, Power input, Line]
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(69.85 mm, 179.07 mm): Symbol U1 Pin 57 [GND, Power input, Line]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 107.95 mm): Global Label 'row1'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 111.76 mm): Global Label 'row2'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 115.57 mm): Global Label 'row3'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 119.38 mm): Global Label 'row4'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 123.19 mm): Global Label 'column0'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 127.00 mm): Global Label 'column1'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 130.81 mm): Global Label 'column2'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 134.62 mm): Global Label 'column3'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 138.43 mm): Global Label 'column4'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 142.24 mm): Global Label 'column5'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 146.05 mm): Global Label 'column6'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 149.86 mm): Global Label 'column7'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 153.67 mm): Global Label 'column8'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 157.48 mm): Global Label 'column9'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(68.58 mm, 161.29 mm): Global Label 'column10'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(69.85 mm, 102.87 mm): Global Label 'row0'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(129.54 mm, 107.95 mm): Global Label 'column12'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(129.54 mm, 111.76 mm): Global Label 'column13'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(129.54 mm, 176.53 mm): Global Label 'QSPI_CSn'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(130.81 mm, 102.87 mm): Global Label 'column11'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(130.81 mm, 181.61 mm): Global Label 'D-'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(130.81 mm, 187.96 mm): Global Label 'D+'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 115.57 mm): Global Label 'column14'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 119.38 mm): Global Label 'column15'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 123.19 mm): Global Label 'column16'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 127.00 mm): Global Label 'column17'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 130.81 mm): Global Label 'column18'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 134.62 mm): Global Label 'column19'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 138.43 mm): Global Label 'column20'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 142.24 mm): Global Label 'column21'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 157.48 mm): Global Label 'QSPI_SD3'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 161.29 mm): Global Label 'QSPI_SCLK'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 165.10 mm): Global Label 'QSPI_SD0'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 168.91 mm): Global Label 'QSPI_SD2'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(132.08 mm, 172.72 mm): Global Label 'QSPI_SD1'
+
+ ** ERC messages: 37  Errors 2  Warnings 35
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

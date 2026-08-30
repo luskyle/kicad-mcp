@@ -4,13 +4,13 @@ from pathlib import Path
 OUTPUT = Path(__file__).with_name("keyboard-89_local.pretty")
 
 
-def footprint(name: str, description: str, body: str) -> str:
+def footprint(name: str, description: str, body: str, attribute: str = "smd") -> str:
     return f'''(footprint "{name}"
 \t(version 20240108)
 \t(generator "keyboard-89")
 \t(layer "F.Cu")
 \t(descr "{description}")
-\t(attr smd)
+	(attr {attribute})
 \t(fp_text reference "REF**" (at 0 -4) (layer "F.SilkS")
 \t\t(effects (font (size 1 1) (thickness 0.15))))
 \t(fp_text value "{name}" (at 0 4) (layer "F.Fab")
@@ -30,9 +30,15 @@ def outline(width: float, height: float) -> str:
             '(stroke (width 0.1) (type default)) (fill none) (layer "F.Fab"))')
 
 
-def write(name: str, description: str, body: list[str]) -> None:
+def write(
+    name: str,
+    description: str,
+    body: list[str],
+    attribute: str = "smd",
+) -> None:
     (OUTPUT / f"{name}.kicad_mod").write_text(
-        footprint(name, description, "\n".join(body)), encoding="utf-8")
+        footprint(name, description, "\n".join(body), attribute), encoding="utf-8"
+    )
 
 
 OUTPUT.mkdir(exist_ok=True)
@@ -66,13 +72,18 @@ write("Crystal_YSX321SL", "YSX321SL 3.2x2.5 mm crystal", [
     smd_pad("4", -1.1, -0.85, 1.4, 1.2),
 ])
 
-header_body = [outline(2.54, 12.7), "\t(attr through_hole)"]
+header_body = [outline(2.54, 12.7)]
 for index in range(5):
     shape = "rect" if index == 0 else "circle"
     header_body.append(
         f'\t(pad "{index + 1}" thru_hole {shape} (at 0 {index * 2.54:g}) '
         '(size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask"))')
-write("PinHeader_1x05_P2.54mm_Vertical", "1x05 2.54 mm SWD header", header_body)
+write(
+    "PinHeader_1x05_P2.54mm_Vertical",
+    "1x05 2.54 mm SWD header",
+    header_body,
+    "through_hole",
+)
 
 qfn = [outline(7, 7)]
 for index in range(14):
@@ -98,3 +109,28 @@ for x in (-2.89, 2.89):
         f'\t(pad "" np_thru_hole circle (at {x:g} 1.5) (size 0.65 0.65) '
         '(drill 0.65) (layers "*.Cu" "*.Mask"))')
 write("USB_C_16P_2MD_073", "Shouhan TYPE-C 16PIN 2MD(073)", usb)
+
+write("D_SOD-123", "SOD-123 diode, 3.7x1.8 mm body", [
+    outline(3.7, 1.8),
+    smd_pad("1", -2, 0, 1.8, 1.2),
+    smd_pad("2", 2, 0, 1.8, 1.2),
+])
+
+switch = [outline(6, 6)]
+for number, x, y, shape in (
+    ("1", -3.25, -2.25, "roundrect"),
+    ("2", 3.25, -2.25, "oval"),
+    ("3", -3.25, 2.25, "oval"),
+    ("4", 3.25, 2.25, "oval"),
+):
+    switch.append(
+        f'\t(pad "{number}" thru_hole {shape} (at {x:g} {y:g}) '
+        '(size 2.2 1.6) (drill oval 1.2 0.8) (layers "*.Cu" "*.Mask")'
+        + (' (roundrect_rratio 0.25))' if shape == "roundrect" else ')')
+    )
+write(
+    "TC-6601-5-160G",
+    "TC-6601-5-160G 6x6 mm tactile switch, 6.5x4.5 mm pin pitch",
+    switch,
+    "through_hole",
+)

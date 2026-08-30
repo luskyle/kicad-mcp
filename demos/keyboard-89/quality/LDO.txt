@@ -1,0 +1,227 @@
+Productspecification
+AMS1117-XXX
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+概述
+AMS1117 是一款低压差的线性稳压器。
+特点 用途
+ 包括三端可调输出和固定电压输出版本（固定电压
+包括 1.2V,1.8V，2.5V，3.3V，5V等，其他电压规
+格可根据用户定制）
+ 最大输出电流为 1A
+ 输出电压精度高达±2%
+ 稳定工作电压范围为高达 12V
+ 电压线性度为 0.2%
+ 负载线性度为 0.4%
+ 环境温度： TA 的范围是 0℃~125℃
+ 计算机主板、显卡
+ LCD 监视器及 LCD TV
+ DVD 解码板
+ ADSL 等设备
+ 开关电源的后级稳压
+封装形式和管脚定义功能
+封装 引脚排列图 管体标记
+SOT-8 备注：****代表内部生产订单编号9
+AMS1117
+3.3****
+可调电
+压型
+引脚号 符号 定义
+1 Adj. 可调端
+2 Vout 输出端
+3 Vin 输入端
+固定电
+压型
+引脚号 符号 定义
+1 GND 接地脚
+2 Vout 输出端
+3 Vin 输入端
+引脚定义
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+功能图
+Thermal  
+   Limit
+Current  
+  Limit
+VOUT
+VIN
+Substrate
+GND (fixed output)
+ADJ. (adjustable output)
+极限值
+参 数 名 称 符 号 数 值 单位
+最大输入电压 Vin 18 V 
+最大节温 TJ 125 °C 
+最大环境温度 TA 125 °C 
+贮存温度 Ts -65~ +150 °C 
+焊接温度和时间 300°C,10S 
+推荐工作条件
+名称 最小 推荐 最大 单位
+输入电压范围 15 V 
+工作环境温度 0 125 °C 
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+主要参数和工作特性
+  Tj=25℃
+参数 参数说明 条件 最小值 典型值 最大值 单位
+Vref 参考电压
+Iout=10mA, Vin-Vout=2V 
+10mA≤Iout≤1A ,1.5V≤Vin-Vout≤10V 1.225 1.25 1.275 V 
+1.764 1.80 1.836 
+V 1.470 1.5
+V Vout 输出电压
+AMS1117-5V  
+4.9 5 5.1 V 
+mV
+mV
+mV
+∆Vout 电压线性度
+AMS1117-5V 
+Iout=10mA,6.5V≤Vin≤12V mV
+AMS1117-ADJ 
+Vin = 3.25V, 10mA≤Iout≤1A 
+∆Vout 负载线性度
+mV 
+1.530
+AMS1117-1.50V  
+10mA≤Iout≤1A ,3.0V≤Vin≤10V   
+AMS1117-1.80V  
+10mA≤Iout≤1A ,3.25 V≤Vin≤10V   
+10mA≤Iout≤1A , 6.5V≤Vin≤12V   
+AMS1117-ADJ 
+Iout=10mA, V≤Vin-Vout≤10V 18 mV
+AMS1117-1.5V 
+Iout=10mA, 2.75V≤Vin≤10V   
+AMS1117-1.8V 
+Iout=10mA,3.25 V≤Vin≤10V   
+AMS1117-3.3V 
+Iout=10mA,5.3 V≤Vin≤12V   
+mV
+AMS1117-1.5V 
+Vin = 3.25V, 10mA≤Iout≤1A 
+3.235 3.3 3.365 V 
+AMS1117-3.3V  
+10mA≤Iout≤1A ,5.3 V≤Vin≤12V   
+2.45 2.50 2.55 V 
+AMS1117-2.50V  
+10mA≤Iout≤1A ,3.9 V≤Vin≤10V   
+AMS1117-2.50V  
+Iout=10mA,3.9 V≤Vin≤10V   mV
+18
+18
+18
+18
+18
+18
+18
+5
+5
+5
+5
+9
+9
+9
+9
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+18 mV 
+AMS1117-3.3V 
+Vin=5.3V, 0≤Iout≤1A 20 mV 
+AMS1117-5V 
+Vin=6.5V, 0≤Iout≤1A 20 mV 
+ Vin-Vout 最小输入输出
+电压差
+∆Vout, ∆Vref,=1%，Iout=1A 1.4 V 
+Ilimit 最小负载电流 AMS1117-ADJ  10 mA 
+12 mA
+mA 
+mA 
+Iq 静态电流
+mA 
+AMS1117-1.8V 
+Vin = 3.25V, 10mA≤Iout≤1A 
+12
+12
+12
+主要参数和工作特性
+12 mAAMS1117-ADJ Vin = 4.0V
+AMS1117-1.5V,Vin = 4.8V
+AMS1117-1.8V,Vin = 4.8V
+AMS1117-2.5V,Vin = 4.8V
+AMS1117-3.3V,Vin = 4.8V
+AMS1117-2.5V 
+Vin = 4.5 V, 10mA≤Iout≤1A 18 mV 
+mA 12AMS1117-5.0V,Vin = 4.8V
+10
+10
+12
+12
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+典型電性特性曲綫
+
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+包装信息
+REEL SPECIFICATION
+P/N
+AMS1117-XXX
+QTY
+Min Max Min Max
+A 1.400 1.600 0.055 0.063
+b 0.320 0.520 0.013 0.020
+b1 0.400 0.580 0.016 0.023
+c 0.350 0.440 0.014 0.017
+D 4.400 4.600 0.173 0.181
+D1
+E 2.300 2.600 0.091 0.102
+E1 3.940 4.250 0.155 0.167
+e
+e1
+L 0.900 1.200 0.035 0.047
+Symbol
+1.550 
+Dimensions In Millimeters Dimensions  In Inches
+REF. 0.061 REF.
+1.500 TYP. 0.060 TYP.
+3.000 TYP. 0.118 TYP.
+PKG
+建议焊盘
+SOT-89 1000
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+
+AMS1117-XXX
+Copyright©MsksemiIncorporated www.msksemi.com
+Attention
+■ Any and all MSKSEMI Semiconductor products described or contained herein do not have specifications that can
+handle applications that require extremely high levels of reliability, such as life-support systems, aircraft's control systems, or
+other applications whose failure can bereasonably expected to result in serious physical and/or material damage.Consult with
+your MSKSEMI Semiconductor representative nearest you before using any MSKSEMI Semiconductor products described
+orcontainedhereininsuch applications.
+■ MSKSEMISemiconductor assumesnoresponsibilityforequipmentfailures that resultfromusing products atvaluesthat
+exceed, even momentarily, rated values (such as maximum ratings, operating condition ranges, or other parameters) listed in
+productsspecificationsofanyandallMSKSEMISemiconductorproductsdescribedorcontainedherein.
+■ Specifications of any and all MSKSEMI Semiconductor products described or contained herein stipulate the
+performance, characteristics, and functions of the described products in the independent state, and are not guarantees of the
+performance, characteristics, and functions of the described products as mounted in the customer’s products or equipment.To
+verify symptoms and states that cannot be evaluated in an independent device, the customer should always evaluate and test
+devices mountedinthecustomer’sproductsorequipment.
+■ MSKSEMI Semiconductor. strives to supply high-quality high-reliability products. However, any and all semiconductor
+products fail with someprobability.It is possiblethat these probabilistic failures could give rise to accidents or events that could
+endanger human lives, that could give rise to smoke or fire, or that could cause damage to other property. When designing
+equipment, adopt safety measures so that these kinds of accidents or events cannot occur. Such measures include but are
+notlimited toprotective circuitsanderrorprevention circuitsforsafedesign,redundantdesign,andstructural design.
+■ In the event that any or all MSKSEMI Semiconductor products(including technical data, services) described or contained
+herein are controlled under any of applicable local export control laws and regulations, such products must not be exported
+withoutobtainingtheexportlicensefromtheauthorities concerned in accordance withtheabovelaw.
+■ No part of this publication may be reproduced or transmitted in any form or by any means, electronic or
+mechanical,includingphotocopyingandrecording,oranyinformationstorageorretrievalsystem,orotherwise,withouttheprior
+writtenpermissionofMSKSEMISemiconductor.
+■ Information (including circuit diagrams and circuit parameters) herein is for example only ; it is not guaranteed for volume
+production. MSKSEMI Semiconductor believes information herein is accurate and reliable, but no guarantees are made or
+impliedregardingitsuseorany infringementsofintellectual propertyrightsorother rightsofthirdparties.
+■ Any and all information described or contained herein are subject to change without notice due to
+product/technology improvement, etc. Whendesigning equipment, referto the "Delivery Specification" for the MSKSEMI
+Semiconductor productthat you intendto use.

@@ -38,7 +38,7 @@ def solve_label_candidate(
     wires: list[tuple[tuple[float, float], tuple[float, float]]] | None = None,
     alignment_points: list[tuple[float, float]] | None = None,
 ) -> LabelCandidate:
-    """Choose among four directions and short/medium/long grid stubs."""
+    """Choose among four directions and grid-aligned stubs up to 10.16 mm."""
     candidates = []
     spins = list(_DIRECTIONS)
     if preferred_spin in _DIRECTIONS:
@@ -46,7 +46,7 @@ def solve_label_candidate(
         spins.insert(0, preferred_spin)
     for spin_index, spin in enumerate(spins):
         dx, dy = _DIRECTIONS[spin]
-        for steps in (1, 2, 3):
+        for steps in range(1, 9):
             stub = steps * grid_mm
             x_mm = round((pin[0] + dx * stub) / grid_mm) * grid_mm
             y_mm = round((pin[1] + dy * stub) / grid_mm) * grid_mm

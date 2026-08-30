@@ -224,7 +224,7 @@
       "internal_id": "",
       "mfg": "",
       "mpn": "",
-      "sch_revision": "1.0"
+      "sch_revision": "2.0"
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -668,12 +668,20 @@
       "simulation"
     ],
     [
-      "a98ad176-1f13-43e6-9655-ad6000010001",
-      "Controller"
+      "a98ad176-1f13-43e6-9655-ad6000010004",
+      "QSPI Flash"
     ],
     [
       "a98ad176-1f13-43e6-9655-ad6000010002",
       "Matrix"
+    ],
+    [
+      "a98ad176-1f13-43e6-9655-ad6000010001",
+      "Power & USB"
+    ],
+    [
+      "a98ad176-1f13-43e6-9655-ad6000010003",
+      "RP2040 Core"
     ]
   ],
   "text_variables": {},

@@ -50,23 +50,17 @@ KiCad  (打补丁后编译)
 
 ## 快速开始
 
+Windows、Linux 的一键编译、Python 环境、测试和 MCP 客户端配置流程见
+[AI 环境配置指南](docs/AI_SETUP.md)。引导脚本只使用本仓库的 KiCad 安装树。
+
+```powershell
+# Windows
+.\scripts\bootstrap.ps1
+```
+
 ```bash
-# 1. 编译打补丁后的 KiCad（原理图 API 需要）
-cmake --preset ...   # 或用已有的 build 目录
-ninja -C build eeschema kicad
-
-# 2. 启动 KiCad 并启用 API Server（Preferences → Api → Enable server）
-./build/kicad/kicad  &          # 项目管理器
-./build/eeschema/eeschema xxx.kicad_sch &   # 原理图
-
-# 3. 启动 MCP Server（stdio）
-cd kicad-mcp-python
-PYTHONPATH=src python -m kicad_mcp
-
-# 4. 在 AI 客户端注册 MCP Server
-#    {"mcpServers": {"kicad": {"command": "python",
-#      "args": ["-m", "kicad_mcp"],
-#      "env": {"PYTHONPATH": ".../kicad-mcp-python/src"}}}}
+# Debian/Ubuntu
+./scripts/bootstrap.sh --install-system-deps
 ```
 
 连通性自检：`cd kicad-mcp-python && PYTHONPATH=src python -m kicad_mcp.check`
@@ -83,7 +77,8 @@ AI 会调用 `kicad_sch_draw_circuit` 完成：放置元件 → 按信号流布�
 如果某处标签重叠或元件挡线，AI 会再用 `kicad_sch_check_overlaps` +
 `kicad_sch_fix_overlaps` 自动修复，或用 `kicad_sch_transform_item` 旋转/镜像调整。
 
-> 详细文档：`kicad-mcp-python/README.md`（安装/配置/工具）、
+> 详细文档：[AI 环境配置指南](docs/AI_SETUP.md)（编译/运行/测试）、
+> `kicad-mcp-python/README.md`（安装/配置/工具）、
 > `kicad-mcp-python/docs/`（做图能力提升方案、标签与变换方案、原理图标准）、
 > `kicad-mcp-python/prompts/`（AI 提示词模板）、`kicad-mcp-python/patches/PATCH.md`（补丁说明）。
 

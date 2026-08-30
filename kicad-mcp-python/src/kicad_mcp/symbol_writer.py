@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 from typing import Optional
@@ -52,11 +53,20 @@ TYPE_SIDE = {
 SPACING = 2.54       # 引脚栅格
 PIN_LENGTH = 2.54    # 引脚引线长度
 BODY_WIDTH = 3.81    # 符号 body 半宽（x 从 -BODY_WIDTH..BODY_WIDTH）
+GRID = 1.27
 
 
 def _fmt(v: float) -> str:
     """格式化数字（去掉多余的 0）。"""
     return f"{v:g}"
+
+
+def _snap_grid(value: float) -> float:
+    return round(value / GRID) * GRID
+
+
+def _ceil_grid(value: float) -> float:
+    return math.ceil(value / GRID - 1e-9) * GRID
 
 
 def parse_spec(spec: str) -> dict:
@@ -178,7 +188,7 @@ def layout_pins(pins: list[dict], l_spacing: Optional[float] = None,
          "body": {"x0","y0","x1","y1"} }  (x0,y0 左上，x1,y1 右下；Y 向下)
     """
     l_spacing = l_spacing or SPACING
-    p_spacing = p_spacing or 3.5
+    p_spacing = p_spacing or SPACING
 
     left, right, top, bottom = [], [], [], []
     lr_pool: list = []
@@ -230,11 +240,10 @@ def layout_pins(pins: list[dict], l_spacing: Optional[float] = None,
     # 否则顶部/底部引脚 y 会落在半格（如 33.5 格），连到这些引脚的导线
     # ERC 报 endpoint_off_grid 且 KiCad 网格连接判定会失败（线端点吸附到
     # 最近网格点而碰不到 off_grid 引脚）。
-    grid = 1.27
-    body_grids = round(body_h / (2 * grid)) * 2
-    if body_grids * grid < body_h:
+    body_grids = round(body_h / (2 * GRID)) * 2
+    if body_grids * GRID < body_h:
         body_grids += 2
-    body_h = body_grids * grid
+    body_h = body_grids * GRID
 
     # body 半宽：至少覆盖顶部/底部电源引脚的分布范围，还要容纳左右引脚
     # 名字向 body 内延伸的长度（左侧 anchor=start 向右、右侧 anchor=end 向左，
@@ -257,21 +266,22 @@ def layout_pins(pins: list[dict], l_spacing: Optional[float] = None,
                       rmaxw + value_w / 2 + 0.8,
                       top_span / 2 + p_spacing / 2,
                       bot_span / 2 + p_spacing / 2)
+    body_half_w = _ceil_grid(body_half_w)
 
     # 引脚引线长度：KiCad 编号(number)在引线上、紧挨连接点，名字从 body 内
     # 延伸。若引线太短，编号右端会伸进 body 与名字重叠 → 按最长编号宽度
     # 加长引线，让编号完全落在 body 外侧。
     max_num_w = max((len(p["number"]) for p in pins), default=1) * 1.27 * 0.75
-    pin_len = max(PIN_LENGTH, 1.2 + max_num_w)
+    pin_len = _ceil_grid(max(PIN_LENGTH, 1.2 + max_num_w))
 
     y_top = body_h / 2 - SPACING          # 最上面引脚 y
     pin_x = body_half_w + pin_len         # 左右引脚距中心的 x
 
     for i, p in enumerate(left):
-        p["x"], p["y"], p["angle"] = -pin_x, y_top - i * l_spacing, 0
+        p["x"], p["y"], p["angle"] = -pin_x, _snap_grid(y_top - i * l_spacing), 0
         p["length"] = pin_len
     for i, p in enumerate(right):
-        p["x"], p["y"], p["angle"] = pin_x, y_top - i * l_spacing, 180
+        p["x"], p["y"], p["angle"] = pin_x, _snap_grid(y_top - i * l_spacing), 180
         p["length"] = pin_len
 
     # 顶部/底部电源引脚：居中对称排列，引线朝外。
@@ -286,17 +296,17 @@ def layout_pins(pins: list[dict], l_spacing: Optional[float] = None,
 
     top_ext = max((_name_ext(p["name"]) for p in top), default=0.0)
     bot_ext = max((_name_ext(p["name"]) for p in bottom), default=0.0)
-    top_margin = max(pin_len, top_ext + 1.016 + 1.2)
-    bot_margin = max(pin_len, bot_ext + 1.016 + 1.2)
+    top_margin = _ceil_grid(max(pin_len, top_ext + 1.016 + 1.2))
+    bot_margin = _ceil_grid(max(pin_len, bot_ext + 1.016 + 1.2))
     top_y = body_h / 2 + top_margin
     top_x0 = (n_top - 1) * p_spacing / 2
     for i, p in enumerate(top):
-        p["x"], p["y"], p["angle"] = top_x0 - i * p_spacing, top_y, 270
+        p["x"], p["y"], p["angle"] = _snap_grid(top_x0 - i * p_spacing), top_y, 270
         p["length"] = top_margin
     bot_y = -(body_h / 2 + bot_margin)
     bot_x0 = (n_bot - 1) * p_spacing / 2
     for i, p in enumerate(bottom):
-        p["x"], p["y"], p["angle"] = bot_x0 - i * p_spacing, bot_y, 90
+        p["x"], p["y"], p["angle"] = _snap_grid(bot_x0 - i * p_spacing), bot_y, 90
         p["length"] = bot_margin
 
     return {

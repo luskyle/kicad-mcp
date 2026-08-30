@@ -5,10 +5,14 @@
 	(uuid "66e5b2a0-6174-4fb8-8dbf-a21ce93123e5")
 	(paper "A3")
 	(title_block
-		(title "keyboard_flash")
+		(title "Keyboard-89 QSPI Flash")
+		(date "2026-08-30")
+		(rev "2.0")
+		(company "Keyboard-89")
+		(comment 1 "GD25Q16E Quad-SPI boot flash")
 	)
 	(lib_symbols
-		(symbol "keyboard-89_local:GD25Q16E"
+		(symbol "keyboard-89_local:C_GENERIC"
 			(pin_names
 				(offset 1.016)
 			)
@@ -17,8 +21,8 @@
 			(on_board yes)
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "U"
-				(at 0 8.89 0)
+			(property "Reference" "C"
+				(at 0 5.08 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -27,8 +31,8 @@
 					)
 				)
 			)
-			(property "Value" "GD25Q16E"
-				(at 0 -8.89 0)
+			(property "Value" "C_GENERIC"
+				(at 0 -5.08 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -37,7 +41,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+			(property "Footprint" "keyboard-89_local:C_0402_1005Metric"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -59,7 +63,122 @@
 					)
 				)
 			)
-			(property "Description" "GigaDevice GD25Q16E 16Mbit SPI NOR Flash (SOIC-8)"
+			(property "Description" "Project-local generic capacitor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "C_GENERIC_0_1"
+				(rectangle
+					(start -8.89 2.54)
+					(end 8.89 -2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "C_GENERIC_1_1"
+				(pin passive line
+					(at -11.43 0 0)
+					(length 2.54)
+					(name "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 11.43 0 180)
+					(length 2.54)
+					(name "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "keyboard-89_local:GD25Q16E"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at 0 6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "GD25Q16E"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "keyboard-89_local:SOIC-8_3.9x4.9mm_P1.27mm"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "${KIPRJMOD}/SPIFlash-GD25Q16E-datasheet.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "GigaDevice 16Mbit Quad-SPI NOR Flash"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -72,8 +191,8 @@
 			)
 			(symbol "GD25Q16E_0_1"
 				(rectangle
-					(start -3.81 6.35)
-					(end 3.81 -6.35)
+					(start -12.7 10.16)
+					(end 12.7 -10.16)
 					(stroke
 						(width 0.254)
 						(type default)
@@ -85,7 +204,7 @@
 			)
 			(symbol "GD25Q16E_1_1"
 				(pin input line
-					(at -6.35 3.81 0)
+					(at -15.24 7.62 0)
 					(length 2.54)
 					(name "CS#"
 						(effects
@@ -102,10 +221,10 @@
 						)
 					)
 				)
-				(pin output line
-					(at -6.35 1.27 0)
+				(pin bidirectional line
+					(at 15.24 7.62 180)
 					(length 2.54)
-					(name "SO"
+					(name "IO1"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -120,10 +239,10 @@
 						)
 					)
 				)
-				(pin input line
-					(at -6.35 -1.27 0)
+				(pin bidirectional line
+					(at 15.24 2.54 180)
 					(length 2.54)
-					(name "WP#"
+					(name "IO2"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -139,9 +258,9 @@
 					)
 				)
 				(pin power_in line
-					(at -6.35 -3.81 0)
-					(length 2.54)
-					(name "VSS"
+					(at 0 -17.78 90)
+					(length 7.62)
+					(name "GND"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -156,10 +275,10 @@
 						)
 					)
 				)
-				(pin input line
-					(at 6.35 3.81 180)
+				(pin bidirectional line
+					(at 15.24 -2.54 180)
 					(length 2.54)
-					(name "SI"
+					(name "IO0"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -175,7 +294,7 @@
 					)
 				)
 				(pin input line
-					(at 6.35 1.27 180)
+					(at -15.24 2.54 0)
 					(length 2.54)
 					(name "SCLK"
 						(effects
@@ -192,10 +311,10 @@
 						)
 					)
 				)
-				(pin input line
-					(at 6.35 -1.27 180)
+				(pin bidirectional line
+					(at 15.24 -7.62 180)
 					(length 2.54)
-					(name "HOLD#"
+					(name "IO3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -211,8 +330,8 @@
 					)
 				)
 				(pin power_in line
-					(at 6.35 -3.81 180)
-					(length 2.54)
+					(at 0 17.78 270)
+					(length 7.62)
 					(name "VCC"
 						(effects
 							(font
@@ -231,295 +350,185 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "power:PWR_FLAG"
-			(power global)
-			(pin_numbers
-				(hide yes)
+	)
+	(wire
+		(pts
+			(xy 194.31 113.03) (xy 193.04 113.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "646ff6cf-9bb8-4a50-ab06-d0b0143f083b")
+	)
+	(wire
+		(pts
+			(xy 209.55 97.79) (xy 209.55 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6f86b13d-a882-45b9-9790-06cce0557b73")
+	)
+	(wire
+		(pts
+			(xy 224.79 107.95) (xy 226.06 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7a1a4ded-1c9b-4c59-a021-88cb28da3b00")
+	)
+	(wire
+		(pts
+			(xy 224.79 123.19) (xy 226.06 123.19)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8c87db40-ec73-40f8-9c5d-fd29b2212d13")
+	)
+	(wire
+		(pts
+			(xy 209.55 133.35) (xy 209.55 134.62)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9c9833e3-0e2e-4dc3-b002-7f39068ae637")
+	)
+	(wire
+		(pts
+			(xy 224.79 118.11) (xy 226.06 118.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b2cd007d-8813-479e-9a27-410d90098524")
+	)
+	(wire
+		(pts
+			(xy 198.12 168.91) (xy 196.85 168.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bb9ea011-30ce-4b17-9fad-c9a4ad5448e3")
+	)
+	(wire
+		(pts
+			(xy 194.31 107.95) (xy 193.04 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d850580b-db88-4362-9bde-d0ffe35b28c9")
+	)
+	(wire
+		(pts
+			(xy 220.98 168.91) (xy 222.25 168.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e7b5e446-1f18-4a63-8595-c9bac484a8aa")
+	)
+	(wire
+		(pts
+			(xy 224.79 113.03) (xy 226.06 113.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eadaa6a8-3a6a-406c-89cc-989379b7c96f")
+	)
+	(global_label "QSPI_SD2"
+		(shape passive)
+		(at 226.06 113.03 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
-			(pin_names
-				(offset 0)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "#FLG"
-				(at 0 1.905 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
+			(justify left)
+		)
+		(uuid "18b7d7e1-734e-4ba5-9a70-c8b0f107b53c")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 226.06 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
-			(property "Value" "PWR_FLAG"
-				(at 0 3.81 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
+		)
+	)
+	(global_label "QSPI_CSn"
+		(shape passive)
+		(at 193.04 107.95 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1ee04b11-ce97-4026-bf99-125cd96e19f5")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 193.04 107.95 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
+		)
+	)
+	(global_label "QSPI_SD0"
+		(shape passive)
+		(at 226.06 118.11 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "256610a0-4fda-4a04-82a0-9ded3f4e9f9d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 226.06 118.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Special symbol for telling ERC where power comes from"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "flag power"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "PWR_FLAG_0_0"
-				(pin power_out line
-					(at 0 0 90)
-					(length 0)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(symbol "PWR_FLAG_0_1"
-				(polyline
-					(pts
-						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(embedded_fonts no)
 		)
-	)
-	(junction
-		(at 58.42 50.8)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "7ef037f6-bd8f-4fa1-acab-8dfcc23869c0")
-	)
-	(junction
-		(at 49.53 40.64)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "7f54d0be-510e-41db-b6a3-be3b477c0016")
-	)
-	(wire
-		(pts
-			(xy 43.18 110.49) (xy 49.53 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0e51f4b8-fdd7-48ed-a11b-0ed903acf0fc")
-	)
-	(wire
-		(pts
-			(xy 55.88 48.26) (xy 57.15 48.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1ebc6377-69a3-4ed4-9316-2e0c8c76076c")
-	)
-	(wire
-		(pts
-			(xy 55.88 45.72) (xy 57.15 45.72)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2e9f8a1c-3e72-47b6-9acd-f6c3a7b5a52e")
-	)
-	(wire
-		(pts
-			(xy 49.53 104.14) (xy 49.53 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "543bf61b-7000-423d-b952-a96d32480b6c")
-	)
-	(wire
-		(pts
-			(xy 43.18 40.64) (xy 58.42 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "549baeeb-020c-4d96-a2d5-52f169ad96c0")
-	)
-	(wire
-		(pts
-			(xy 55.88 53.34) (xy 58.42 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "56095dc1-033e-4919-981c-eede5374fabf")
-	)
-	(wire
-		(pts
-			(xy 43.18 48.26) (xy 33.02 48.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5f8c3cfb-654c-46f9-929d-dbc9ad3451d1")
-	)
-	(wire
-		(pts
-			(xy 49.53 27.94) (xy 49.53 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6cc11636-d511-4a05-9f76-53dd3bc1facf")
-	)
-	(wire
-		(pts
-			(xy 40.64 40.64) (xy 43.18 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "78e3ea62-6027-42ea-9df6-e3bc662ffc1e")
-	)
-	(wire
-		(pts
-			(xy 43.18 45.72) (xy 34.29 45.72)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "983a42de-91e5-4df5-b23d-23e30468d60a")
-	)
-	(wire
-		(pts
-			(xy 55.88 50.8) (xy 58.42 50.8)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a7dcc397-1298-47e9-9c5b-98612bdf1ec5")
-	)
-	(wire
-		(pts
-			(xy 40.64 110.49) (xy 43.18 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b2aa812b-6489-4303-8c02-c1a81fbf751e")
-	)
-	(wire
-		(pts
-			(xy 43.18 53.34) (xy 43.18 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e2eddfd5-3438-4e5e-b23a-1cb4c25d2c00")
-	)
-	(wire
-		(pts
-			(xy 43.18 50.8) (xy 43.18 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f77dc665-59bb-4a38-b82a-b2bc56f5ea98")
-	)
-	(wire
-		(pts
-			(xy 58.42 40.64) (xy 58.42 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "fbff9a73-946c-4fa5-8563-439d01ad2c11")
 	)
 	(global_label "0"
-		(shape bidirectional)
-		(at 40.64 110.49 0)
+		(shape passive)
+		(at 209.55 134.62 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
+			(justify right)
 		)
-		(uuid "4494d800-aa2d-416a-8ef7-ef7a506f3f50")
+		(uuid "25b0e15a-7726-4436-8583-863a72553f01")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 40.64 110.49 0)
+			(at 209.55 134.62 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -530,80 +539,18 @@
 			)
 		)
 	)
-	(global_label "FLASH_CS"
-		(shape bidirectional)
-		(at 34.29 45.72 0)
+	(global_label "QSPI_SCLK"
+		(shape passive)
+		(at 193.04 113.03 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
+			(justify right)
 		)
-		(uuid "9d607a7e-1d18-4637-a22f-d8ede63cd411")
+		(uuid "37154303-9154-43d2-9a00-13f649386f2b")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 34.29 45.72 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "FLASH_SD1"
-		(shape bidirectional)
-		(at 33.02 48.26 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "b9e58ac1-00d9-490b-a485-496e9ddae514")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 33.02 48.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "FLASH_SD0"
-		(shape bidirectional)
-		(at 57.15 45.72 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "c7dbf84e-fd12-4325-b270-ce2843ac4f17")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 57.15 45.72 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
-	(global_label "FLASH_SCLK"
-		(shape bidirectional)
-		(at 57.15 48.26 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "e3b972ad-3c32-4d26-992c-4d6a6d294aae")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 57.15 48.26 0)
+			(at 193.04 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -615,16 +562,17 @@
 		)
 	)
 	(global_label "3V3"
-		(shape bidirectional)
-		(at 40.64 40.64 0)
+		(shape passive)
+		(at 196.85 168.91 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
+			(justify right)
 		)
-		(uuid "e985274e-343a-4c5a-b12b-582c3fa3a744")
+		(uuid "38f82991-4dee-4d50-b314-81558a93b085")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 40.64 40.64 0)
+			(at 196.85 168.91 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -635,96 +583,40 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 49.53 27.94 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "29123c6c-8d08-4bc3-bf35-02806ee58f62")
-		(property "Reference" "PWR3"
-			(at 49.53 26.035 0)
+	(global_label "QSPI_SD3"
+		(shape passive)
+		(at 226.06 123.19 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3ea1478d-7faf-41ec-9a9f-b1ee1d4cb4e4")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 226.06 123.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "PWR_FLAG"
-			(at 49.53 24.13 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 49.53 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 49.53 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Special symbol for telling ERC where power comes from"
-			(at 49.53 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "0d1aa8b1-ef13-41ea-a0da-1af672936837")
-		)
-		(instances
-			(project "keyboard_flash"
-				(path "/66e5b2a0-6174-4fb8-8dbf-a21ce93123e5"
-					(reference "PWR3")
-					(unit 1)
 				)
 			)
 		)
 	)
-	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 49.53 104.14 0)
-		(unit 1)
-		(body_style 0)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "5de7dad0-610d-424e-b415-cea00eb7a499")
-		(property "Reference" "PWR0"
-			(at 49.53 102.235 0)
+	(global_label "QSPI_SD1"
+		(shape passive)
+		(at 226.06 107.95 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4a8e0ae2-36a0-4af6-b512-cfc940701bdc")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 226.06 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -734,18 +626,19 @@
 				)
 			)
 		)
-		(property "Value" "PWR_FLAG"
-			(at 49.53 100.33 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+	)
+	(global_label "3V3"
+		(shape passive)
+		(at 209.55 96.52 90)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
+			(justify left)
 		)
-		(property "Footprint" ""
-			(at 49.53 104.14 0)
+		(uuid "daaef77a-a5aa-43ee-914e-0cb5cbdc1bc3")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 209.55 96.52 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -755,43 +648,32 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
-			(at 49.53 104.14 0)
+	)
+	(global_label "0"
+		(shape passive)
+		(at 222.25 168.91 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "e898834f-c343-4e24-ac90-64e997cb8c84")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 222.25 168.91 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Special symbol for telling ERC where power comes from"
-			(at 49.53 104.14 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "5eed95ba-1236-4e95-8f6b-cec6f29acce3")
-		)
-		(instances
-			(project "keyboard_flash"
-				(path "/66e5b2a0-6174-4fb8-8dbf-a21ce93123e5"
-					(reference "PWR0")
-					(unit 1)
 				)
 			)
 		)
 	)
 	(symbol
 		(lib_id "keyboard-89_local:GD25Q16E")
-		(at 49.53 49.53 0)
+		(at 209.55 115.57 0)
 		(unit 1)
 		(body_style 0)
 		(exclude_from_sim no)
@@ -799,9 +681,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "c01940a9-e4b6-4cb8-be53-50e0450c0a0c")
+		(uuid "8130cbbf-f467-4425-8d85-6f03a7e5d8eb")
 		(property "Reference" "U3"
-			(at 49.53 40.64 0)
+			(at 209.55 109.22 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -811,7 +693,7 @@
 			)
 		)
 		(property "Value" "GD25Q16E"
-			(at 49.53 58.42 0)
+			(at 209.55 121.92 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -820,8 +702,105 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
-			(at 49.53 49.53 0)
+		(property "Footprint" "keyboard-89_local:SOIC-8_3.9x4.9mm_P1.27mm"
+			(at 209.55 115.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "${KIPRJMOD}/SPIFlash-GD25Q16E-datasheet.pdf"
+			(at 209.55 115.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "GigaDevice 16Mbit Quad-SPI NOR Flash"
+			(at 209.55 115.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "3"
+			(uuid "240e1d0f-0eb4-48aa-86c6-48b84aa7774e")
+		)
+		(pin "4"
+			(uuid "5c46d4b6-c27d-4fec-aca3-e2f9e5863b24")
+		)
+		(pin "2"
+			(uuid "bf4b7034-1c63-4122-bab4-dfde5f36049a")
+		)
+		(pin "7"
+			(uuid "15ebe1a8-c60c-4c83-bab8-2968275c197e")
+		)
+		(pin "8"
+			(uuid "65248952-545d-4783-9dca-8a200d64179b")
+		)
+		(pin "1"
+			(uuid "a554ae62-7b87-45e4-be6d-b1d26364ef24")
+		)
+		(pin "5"
+			(uuid "7f6c4aeb-e075-48b2-932d-0ef64630414a")
+		)
+		(pin "6"
+			(uuid "6bca5719-b185-43ac-97c1-63c9ba7176fa")
+		)
+		(instances
+			(project "keyboard-89"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010004"
+					(reference "U3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "keyboard-89_local:C_GENERIC")
+		(at 209.55 168.91 0)
+		(unit 1)
+		(body_style 0)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "fb3a038e-890c-4fde-a8b8-661c642d486b")
+		(property "Reference" "C20"
+			(at 209.55 163.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100nF"
+			(at 209.55 173.99 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "keyboard-89_local:C_0402_1005Metric"
+			(at 209.55 168.91 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -832,7 +811,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 49.53 49.53 0)
+			(at 209.55 168.91 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -842,8 +821,8 @@
 				)
 			)
 		)
-		(property "Description" "GigaDevice GD25Q16E 16Mbit SPI NOR Flash (SOIC-8)"
-			(at 49.53 49.53 0)
+		(property "Description" "Project-local generic capacitor"
+			(at 209.55 168.91 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -852,35 +831,17 @@
 					(size 1.27 1.27)
 				)
 			)
-		)
-		(pin "1"
-			(uuid "3f5e3d93-283c-4845-81fb-bf91e0d20703")
 		)
 		(pin "2"
-			(uuid "c7ebe11d-616d-4ff7-b705-3fbd23819b52")
+			(uuid "02c55667-dc2e-4fb8-bc37-1bb366a8c619")
 		)
-		(pin "3"
-			(uuid "9a97f9ff-e015-43c0-a051-a333d5875129")
-		)
-		(pin "4"
-			(uuid "1ef41941-298d-47c7-9db9-7b777a0b4005")
-		)
-		(pin "5"
-			(uuid "857b25d4-e749-4b8f-b97d-6b25f0d29d6a")
-		)
-		(pin "6"
-			(uuid "262e1e2c-c100-44a3-99c2-e3ff3a66cdb1")
-		)
-		(pin "7"
-			(uuid "02a128a9-e1fa-4a9e-9454-103fa1486199")
-		)
-		(pin "8"
-			(uuid "5e642a0d-e70e-43a6-94ee-320995f76f80")
+		(pin "1"
+			(uuid "6f5580dc-94b1-47a5-b9a3-344659448cf4")
 		)
 		(instances
-			(project "keyboard_flash"
-				(path "/66e5b2a0-6174-4fb8-8dbf-a21ce93123e5"
-					(reference "U3")
+			(project "keyboard-89"
+				(path "/90509e26-8ec4-4712-b0e0-6bdb2801d7c5/a98ad176-1f13-43e6-9655-ad6000010004"
+					(reference "C20")
 					(unit 1)
 				)
 			)
@@ -891,5 +852,4 @@
 			(page "1")
 		)
 	)
-	(embedded_fonts no)
 )

@@ -9,9 +9,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(property "Reference" "U" (at 0 6.35 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "LDO" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Value" "AMS1117-3.3" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "keyboard-89_local:SOT-89-3" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Datasheet" "${KIPRJMOD}/LDO.pdf" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Description" "低压差线性稳压器 (LDO)" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
 		(symbol "LDO_0_1"
 			(rectangle (start -3.81 3.81) (end 3.81 -3.81) (stroke (width 0.254) (type default)) (fill (type background)))

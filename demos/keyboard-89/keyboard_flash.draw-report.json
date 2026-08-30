@@ -1,0 +1,51 @@
+{
+  "schematic": "C:\\Users\\84480\\Project\\kicad-mcp\\demos\\keyboard-89\\keyboard_flash.kicad_sch",
+  "status": "passed",
+  "schema_version": 1,
+  "gates": [
+    {
+      "name": "create",
+      "status": "passed",
+      "duration_ms": 5974,
+      "message": "对象创建完成",
+      "metrics": {
+        "symbols": 2,
+        "nets": 8
+      }
+    },
+    {
+      "name": "topology",
+      "status": "passed",
+      "duration_ms": 646,
+      "message": "连接图可读回",
+      "metrics": {
+        "sheets": 1,
+        "connections": 8
+      }
+    },
+    {
+      "name": "erc",
+      "status": "passed",
+      "duration_ms": 0,
+      "message": "",
+      "metrics": {}
+    },
+    {
+      "name": "geometry",
+      "status": "passed",
+      "duration_ms": 0,
+      "message": "",
+      "metrics": {}
+    },
+    {
+      "name": "visual",
+      "status": "passed",
+      "duration_ms": 0,
+      "message": "",
+      "metrics": {}
+    }
+  ],
+  "artifacts": {
+    "report": "C:\\Users\\84480\\Project\\kicad-mcp\\demos\\keyboard-89\\keyboard_flash.draw-report.json"
+  }
+}
