@@ -1,0 +1,51 @@
+{
+  "schematic": "/media/luskyle/DATA/project/kicad-mcp/demos/rlc-keyboard-matrix/keyboard_matrix_7x7.kicad_sch",
+  "status": "passed",
+  "schema_version": 1,
+  "gates": [
+    {
+      "name": "create",
+      "status": "passed",
+      "duration_ms": 2374,
+      "message": "对象创建完成",
+      "metrics": {
+        "symbols": 98,
+        "nets": 49
+      }
+    },
+    {
+      "name": "topology",
+      "status": "passed",
+      "duration_ms": 417,
+      "message": "连接图可读回",
+      "metrics": {
+        "sheets": 1,
+        "connections": 147
+      }
+    },
+    {
+      "name": "erc",
+      "status": "skipped",
+      "duration_ms": 0,
+      "message": "",
+      "metrics": {}
+    },
+    {
+      "name": "geometry",
+      "status": "passed",
+      "duration_ms": 0,
+      "message": "",
+      "metrics": {}
+    },
+    {
+      "name": "visual",
+      "status": "skipped",
+      "duration_ms": 0,
+      "message": "",
+      "metrics": {}
+    }
+  ],
+  "artifacts": {
+    "report": "/media/luskyle/DATA/project/kicad-mcp/demos/rlc-keyboard-matrix/keyboard_matrix_7x7.draw-report.json"
+  }
+}

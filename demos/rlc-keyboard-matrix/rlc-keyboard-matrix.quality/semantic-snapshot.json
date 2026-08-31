@@ -1,0 +1,101 @@
+{
+  "sheets": [
+    {
+      "file": "rlc-keyboard-matrix.kicad_sch",
+      "root_uuid": "91a1d6ab-baa3-4e2f-aded-405b766975b0",
+      "uuids": [
+        "05d5cc87-4a7e-41c6-827d-0d1bd53aba8c",
+        "1064fbf6-ed32-45b7-a5b0-14d78bfbdb7a",
+        "18f59564-bdad-4686-86ad-a630e0f00238",
+        "1f4d0994-c9e7-43a5-b18c-28fb94f2fec0",
+        "253c556a-0b96-499a-8585-1776b1f4c963",
+        "2bab33ee-0325-40a6-9760-59eba0206f34",
+        "51088a9a-cc18-4311-a800-632e45311b26",
+        "70c15d4f-6451-4588-820d-d705e4811ce4",
+        "7b611eda-550c-40af-8132-9212eea313e1",
+        "82194e54-0279-4c47-b3e5-98c2328ddf2d",
+        "8de4958c-6459-4745-a3ce-9bf8b0066587",
+        "91a1d6ab-baa3-4e2f-aded-405b766975b0",
+        "99c467a1-ce3a-4da7-a319-e3de7ad0aa3a",
+        "a40c7ae4-8402-4acc-8c76-9a3d4ed7528a",
+        "aa372327-5d83-4e8f-b081-55de3d5fbd69",
+        "af0c51cc-e84e-4b75-bc3d-ed73c4194fba",
+        "bb695694-0c07-4d07-8634-d30f25b6902b",
+        "c830e1af-0cd8-42ca-8064-7eadcdec8fb6",
+        "cf8d9cf4-e1f9-40fb-ab98-be6c7e4bfdf8",
+        "e4481411-3d6a-4c78-b612-e01c1753a3db",
+        "e51fef81-a1f4-4a50-96a3-a2c8d45780a6",
+        "f489f266-a7e5-4dd5-8bb8-9ecf1f9ad10f"
+      ],
+      "instances": [
+        [
+          "/",
+          "1"
+        ],
+        [
+          "/91a1d6ab-baa3-4e2f-aded-405b766975b0",
+          ""
+        ],
+        [
+          "/91a1d6ab-baa3-4e2f-aded-405b766975b0",
+          ""
+        ],
+        [
+          "/91a1d6ab-baa3-4e2f-aded-405b766975b0",
+          ""
+        ]
+      ],
+      "object_counts": {
+        "global_label": 3,
+        "symbol": 3,
+        "wire": 9
+      }
+    }
+  ],
+  "connections": [
+    [
+      "0",
+      [
+        [
+          "C1",
+          "2"
+        ]
+      ]
+    ],
+    [
+      "Net-(L1-Pad1)",
+      [
+        [
+          "L1",
+          "1"
+        ],
+        [
+          "R1",
+          "2"
+        ]
+      ]
+    ],
+    [
+      "VIN",
+      [
+        [
+          "R1",
+          "1"
+        ]
+      ]
+    ],
+    [
+      "VOUT",
+      [
+        [
+          "C1",
+          "1"
+        ],
+        [
+          "L1",
+          "2"
+        ]
+      ]
+    ]
+  ]
+}

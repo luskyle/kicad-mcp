@@ -1,0 +1,98 @@
+{
+  "schematic": "/media/luskyle/DATA/project/kicad-mcp/demos/rlc-keyboard-matrix/rlc-keyboard-matrix.kicad_sch",
+  "status": "passed",
+  "schema_version": 1,
+  "gates": [
+    {
+      "name": "schema",
+      "status": "passed",
+      "duration_ms": 5,
+      "message": "KiCad 工程预检通过: /media/luskyle/DATA/project/kicad-mcp/demos/rlc-keyboard-matrix/rlc-keyboard-matrix.kicad_pro",
+      "metrics": {
+        "hierarchy_issues": 0
+      }
+    },
+    {
+      "name": "topology",
+      "status": "passed",
+      "duration_ms": 351,
+      "message": "层级与连接图可解析",
+      "metrics": {
+        "sheets": 1,
+        "connections": 4
+      }
+    },
+    {
+      "name": "erc",
+      "status": "passed",
+      "duration_ms": 592,
+      "message": "ERC blocking 为 0",
+      "metrics": {
+        "blocking": 0,
+        "benign": 2,
+        "warnings": 0
+      }
+    },
+    {
+      "name": "geometry",
+      "status": "passed",
+      "duration_ms": 5,
+      "message": "🔎 重叠/净距/越界检查（297x210mm，边距 5.0mm，净距 1.27mm）：✅ 无重叠/越界",
+      "metrics": {
+        "clearance_mm": 1.27
+      }
+    },
+    {
+      "name": "reload",
+      "status": "passed",
+      "duration_ms": 0,
+      "message": "两轮手工重载通过：文件 SHA-256 9d35ccf2...08458，语义 SHA-256 d8cb2138...9f41e 均稳定",
+      "metrics": {
+        "rounds": 2
+      }
+    },
+    {
+      "name": "visual",
+      "status": "passed",
+      "duration_ms": 360,
+      "message": "✅ 已渲染原理图（1 页）",
+      "metrics": {
+        "files": 1,
+        "bytes": 103391,
+        "drawable_elements": 1792,
+        "measurements": [
+          {
+            "drawable_elements": 1792,
+            "text_elements": 42,
+            "viewbox": [
+              0.0,
+              0.0,
+              297.0022,
+              210.0072
+            ],
+            "ink_bounds": [
+              10.0,
+              9.9167,
+              287.7355,
+              200.0072
+            ],
+            "inside_page": true,
+            "minimum_text_clearance_mm": 0.3387000000000029
+          }
+        ]
+      }
+    },
+    {
+      "name": "golden",
+      "status": "passed",
+      "duration_ms": 0,
+      "message": "连接图与 Golden 一致",
+      "metrics": {}
+    }
+  ],
+  "artifacts": {
+    "report": "/media/luskyle/DATA/project/kicad-mcp/demos/rlc-keyboard-matrix/rlc-keyboard-matrix.quality/draw-report.json",
+    "svg_dir": "/media/luskyle/DATA/project/kicad-mcp/demos/rlc-keyboard-matrix/rlc-keyboard-matrix.quality/svg",
+    "golden": "/media/luskyle/DATA/project/kicad-mcp/demos/rlc-keyboard-matrix/rlc-keyboard-matrix.quality/semantic-snapshot.json"
+  }
+}
